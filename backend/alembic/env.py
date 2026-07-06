@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import app.models  # noqa: F401  (모델을 임포트해야 Base.metadata에 테이블이 등록된다)
 from app.core.config import get_settings
 from app.db.session import Base
 

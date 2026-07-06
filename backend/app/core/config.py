@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
 
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/ai_academy_advisor"
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/ai_academy_advisor"
     openai_api_key: str = ""
     secret_key: str = "change-me"
 

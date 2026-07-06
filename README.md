@@ -57,6 +57,19 @@ uv sync
 uv run pytest ../tests
 ```
 
+### 5. DB 마이그레이션 및 학원 데이터 적재
+
+```bash
+cd backend
+uv run alembic upgrade head
+uv run python -m app.cli.import_academies ../data/academies --dry-run   # 검증만
+uv run python -m app.cli.import_academies ../data/academies             # DB 반영
+```
+
+학원 데이터의 정본은 `data/academies/*.json`입니다. 파일 포맷과 수집 규칙은
+[data/README.md](data/README.md), 데이터 전략은
+[docs/data-strategy.md](docs/data-strategy.md)를 참고하세요.
+
 ## 프로젝트 구조
 
 ```

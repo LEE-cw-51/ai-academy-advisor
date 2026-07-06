@@ -1,0 +1,53 @@
+{
+  "acaInsTiInfo": [
+    {
+      "head": [
+        { "list_total_count": 3 },
+        { "RESULT": { "CODE": "INFO-000", "MESSAGE": "정상 처리되었습니다." } }
+      ]
+    },
+    {
+      "row": [
+        {
+          "ATPT_OFCDC_SC_CODE": "J10",
+          "ADMST_ZONE_NM": "하남시",
+          "ACA_INSTI_SC_NM": "학원",
+          "ACA_ASNUM": "제0000-1호(테스트)",
+          "ACA_NM": "미사샘플수학학원(테스트)",
+          "ESTBL_YMD": "20180301",
+          "REG_STTUS_NM": "개원",
+          "REALM_SC_NM": "학교교과교습학원",
+          "LE_CRSE_NM": "보통교과",
+          "FA_RDNMA": "경기도 하남시 미사강변대로 1",
+          "FA_RDNDA": "2층 (테스트)"
+        },
+        {
+          "ATPT_OFCDC_SC_CODE": "J10",
+          "ADMST_ZONE_NM": "하남시",
+          "ACA_INSTI_SC_NM": "학원",
+          "ACA_ASNUM": "제0000-2호(테스트)",
+          "ACA_NM": "덕풍샘플영어학원(테스트)",
+          "ESTBL_YMD": "20200115",
+          "REG_STTUS_NM": "개원",
+          "REALM_SC_NM": "학교교과교습학원",
+          "LE_CRSE_NM": "보통교과",
+          "FA_RDNMA": "경기도 하남시 덕풍북로 2",
+          "FA_RDNDA": ""
+        },
+        {
+          "ATPT_OFCDC_SC_CODE": "J10",
+          "ADMST_ZONE_NM": "하남시",
+          "ACA_INSTI_SC_NM": "학원",
+          "ACA_ASNUM": "제0000-3호(테스트)",
+          "ACA_NM": "폐원샘플학원(테스트)",
+          "ESTBL_YMD": "20100101",
+          "REG_STTUS_NM": "폐원",
+          "REALM_SC_NM": "학교교과교습학원",
+          "LE_CRSE_NM": "보통교과",
+          "FA_RDNMA": "경기도 하남시 미사대로 99",
+          "FA_RDNDA": ""
+        }
+      ]
+    }
+  ]
+}
