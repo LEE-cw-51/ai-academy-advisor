@@ -40,23 +40,59 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 업
 - 파일에 없는 DB 행은 삭제하지 않고 리포트만 한다. 폐원 등으로 행을 지울 때는
   파일 삭제 후 DB에서 수동으로 삭제한다.
 
-## 공공데이터 변환 (나이스 학원민원서비스)
+## 공공데이터 변환 (나이스 + 경기데이터드림, 2-소스)
 
-공식 등록 명단으로 뼈대 파일을 만들 수 있다.
+공식 등록 명단으로 뼈대 파일을 만들 수 있다. 두 소스는 상호보완적이다.
+
+| 소스 | 제공 정보 | 명령 |
+|---|---|---|
+| `neis` (나이스 학원민원서비스, `acaInsTiInfo`) | 등록번호·개원년도·폐원상태 | `--source neis` (기본값) |
+| `gg` (경기데이터드림/공공데이터포털 "경기도_학원 및 교습소 현황") | 전화번호·좌표(위경도)·교습과정명 | `--source gg` |
+
+**gg 소스의 정확한 응답 필드명은 아직 확정되지 않았다.** 두 포털(`data.gg.go.kr`,
+`data.go.kr`)의 상세 페이지가 봇 차단으로 개발 중 확인되지 못해, 검색으로 파악한
+필드 개념(시설명·전화번호·주소·좌표·교습과정명)을 바탕으로 여러 후보 키를 시도하는
+best-effort 매핑으로 구현되어 있다 (`backend/app/cli/convert_registry.py`의
+`gg_row_to_record()`). **실제 응답을 받으면 그 함수의 후보 키 목록만 확인·보정하면 된다.**
+
+### 1. 나이스로 먼저 골격 생성
 
 1. https://open.neis.go.kr 에서 API 키 발급 후 `acaInsTiInfo` 조회
    (경기도교육청 `ATPT_OFCDC_SC_CODE=J10`, `ADMST_ZONE_NM=하남시`, `Type=json`)
-2. 응답 JSON을 파일로 저장 (예: `data/registry/hanam.json`)
+2. 응답 JSON을 파일로 저장 (예: `data/registry/hanam-neis.json`)
 3. 변환:
 
 ```bash
 cd backend
-uv run python -m app.cli.convert_registry ../data/registry/hanam.json ../data/academies --filter 미사
+uv run python -m app.cli.convert_registry ../data/registry/hanam-neis.json ../data/academies \
+    --source neis --filter 미사
 ```
 
-- 등록번호·학원명·주소·개원년도만 채워지고 나머지는 `null`(미확인)로 생성된다.
-- **이미 존재하는 학원 파일은 절대 덮어쓰지 않고** 공공데이터와의 차이만 리포트한다.
-- 폐원/휴원 학원은 기본 제외 (`--include-all`로 포함 가능).
+등록번호·학원명·주소·개원년도만 채워지고 나머지는 `null`(미확인)로 생성된다.
+폐원/휴원 등 종료 상태의 학원은 기본 제외 (`--include-all`로 포함 가능).
+
+### 2. 경기데이터드림으로 전화번호·좌표 보강
+
+1. https://data.go.kr (또는 https://data.gg.go.kr) 가입 → "경기도_학원 및
+   교습소 현황" 활용신청 → 인증키(Encoding) 발급 (국가 공공데이터 OpenAPI는
+   보통 즉시 자동승인)
+2. 하남시 조건으로 조회, 응답 JSON 저장 (예: `data/registry/hanam-gg.json`)
+3. `--enrich`로 실행하면 1단계에서 만든 파일과 매치되는 학원의 **null 필드만**
+   채운다 (전화번호·좌표 등). 이미 채워진 값은 절대 덮어쓰지 않는다:
+
+```bash
+cd backend
+uv run python -m app.cli.convert_registry ../data/registry/hanam-gg.json ../data/academies \
+    --source gg --filter 미사 --course-keyword 수학 --enrich
+```
+
+- `--course-keyword 수학`: 교습과정명에 해당 키워드가 포함된 행만 변환 —
+  이 프로젝트가 수학 학원에 집중하므로 원천에서 좁혀둔다. `--filter`(지역
+  키워드)와 AND로 결합된다.
+- `--enrich` 없이 실행하면 기존과 동일하게 diff만 리포트하고 파일은 건드리지 않는다.
+- 두 소스 모두 **이미 존재하는 학원 파일을 절대 덮어쓰지 않는다** — 자연키
+  (등록번호, 없으면 이름+주소)로 매치하며, `--enrich` 모드에서도 null이 아닌
+  값은 그대로 보존된다.
 
 ## 현재 들어있는 데이터
 
