@@ -6,15 +6,18 @@
 - Health check API (`/`, `/health`, `/version`)
 - 문서 구조 생성
 
-## Phase 1 — 데이터 모델링
-- 학원(Academy) 도메인 모델 설계 (SQLAlchemy models)
-- Alembic 초기 마이그레이션 작성
-- 학원 데이터 수집/정제 (data/)
+## Phase 1 — 데이터 모델링 (완료)
+- 학원(Academy) 도메인 모델 설계 (SQLAlchemy models) ✅
+- Alembic 초기 마이그레이션 작성 (`0001`) ✅
+- 정본 데이터 파이프라인: `data/academies/*.json` → 임포터 ✅
+- 공공데이터(나이스 학원민원서비스) 변환 스크립트 ✅
+- 실제 학원 데이터 수집은 지속 작업 (전략: `docs/data-strategy.md`)
 
-## Phase 2 — 기본 CRUD API
-- 학원 목록/상세 조회 API
-- Repository / Service 계층 구현
-- Pydantic Schema 정의
+## Phase 2 — 기본 CRUD API (조회 완료)
+- 학원 목록/상세 조회 API ✅ (`GET /academies` 필터 검색, `GET /academies/{id}`)
+- Repository / Service 계층 구현 ✅
+- Pydantic Schema 정의 ✅
+- 쓰기 API는 의도적으로 없음 — 정본이 git JSON이므로 (`docs/data-strategy.md`)
 
 ## Phase 3 — 추천 로직 (Rule 기반)
 - 학년/지역/예산 등 조건 기반 필터링 추천
