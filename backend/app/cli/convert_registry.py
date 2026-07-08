@@ -289,10 +289,10 @@ def main(argv: list[str] | None = None) -> int:
         try:
             record = row_to_record(row, today)
         except ValidationError as exc:
-            print(
-                f"ERROR: 행 변환 실패 ({row.get('ACA_NM') or row.get('시설명')!r}) — {exc}",
-                file=sys.stderr,
+            row_name = _first_present(
+                row, "ACA_NM", "시설명", "FCLTY_NM", "학원명", "학원교습소명"
             )
+            print(f"ERROR: 행 변환 실패 ({row_name!r}) — {exc}", file=sys.stderr)
             errors += 1
             continue
 
