@@ -17,6 +17,7 @@
   "curriculum_naesin": true,
   "curriculum_suneung": true,
   "shuttle_available": false,
+  "tuition_monthly_fee": 450000,
   "operating_hours": "평일 15:00-22:30",
   "established_year": 2016,
   "teacher_count": 7,

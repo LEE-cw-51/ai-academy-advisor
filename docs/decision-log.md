@@ -2,6 +2,24 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-08 — Phase 3 추천 API: 예산·지역 필드 처리
+- **`tuition_monthly_fee`(월 수강료, nullable Integer) 컬럼 신규 추가**
+  - 이유: Phase 3 추천 조건 중 "예산"을 지원하려 했으나 기존 스키마/정본 데이터
+    어디에도 수강료 필드가 없었음. 3상태 Boolean과 달리 수치형이라 "확인됨-없음"
+    상태는 없고 `NULL`=미확인만 존재
+  - 예산 필터(`budget_max`)는 `tuition_monthly_fee IS NOT NULL AND <= budget_max`로
+    구현 — 기존 tri-state Boolean 필터가 `IS TRUE`/`IS FALSE`로 미확인(`NULL`)을
+    제외하는 것과 동일한 관례를 수치 필드에도 적용
+- **지역(region) 필터는 구조화된 컬럼을 만들지 않고 `address` 부분 문자열
+  매칭으로 처리**
+  - 이유: 현재 전 데이터가 미사동 단일 지역 예시라 구조화 이득이 적음.
+    `data-strategy.md`의 "비파괴적 확장" 원칙에 따라 다지역 확장이 실제로
+    필요해질 때 nullable `region`/`dong` 컬럼을 추가하면 되므로 지금 선반영하지 않음
+- **`RecommendationRequest`는 `AcademyListParams`를 상속**하여 기존
+  `GET /academies` 필터(level/class_type/curriculum/shuttle/q)를 그대로 재사용하고
+  `region`/`budget_max` 2개만 추가 — 필터 빌더(`academy_repository._apply_filters`)
+  중복 없이 `_apply_recommendation_filters`에서 감싸는 방식으로 확장
+
 ## 2026-07-07 — 공공데이터 2-소스 확장 (나이스 + 경기데이터드림)
 - **경기데이터드림 "경기도_학원 및 교습소 현황" API를 나이스와 함께 지원**
   (`convert_registry.py --source {neis,gg}`)

@@ -62,6 +62,8 @@ class Academy(Base):
 
     shuttle_available: Mapped[bool | None] = mapped_column(Boolean)  # 차량운행
 
+    tuition_monthly_fee: Mapped[int | None] = mapped_column(Integer)  # 월 수강료 (원)
+
     operating_hours: Mapped[str | None] = mapped_column(Text)  # 운영시간 (자유 서술)
     established_year: Mapped[int | None] = mapped_column(Integer)  # 개원년도
     teacher_count: Mapped[int | None] = mapped_column(Integer)  # 강사수
