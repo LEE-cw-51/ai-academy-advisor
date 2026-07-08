@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--include-all",
         action="store_true",
-        help="등록상태가 '개원'이 아닌 행(폐원/휴원 등)도 포함한다",
+        help="폐원/폐업/휴원 등 종료 상태로 보이는 행도 포함한다",
     )
     parser.add_argument(
         "--enrich",
