@@ -49,11 +49,10 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 업
 | `neis` (나이스 학원민원서비스, `acaInsTiInfo`) | 등록번호·개원년도·폐원상태 | `--source neis` (기본값) |
 | `gg` (경기데이터드림/공공데이터포털 "경기도_학원 및 교습소 현황") | 전화번호·좌표(위경도)·교습과정명 | `--source gg` |
 
-**gg 소스의 정확한 응답 필드명은 아직 확정되지 않았다.** 두 포털(`data.gg.go.kr`,
-`data.go.kr`)의 상세 페이지가 봇 차단으로 개발 중 확인되지 못해, 검색으로 파악한
-필드 개념(시설명·전화번호·주소·좌표·교습과정명)을 바탕으로 여러 후보 키를 시도하는
-best-effort 매핑으로 구현되어 있다 (`backend/app/cli/convert_registry.py`의
-`gg_row_to_record()`). **실제 응답을 받으면 그 함수의 후보 키 목록만 확인·보정하면 된다.**
+**gg 소스의 응답 필드명은 2026-07-08 실제 API 호출로 확정됐다** (`FACLT_NM`,
+`REFINE_ROADNM_ADDR` 등 — 상세 매핑은 `docs/data-strategy.md` 참고). 이 API는
+`Type=json`을 줘도 **XML로 응답**하며, `convert_registry.py`가 `.xml` 입력을
+자동 인식해 처리한다.
 
 ### 1. 나이스로 먼저 골격 생성
 
@@ -73,16 +72,18 @@ uv run python -m app.cli.convert_registry ../data/registry/hanam-neis.json ../da
 
 ### 2. 경기데이터드림으로 전화번호·좌표 보강
 
-1. https://data.go.kr (또는 https://data.gg.go.kr) 가입 → "경기도_학원 및
-   교습소 현황" 활용신청 → 인증키(Encoding) 발급 (국가 공공데이터 OpenAPI는
-   보통 즉시 자동승인)
-2. 하남시 조건으로 조회, 응답 JSON 저장 (예: `data/registry/hanam-gg.json`)
+1. https://data.gg.go.kr (또는 https://data.go.kr) 가입 → "경기도_학원 및
+   교습소 현황" 활용신청 → 인증키 발급 (국가 공공데이터 OpenAPI는 보통 즉시
+   자동승인)
+2. `https://openapi.gg.go.kr/TninsttInstutM?KEY=<발급키>&pIndex=1&pSize=<건수>`
+   호출 (이 API는 `Type=json`을 줘도 XML로 응답한다). 응답을 파일로 저장
+   (예: `data/registry/hanam-gg.xml`)
 3. `--enrich`로 실행하면 1단계에서 만든 파일과 매치되는 학원의 **null 필드만**
    채운다 (전화번호·좌표 등). 이미 채워진 값은 절대 덮어쓰지 않는다:
 
 ```bash
 cd backend
-uv run python -m app.cli.convert_registry ../data/registry/hanam-gg.json ../data/academies \
+uv run python -m app.cli.convert_registry ../data/registry/hanam-gg.xml ../data/academies \
     --source gg --filter 미사 --course-keyword 수학 --enrich
 ```
 

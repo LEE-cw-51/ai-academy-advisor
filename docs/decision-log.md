@@ -2,6 +2,27 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-08 — gg(경기데이터드림) API 실제 응답 확인 및 필드명 확정
+- **실제 서비스키로 `https://openapi.gg.go.kr/TninsttInstutM` 호출해 응답 확보**
+  (사용자가 직접 브라우저로 호출; 이 Claude Code 세션은 조직 네트워크 정책상
+  `*.go.kr` 아웃바운드가 차단되어 있어 세션 내에서는 호출 불가했음).
+  응답은 `INFO-000`(정상 처리) XML, `list_total_count=34012`.
+  서비스키는 코드/git 어디에도 포함하지 않았다 (수동 다운로드 워크플로 유지).
+- **`gg_row_to_record()`의 best-effort 후보 키를 실제 필드명으로 확정**:
+  `FACLT_NM`(시설명) / `REFINE_ROADNM_ADDR`·`REFINE_LOTNO_ADDR`(주소) /
+  `TELNO`(전화번호, 기존 추측이 우연히 맞았음) / `REFINE_WGS84_LAT`·
+  `REFINE_WGS84_LOGT`(좌표, 기존 추측이 맞았음) / `CRSE_CLASS_NM`(교습과정명).
+  등록번호·등록상태 필드는 응답에 없음을 확인 — 기존 문서의 추정이 맞았음
+  (자연키는 이름+주소만 사용, 상태 기준 필터링은 적용 안 됨)
+- **XML 입력 파싱 지원 추가** (`convert_registry.py`의 `parse_xml_payload()`):
+  이 API는 `Type=json` 파라미터를 줘도 XML로 응답함이 확인됨. 새 XML을
+  기존 "나이스류" JSON 봉투 구조로 변환해 `extract_rows()`를 그대로
+  재사용하도록 구현 — 별도 파싱 경로를 늘리지 않고 기존 로직 재사용
+- **범위를 필드명 수정 + XML 파싱까지로 한정**: 앱이 이 API를 자동으로 호출하는
+  기능(서비스키 설정, 라이브 HTTP fetch)은 이번에 추가하지 않음 — 기존과 동일하게
+  "사람이 포털에서 수동 다운로드 → CLI로 변환" 워크플로 유지 (data-as-git 원칙과
+  일관, 자동 호출은 필요해지면 별도로 검토)
+
 ## 2026-07-08 — Phase 3 추천 API: 예산·지역 필드 처리
 - **`tuition_monthly_fee`(월 수강료, nullable Integer) 컬럼 신규 추가**
   - 이유: Phase 3 추천 조건 중 "예산"을 지원하려 했으나 기존 스키마/정본 데이터

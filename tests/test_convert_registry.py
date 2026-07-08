@@ -6,6 +6,7 @@ from app.schemas.academy import AcademyRecord
 
 NEIS_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "neis_sample.json"
 GG_SAMPLE = Path(__file__).resolve().parent / "fixtures" / "gg_sample.json"
+GG_SAMPLE_XML = Path(__file__).resolve().parent / "fixtures" / "gg_sample.xml"
 
 
 def read_all(directory: Path) -> dict[str, dict]:
@@ -191,6 +192,34 @@ def test_enrich_no_op_when_all_fields_already_present(tmp_path):
     )
     assert exit_code == 0
     assert curated.read_text(encoding="utf-8") == before
+
+
+def test_parse_xml_payload_matches_head_row_envelope():
+    payload = convert_registry.parse_xml_payload(GG_SAMPLE_XML.read_text(encoding="utf-8"))
+    rows = convert_registry.extract_rows(payload)
+    assert len(rows) == 2
+    assert rows[0]["FACLT_NM"] == "미사엑스수학학원(테스트)"
+    assert rows[0]["SIGUN_CD"] is None  # 빈 엘리먼트는 None
+
+
+def test_gg_source_from_real_xml_response_shape(tmp_path):
+    # 실제 API(openapi.gg.go.kr/TninsttInstutM)는 Type=json을 줘도 XML로 응답한다.
+    exit_code = convert_registry.main(
+        [str(GG_SAMPLE_XML), str(tmp_path), "--source", "gg"]
+    )
+    assert exit_code == 0
+    files = read_all(tmp_path)
+    assert len(files) == 2
+    for data in files.values():
+        assert set(data.keys()) == set(AcademyRecord.model_fields.keys())
+        AcademyRecord.model_validate(data)
+    sample = next(
+        data for data in files.values() if data["name"] == "미사엑스수학학원(테스트)"
+    )
+    assert sample["address"] == "경기도 하남시 미사강변대로 100"  # 도로명주소 우선
+    assert sample["phone"] == "031-000-9101"
+    assert sample["latitude"] == 37.56
+    assert sample["longitude"] == 127.194
 
 
 def test_closed_status_excluded_by_default_regardless_of_vocabulary(tmp_path):

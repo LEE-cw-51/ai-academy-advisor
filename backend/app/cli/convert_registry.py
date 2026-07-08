@@ -9,14 +9,16 @@
 - gg   (경기데이터드림/공공데이터포털 "경기도_학원 및 교습소 현황"): 전화번호·
   좌표(위경도)·교습과정명(과목 힌트)이 강점
 
-**gg 소스 필드명은 미확정이다.** 두 포털의 상세 페이지가 봇 차단으로 이 세션에서
-확인되지 않아, 검색으로 파악한 개념(시설명/전화번호/주소/좌표/교습과정명)을
-바탕으로 best-effort 후보 키를 여러 개 시도한다 (`_first_present`). 실제 응답을
-받으면 `gg_row_to_record()`의 후보 키 목록만 고치면 된다.
+**gg 소스 필드명은 2026-07-08 실제 API 응답(`openapi.gg.go.kr/TninsttInstutM`)으로
+확정됐다** (`FACLT_NM`/`REFINE_ROADNM_ADDR`/`TELNO`/`REFINE_WGS84_LAT`/
+`REFINE_WGS84_LOGT`/`CRSE_CLASS_NM` 등, `docs/decision-log.md` 참고). 이 API는
+`Type=json`을 줘도 XML로 응답하므로 `.xml` 입력도 지원한다.
 
-입력 봉투(envelope)는 다음 3가지를 모두 인식한다: row 객체의 bare 배열 /
+입력 봉투(envelope)는 다음 4가지를 모두 인식한다: row 객체의 bare 배열 /
 나이스류 `{"...": [{"head": [...]}, {"row": [...]}]}` / 공공데이터포털 표준
-`{"response": {"body": {"items": {"item": [...]}}}}`.
+`{"response": {"body": {"items": {"item": [...]}}}}` / gg의 XML 응답
+(`<서비스명><head>...</head><row>...</row>...</서비스명>`, 자동으로 나이스류
+구조로 변환되어 처리된다).
 
 사용:
     cd backend
@@ -37,6 +39,7 @@ import hashlib
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
 
@@ -102,6 +105,21 @@ def extract_rows(payload: object) -> list[dict]:
     )
 
 
+def parse_xml_payload(text: str) -> dict:
+    """gg 소스처럼 XML로 응답하는 공공데이터 API 출력을 나이스류 봉투로 변환한다.
+
+    `<서비스명><head>...</head><row>...</row><row>...</row></서비스명>` 형태를
+    `{"서비스명": [{"head": {...}}, {"row": [...]}]}`로 바꿔, 기존 `extract_rows()`가
+    처리하는 "나이스류" 케이스를 그대로 재사용할 수 있게 한다.
+    """
+    root = ET.fromstring(text)
+    rows = [
+        {child.tag: (child.text.strip() if child.text else None) for child in row_el}
+        for row_el in root.findall("row")
+    ]
+    return {root.tag: [{"head": {}}, {"row": rows}]}
+
+
 def neis_row_to_record(row: dict, today: date) -> AcademyRecord:
     """NEIS acaInsTiInfo row → 정본 레코드. 공식 등록 데이터가 제공하는 필드만 채운다."""
     address_parts = [
@@ -128,16 +146,17 @@ def neis_row_to_record(row: dict, today: date) -> AcademyRecord:
 def gg_row_to_record(row: dict, today: date) -> AcademyRecord:
     """경기데이터드림 '학원 및 교습소 현황' row → 정본 레코드.
 
-    필드명 미확정(포털 접근 불가로 실 응답 미확인) — best-effort 매핑.
-    실제 응답 확보 후 아래 후보 키 목록만 보정하면 된다.
+    필드명은 실제 API 응답(`openapi.gg.go.kr/TninsttInstutM`, 2026-07-08)으로
+    확정됐다 (`docs/decision-log.md` 참고). 다른 유사 공공데이터셋 대비 하위호환을
+    위해 기존 한글 후보 키도 폴백으로 남겨둔다.
     """
-    name = _first_present(row, "시설명", "학원교습소명", "학원명", "FCLTY_NM")
+    name = _first_present(row, "FACLT_NM", "시설명", "학원교습소명", "학원명")
     address = _first_present(
-        row, "도로명주소", "RDNMADR", "지번주소", "LNM_ADRES"
+        row, "REFINE_ROADNM_ADDR", "REFINE_LOTNO_ADDR", "도로명주소", "지번주소"
     )
-    phone = _first_present(row, "전화번호", "TELNO", "PHONE_NUMBER")
-    latitude = _first_present(row, "위도", "LAT", "REFINE_WGS84_LAT")
-    longitude = _first_present(row, "경도", "LON", "REFINE_WGS84_LOGT")
+    phone = _first_present(row, "TELNO", "전화번호")
+    latitude = _first_present(row, "REFINE_WGS84_LAT", "위도")
+    longitude = _first_present(row, "REFINE_WGS84_LOGT", "경도")
 
     return AcademyRecord(
         name=name or "",
@@ -163,7 +182,7 @@ def _is_closed_status(status: str) -> bool:
 
 def _course_keyword_match(row: dict, keyword: str) -> bool:
     """교습과정명류 필드에 keyword가 포함되는지 확인한다 (소스 무관하게 시도)."""
-    course = _first_present(row, "교습과정명", "교습과정", "LE_CRSE_NM")
+    course = _first_present(row, "CRSE_CLASS_NM", "교습과정명", "교습과정", "LE_CRSE_NM")
     return course is not None and keyword in course
 
 
@@ -228,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
             "정본 JSON 파일로 변환한다."
         )
     )
-    parser.add_argument("input", type=Path, help="원 응답 JSON 파일")
+    parser.add_argument("input", type=Path, help="원 응답 파일 (JSON 또는 XML)")
     parser.add_argument(
         "output_dir", type=Path, help="정본 디렉터리 (예: ../data/academies)"
     )
@@ -266,9 +285,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        payload = json.loads(args.input.read_text(encoding="utf-8"))
+        text = args.input.read_text(encoding="utf-8")
+        is_xml = args.input.suffix.lower() == ".xml" or text.lstrip().startswith("<")
+        payload = parse_xml_payload(text) if is_xml else json.loads(text)
         rows = extract_rows(payload)
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, json.JSONDecodeError, ET.ParseError, ValueError) as exc:
         print(f"ERROR: 입력을 읽을 수 없습니다 — {exc}", file=sys.stderr)
         return 1
     if not args.output_dir.is_dir():
@@ -290,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
             record = row_to_record(row, today)
         except ValidationError as exc:
             row_name = _first_present(
-                row, "ACA_NM", "시설명", "FCLTY_NM", "학원명", "학원교습소명"
+                row, "ACA_NM", "FACLT_NM", "시설명", "학원명", "학원교습소명"
             )
             print(f"ERROR: 행 변환 실패 ({row_name!r}) — {exc}", file=sys.stderr)
             errors += 1
