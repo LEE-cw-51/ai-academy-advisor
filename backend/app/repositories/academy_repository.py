@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
 from app.models.academy import Academy
-from app.schemas.academy import AcademyListParams
+from app.schemas.academy import AcademyListParams, RecommendationRequest
 
 _LEVEL_COLUMNS = {
     SchoolLevel.ELEMENTARY: Academy.level_elementary,
@@ -46,6 +46,36 @@ def list_academies(db: Session, params: AcademyListParams) -> tuple[list[Academy
     total = db.scalar(_apply_filters(select(func.count(Academy.id)), params)) or 0
     stmt = (
         _apply_filters(select(Academy), params)
+        .order_by(Academy.name, Academy.id)
+        .limit(params.limit)
+        .offset(params.offset)
+    )
+    return list(db.scalars(stmt)), total
+
+
+def _apply_recommendation_filters(
+    stmt: Select, params: RecommendationRequest
+) -> Select:
+    stmt = _apply_filters(stmt, params)
+    if params.region is not None:
+        stmt = stmt.where(Academy.address.ilike(f"%{params.region}%"))
+    if params.budget_max is not None:
+        stmt = stmt.where(
+            Academy.tuition_monthly_fee.is_not(None),
+            Academy.tuition_monthly_fee <= params.budget_max,
+        )
+    return stmt
+
+
+def list_recommendations(
+    db: Session, params: RecommendationRequest
+) -> tuple[list[Academy], int]:
+    total = (
+        db.scalar(_apply_recommendation_filters(select(func.count(Academy.id)), params))
+        or 0
+    )
+    stmt = (
+        _apply_recommendation_filters(select(Academy), params)
         .order_by(Academy.name, Academy.id)
         .limit(params.limit)
         .offset(params.offset)

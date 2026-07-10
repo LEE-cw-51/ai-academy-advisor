@@ -44,6 +44,7 @@ class AcademyRecord(BaseModel):
     curriculum_naesin: bool | None = None
     curriculum_suneung: bool | None = None
     shuttle_available: bool | None = None
+    tuition_monthly_fee: int | None = Field(default=None, ge=0)
     operating_hours: str | None = None
     established_year: int | None = Field(default=None, ge=1950, le=2100)
     teacher_count: int | None = Field(default=None, ge=0)
@@ -95,6 +96,7 @@ class AcademySummary(BaseModel):
     curriculum_naesin: bool | None
     curriculum_suneung: bool | None
     shuttle_available: bool | None
+    tuition_monthly_fee: int | None
     last_verified_at: date | None
 
 
@@ -129,3 +131,17 @@ class AcademyListParams(BaseModel):
     q: str | None = Field(default=None, min_length=1, max_length=100)
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+
+
+class RecommendationRequest(AcademyListParams):
+    """POST /recommendations 요청 본문. 기존 필터에 지역·예산 조건을 더한다."""
+
+    region: str | None = Field(default=None, min_length=1, max_length=100)
+    budget_max: int | None = Field(default=None, ge=0)
+
+
+class RecommendationResponse(BaseModel):
+    items: list[AcademySummary]
+    total: int
+    limit: int
+    offset: int

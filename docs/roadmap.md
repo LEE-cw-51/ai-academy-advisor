@@ -19,9 +19,11 @@
 - Pydantic Schema 정의 ✅
 - 쓰기 API는 의도적으로 없음 — 정본이 git JSON이므로 (`docs/data-strategy.md`)
 
-## Phase 3 — 추천 로직 (Rule 기반)
-- 학년/지역/예산 등 조건 기반 필터링 추천
-- 추천 결과 API
+## Phase 3 — 추천 로직 (Rule 기반, 완료)
+- 학년/지역/예산 등 조건 기반 필터링 추천 ✅
+- 추천 결과 API (`POST /recommendations`) ✅ (`docs/api.md`)
+- 예산 필터를 위해 `tuition_monthly_fee` 컬럼 신규 추가 (`docs/decision-log.md`)
+- 지역 필터는 구조화된 컬럼 없이 `address` 부분 일치로 처리 (여러 지역 확장 시 재검토)
 
 ## Phase 4 — AI 연동
 - OpenAI API 연동
