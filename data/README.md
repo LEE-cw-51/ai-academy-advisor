@@ -98,9 +98,10 @@ uv run python -m app.cli.convert_registry ../data/registry/hanam-gg.xml ../data/
 ## 현재 들어있는 데이터
 
 2026-07-10 기준 `academies/`에는 경기데이터드림(gg) 소스로 수집한 하남 미사 지역
-학원/교습소 실데이터 82건이 들어있다 (`--source gg --filter 미사`로 변환,
-`docs/decision-log.md` 참고). 개발용 "(예시)" 가상 픽스처 4개는 실데이터 수집이
-시작되어 모두 삭제했다.
+학원/교습소 실데이터 411건이 들어있다 (`--source gg --filter 미사`로 변환,
+`docs/decision-log.md` 참고). 하남시 전체 746건 원본(포털에서 다운로드한 CSV,
+`data/registry/hanam-gg.json`으로 변환해 보관)을 지역 필터에 통과시킨 결과다.
+개발용 "(예시)" 가상 픽스처 4개는 실데이터 수집이 시작되어 모두 삭제했다.
 
 과목(수학) 여부는 이번 수집에서 필터링하지 않았다 — 공공데이터의 `교습과정명`이
 "종합(대)"처럼 넓은 카테고리라 정확한 과목 판별이 어려워, 미사 지역 학원을
