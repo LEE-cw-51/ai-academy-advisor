@@ -1,7 +1,7 @@
 {
   "registration_number": null,
-  "name": "미사새벽수학(예시)",
-  "address": "경기도 하남시 미사강변동로 77 (예시 주소)",
+  "name": "윤선생우리집앞영어교실망월영어교습소",
+  "address": "경기도 하남시 미사강변북로24번길 19 , 101호 (망월동)",
   "phone": null,
   "website_url": null,
   "blog_url": null,
@@ -23,8 +23,8 @@
   "teacher_count": null,
   "classroom_count": null,
   "tagline": null,
-  "latitude": null,
-  "longitude": null,
-  "source_note": "가상의 예시 데이터 (개발용 픽스처, 실존 학원 아님) — 미확인 필드가 null로 남는 예시",
-  "last_verified_at": null
+  "latitude": 37.5706941934,
+  "longitude": 127.1816326776,
+  "source_note": "경기데이터드림(학원 및 교습소 현황), 2026-07-10 변환",
+  "last_verified_at": "2026-07-10"
 }

@@ -36,18 +36,20 @@ def all_rows(db) -> list[Academy]:
 
 def test_import_shipped_fixtures(db_session):
     """저장소에 실린 정본 픽스처가 항상 유효함을 CI가 보장한다."""
+    file_count = len(list(SHIPPED_FIXTURES.glob("*.json")))
     report = load_and_import(db_session, SHIPPED_FIXTURES)
-    assert report.created == 4
+    assert report.created == file_count
     assert report.updated == 0
     assert report.orphans == []
 
 
 def test_reimport_is_idempotent(db_session):
+    file_count = len(list(SHIPPED_FIXTURES.glob("*.json")))
     load_and_import(db_session, SHIPPED_FIXTURES)
     report = load_and_import(db_session, SHIPPED_FIXTURES)
     assert report.created == 0
     assert report.updated == 0
-    assert report.unchanged == 4
+    assert report.unchanged == file_count
 
 
 def test_upsert_by_registration_number_updates_fields(tmp_path, db_session):
