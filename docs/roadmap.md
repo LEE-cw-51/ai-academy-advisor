@@ -25,14 +25,27 @@
 - 예산 필터를 위해 `tuition_monthly_fee` 컬럼 신규 추가 (`docs/decision-log.md`)
 - 지역 필터는 구조화된 컬럼 없이 `address` 부분 일치로 처리 (여러 지역 확장 시 재검토)
 
-## Phase 4 — AI 연동
-- OpenAI API 연동
-- 프롬프트 설계 (prompts/)
-- 자연어 질의 기반 추천
+## Phase 4 — AI 연동 (RAG)
 
-## Phase 5 — Flutter 클라이언트
-- 학원 검색/추천 화면
-- 백엔드 API 연동
+### 4a — 기반 골격 (완료)
+- provider 추상화 계층(`app/providers/`): `EmbeddingProvider`/`LLMProvider`/`VectorStore`
+  Protocol 포트 + 기본 stub 구현 + config 선택 팩토리 ✅
+- 리뷰·engagement 스키마: `reviews`(pgvector 임베딩) / `search_history` / `click_logs` /
+  `feedback` / `waitlist` 테이블 + 마이그레이션 `0003` ✅
+- 실제 provider 호출/키 없이 동작 (기본 전부 stub, 비용 0)
+
+### 4b — 실제 RAG (예정)
+- 실제 어댑터: OpenAI(LLM), bge-m3/OpenAI(임베딩), pgvector(VectorStore)
+- LlamaIndex 기반 RAG 엔진을 단일 `RagEngine` 포트 뒤에 채택 (교체 가능성 유지)
+- 프롬프트 설계 (prompts/), ANN 인덱스(ivfflat/hnsw) 튜닝
+- 자연어 질의 → 의도 분석 → 필터 → 리뷰 검색 → 추천+근거 생성
+
+### 4c — engagement API (예정)
+- 자연어 추천 엔드포인트, 클릭 추적(`/events`), 피드백(`/feedback`), 대기자(`/waitlist`)
+
+## Phase 5 — 프론트엔드 클라이언트 (스택 미정)
+- 프론트 스택(Next.js vs Flutter)은 다음 논의로 확정
+- 학원 검색/추천 화면, 지도, 백엔드 API 연동
 
 ## Phase 6 — 배포 및 운영
 - 운영 환경 Docker Compose / 인프라 구성 (infra/)

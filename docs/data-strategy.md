@@ -125,6 +125,14 @@ gg 소스 행은 상태 기준으로 걸러지지 않는다 (기본 포함).
 | 경도 | `REFINE_WGS84_LOGT` | `longitude` | neis에는 없는 필드 |
 | 교습과정명 | `CRSE_CLASS_NM` | (필터 전용) | `subjects`에 자동 반영하지 않음 — 과목 매핑 오류 방지, `--course-keyword`로만 사용 |
 
+## 리뷰·engagement 테이블 (DB 직접 쓰기)
+
+`reviews`(임베딩 포함) / `search_history` / `click_logs` / `feedback` / `waitlist`는
+학원 사실(Fact) 테이블과 **저장 경로가 다르다** — git 정본을 거치지 않는 DB 직접 쓰기다.
+`reviews`는 위 3단계 로드맵의 Phase 2(AI 요약)·Phase 3(사용자 데이터)에 해당하고,
+engagement 로그는 KPI 측정을 위한 런타임 기록이다. 사실 DB의 data-as-git 원칙과 분리해
+운영한다.
+
 ## 확장 경로 (비파괴적)
 
 - 과목 필터가 필요해지면 `subjects` JSON 컬럼 → `academy_subjects` junction 테이블 마이그레이션.
