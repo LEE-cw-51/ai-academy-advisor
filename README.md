@@ -70,6 +70,22 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 반
 [data/README.md](data/README.md), 데이터 전략은
 [docs/data-strategy.md](docs/data-strategy.md)를 참고하세요.
 
+## Railway 배포
+
+백엔드는 `railway.json`(`backend/Dockerfile` 기반 빌드) 설정으로 Railway에 배포할 수 있습니다.
+
+1. Railway에서 새 프로젝트를 만들고 이 GitHub 리포를 연동합니다.
+2. 프로젝트에 **Postgres 플러그인**을 추가합니다. `DATABASE_URL`은 자동으로 서비스에 주입됩니다.
+3. 서비스의 Variables에 `OPENAI_API_KEY`, `SECRET_KEY`를 직접 설정합니다.
+4. `main` 브랜치에 push하면 `backend/Dockerfile`로 자동 빌드/배포되고, `/health`로 헬스체크됩니다.
+5. DB 마이그레이션은 배포 후 Railway CLI로 1회 실행합니다.
+
+```bash
+railway run --service backend uv run alembic upgrade head
+```
+
+로컬 개발 흐름(`docker compose up --build`)은 이 설정과 무관하게 그대로 사용할 수 있습니다.
+
 ## 프로젝트 구조
 
 ```
