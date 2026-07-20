@@ -8,18 +8,19 @@ Create Date: 2026-07-14
 이 마이그레이션은 운영 PostgreSQL에서만 실행된다(테스트는 SQLite create_all 경유).
 """
 
+import os
+
 import sqlalchemy as sa
 from alembic import op
 from pgvector.sqlalchemy import Vector
-
-from app.core.config import get_settings
 
 revision = "0003"
 down_revision = "0002"
 branch_labels = None
 depends_on = None
 
-EMBEDDING_DIM = get_settings().embedding_dim
+# NOTE: migrations should be self-contained; avoid importing application settings here.
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "1024"))
 
 
 def upgrade() -> None:
