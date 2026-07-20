@@ -69,6 +69,8 @@ class StubVectorStore:
 
     @staticmethod
     def _cosine(a: list[float], b: list[float]) -> float:
+        if len(a) != len(b):
+            raise ValueError(f"embedding dimension mismatch: {len(a)} != {len(b)}")
         dot = sum(x * y for x, y in zip(a, b))
         na = math.sqrt(sum(x * x for x in a)) or 1.0
         nb = math.sqrt(sum(y * y for y in b)) or 1.0
