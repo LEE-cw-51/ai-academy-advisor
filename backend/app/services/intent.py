@@ -39,9 +39,9 @@ def _parse_level(query: str) -> SchoolLevel | None:
     # 고1/고2/고3/고등 → high, 중/중등 → middle, 초/초등 → elementary
     if re.search(r"고\d|고등", query):
         return SchoolLevel.HIGH
-    if "중" in query:  # 중1/중2/중3/중등
+    if re.search(r"중\d|중등|중학|중학생", query):
         return SchoolLevel.MIDDLE
-    if "초" in query:  # 초1~초6/초등
+    if re.search(r"초\d|초등|초등학교|초등학생", query):
         return SchoolLevel.ELEMENTARY
     return None
 
