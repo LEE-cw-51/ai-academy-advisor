@@ -48,8 +48,10 @@ def _build_reason(academy: Academy, evidence: list[Review], query: str) -> str:
     """후보 사실 + 근거 리뷰로 프롬프트를 구성해 LLM에게 추천 이유를 생성시킨다."""
     llm = get_llm_provider()
     facts = f"학원명: {academy.name}, 주소: {academy.address or '미상'}"
-    evidence_text = " / ".join(r.content for r in evidence) or "(근거 리뷰 없음)"
-    messages = [
+    evidence_snippets = [
+        (r.content[:500] + "…") if len(r.content) > 500 else r.content for r in evidence
+    ]
+    evidence_text = " / ".join(evidence_snippets) or "(근거 리뷰 없음)"
         {
             "role": "system",
             "content": "학부모의 질문에 맞춰 학원을 추천하는 이유를 근거 리뷰에 기반해 설명한다.",
