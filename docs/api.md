@@ -200,5 +200,5 @@ POST /events
 
 학원 데이터에 대한 쓰기(POST/PUT) API는 의도적으로 없다 — 정본은 git의
 `data/academies/*.json`이며 임포터로 DB에 반영한다 (`docs/data-strategy.md`).
-`POST /recommendations`(및 `/ai`)는 읽기 전용 조회다. 위 engagement 엔드포인트만
-사용자 행동 데이터를 DB에 직접 쓴다 (승인된 예외).
+`POST /recommendations`는 읽기 전용 조회다. 단, `POST /recommendations/ai`는 질문을 `SearchHistory`로 기록하며,
+위 engagement 엔드포인트들과 함께 사용자 행동 데이터를 DB에 직접 쓴다 (승인된 예외).
