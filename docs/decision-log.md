@@ -2,6 +2,29 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-14 — AI 추천 엔드포인트 스켈레톤 + engagement API (Phase 4b-skeleton / 4c)
+
+- **자연어 추천(`POST /recommendations/ai`)을 provider 포트 경유 파이프라인으로 구현**
+  (`ai_recommendation_service.recommend`): 질문 기록 → 의도 분석 → 필터 → 벡터 근거 검색
+  → 추천 이유 생성. 기본 provider가 전부 stub이라 키·비용 없이 end-to-end 동작하고,
+  실제 임베딩/LLM/pgvector·LlamaIndex는 config만 바꿔 교체된다.
+- **의도 분석은 규칙 기반이 현재 기본 구현** (`app/services/intent.py`의 `parse_intent`):
+  stub LLM은 구조화 출력을 못 하므로, 학년/커리큘럼/수업형태/지역/예산을 키워드로 뽑아
+  기존 `RecommendationRequest`로 변환한다. 순수 함수라 LLM 기반 파서로 저비용 교체 가능.
+- **필터링은 기존 `academy_repository.list_recommendations`를 그대로 재사용** — 규칙 기반
+  추천 로직을 중복 구현하지 않고 AI 파이프라인의 후보 선별 단계로 흡수.
+- **RAG 근거 검색은 `vector_store.search()` 포트로만 호출**: 리뷰 ingest 파이프라인과 실제
+  pgvector 스토어는 4b로 이연했으므로, 지금은 stub in-memory 스토어가 비어 있어 근거가
+  빈 배열일 수 있다. 포트 호출 경로는 완성돼 실제 스토어로 갈아끼우면 그대로 동작.
+- **engagement 쓰기 API(`/events`,`/feedback`,`/waitlist`)는 승인된 DB 직접 쓰기 예외**:
+  `data-strategy.md`가 사용자 행동/리뷰 데이터를 git 정본이 아닌 DB 직접 쓰기로 규정한 것과
+  일관. KPI(외부 행동률·대기자 등록률) 측정이 MVP 검증 목표(§5)의 핵심이라 우선 구현.
+- **`/events`는 없는 `academy_id`에 404, 잘못된 `event` enum에 422**: 기존 `academies.py`의
+  404 관례(존재 검증 후 HTTPException)와 Pydantic enum 검증을 각각 재사용. `academy_id`는
+  nullable이라 학원 무관 이벤트도 허용.
+- **`/waitlist`는 email/kakao 중 최소 하나 필수** (`model_validator`): 연락 수단 없는 등록을
+  막아 대기자 데이터의 유효성을 보장.
+
 ## 2026-07-14 — AI 기반 골격: provider 추상화 + 리뷰·engagement 스키마 (Phase 4a)
 
 - **얇은 Protocol 포트 채택** (`app/providers/base.py`): `EmbeddingProvider`/`LLMProvider`/
