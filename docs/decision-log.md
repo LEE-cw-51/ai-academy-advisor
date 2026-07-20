@@ -2,6 +2,22 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-14 — PR 머지 후 자동수정 커밋이 main을 손상시킨 사고 (PR #7 → #8)
+
+- **증상**: PR #7(AI 추천 스켈레톤 + engagement API) 머지 시 자동으로 붙은 "Potential fix
+  for pull request finding" 정리 커밋 3개 중 하나가 `ai_recommendation_service.py`의
+  `_build_reason()`에서 `messages = [` 대입문을 실수로 삭제했다. 이후 dict 리터럴들이
+  고아 표현식이 되고 `return llm.chat(messages)`의 `messages`가 미정의로 남아, **main이
+  `python -m py_compile` 단계부터 실패하는(IndentationError) 상태로 머지됐다**.
+  같은 커밋 묶음의 다른 두 수정(intent.py 정규식 개선, api.md 문구)은 정상이었다.
+- **발견 경위**: 다음 세션을 시작하며 "머지했으니 기록하고 넘어가자"는 요청을 받고, 무작정
+  기록만 하지 않고 `origin/main`을 fetch해 실제 diff를 점검하다가 컴파일 확인으로 발견.
+  **PR 머지 완료 = 검증 완료가 아니다**라는 교훈 — 자동 정리 커밋이라도 병합 후 반드시
+  `py_compile`/`pytest`로 확인한다.
+- **조치**: `fix/ai-recommendation-syntax` 브랜치(PR #8)로 삭제된 대입문 한 줄만 복구,
+  `pytest`(78 passed)·앱 임포트·`POST /recommendations/ai` 실호출로 검증 후 머지.
+  최소 diff 원칙 준수(다른 정상 변경분은 손대지 않음).
+
 ## 2026-07-14 — AI 추천 엔드포인트 스켈레톤 + engagement API (Phase 4b-skeleton / 4c)
 
 - **자연어 추천(`POST /recommendations/ai`)을 provider 포트 경유 파이프라인으로 구현**
