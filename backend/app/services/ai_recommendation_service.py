@@ -52,6 +52,7 @@ def _build_reason(academy: Academy, evidence: list[Review], query: str) -> str:
         (r.content[:500] + "…") if len(r.content) > 500 else r.content for r in evidence
     ]
     evidence_text = " / ".join(evidence_snippets) or "(근거 리뷰 없음)"
+    messages = [
         {
             "role": "system",
             "content": "학부모의 질문에 맞춰 학원을 추천하는 이유를 근거 리뷰에 기반해 설명한다.",
