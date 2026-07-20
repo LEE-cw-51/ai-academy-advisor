@@ -28,6 +28,19 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # AI provider 선택 (app/providers/factory.py에서 이름→구현 매핑).
+    # 이번 단계 기본값은 전부 stub — 실제 호출/키 없이 앱이 기동된다.
+    llm_provider: str = "stub"
+    embedding_provider: str = "stub"
+    vector_store: str = "stub"
+
+    # provider별 세부 설정 (실제 어댑터를 붙이는 다음 단계에서 사용).
+    llm_model: str = "gpt-4o-mini"
+    embedding_model: str = "BAAI/bge-m3"
+    # 임베딩 차원. Review.embedding 의 Vector(dim)과 일치해야 하며,
+    # 변경 시 마이그레이션이 필요하다 (docs/decision-log.md 참고).
+    embedding_dim: int = 1024
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -2,6 +2,32 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-14 — AI 기반 골격: provider 추상화 + 리뷰·engagement 스키마 (Phase 4a)
+
+- **얇은 Protocol 포트 채택** (`app/providers/base.py`): `EmbeddingProvider`/`LLMProvider`/
+  `VectorStore`를 `typing.Protocol`로 정의하고 서비스 계층은 이 포트에만 의존한다.
+  - 이유: 사용자 요구("기술스택·API를 상황에 따라 교체 가능하게")의 실체는 모델
+    provider·벡터 스토어의 교체다. 얇은 포트 + config 선택(`factory.py`) 방식이 기존
+    계층형(api/service/repository) 구조와 정합하고 의존성을 최소화한다.
+- **기본 provider는 전부 stub** (`stub.py`): 실제 LLM/임베딩 호출 없이 결정적 구현으로
+  파이프라인 골격만 검증. API 키·비용 0, 무설정 기동. 테스트 안정성 확보(결정적).
+- **LlamaIndex는 다음 단계(4b)에서 `RagEngine` 포트 뒤에 채택**: LlamaIndex 자체가
+  llm/embed_model/vector_store를 플러그블하게 다루므로 "핵심 엔진 채택"과 "교체 가능"이
+  충돌하지 않는다. 엔진조차 단일 포트 뒤에 두어 교체 비용을 낮게 유지한다. 이번 단계에는
+  llama-index/openai/sentence-transformers 의존성을 **추가하지 않음**.
+- **리뷰·engagement 테이블 신설 + pgvector 도입** (마이그레이션 `0003`):
+  `reviews`(임베딩 포함) / `search_history` / `click_logs` / `feedback` / `waitlist`.
+  이 테이블들은 학원 사실(Fact) 테이블과 달리 **git 정본이 아닌 DB 직접 쓰기**다
+  (`data-strategy.md` Phase 2 AI 요약 / Phase 3 사용자 데이터, engagement=런타임 로그).
+- **`embedding` 컬럼은 이중화**: `JSON().with_variant(Vector(dim), "postgresql")` — 기존
+  `academy.SubjectsJSON` 관례 재사용. SQLite 테스트는 JSON, 운영 postgres는 pgvector.
+  마이그레이션은 dialect 가드(`op.get_bind().dialect.name`)로 postgres에서만 확장/Vector 생성.
+- **`embedding_dim` 고정(기본 1024) = 마이그레이션 결합**: pgvector 컬럼 차원은 DDL 시점에
+  고정되므로 임베딩 모델을 차원이 다른 것으로 바꾸면(예: bge-m3 1024 → OpenAI 1536)
+  마이그레이션이 필요하다. 이 트레이드오프를 인지하고 기본값을 config로 노출.
+- **ANN 인덱스(ivfflat/hnsw)는 이번에 만들지 않음**: 인덱스는 데이터가 쌓인 뒤 파라미터
+  튜닝이 필요하므로 실제 RAG 단계(4b)로 이연. 지금은 컬럼만 준비.
+
 ## 2026-07-10 — 하남 미사 실데이터 전량 재수집 (CSV 업로드, 411건)
 - **1차 수집(82건, 대화창 수기 입력)의 한계 해소**: 746건 전체를 채팅으로 옮겨
   적는 방식은 비현실적이라 일부(미사 주소 위주 선별)만 반영됐었다. 사용자가

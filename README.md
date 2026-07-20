@@ -15,10 +15,13 @@
 - Pydantic Settings
 
 **Frontend**
-- Flutter (추후 개발 예정)
+- 미정 (Next.js vs Flutter — 다음 논의로 확정)
 
 **AI**
-- OpenAI API (추후 연동 예정)
+- provider 추상화 계층(`app/providers/`) — LLM/임베딩/벡터 스토어를 config로 교체
+- 기본값은 전부 stub (실제 호출·키 없이 동작). 실제 어댑터(OpenAI/bge-m3/pgvector)·
+  LlamaIndex RAG 엔진은 다음 단계에서 같은 포트 뒤에 추가
+- 벡터 검색용 pgvector (PostgreSQL 확장)
 
 **Deployment**
 - Docker
@@ -100,6 +103,7 @@ ai-academy-advisor/
 │   │   ├── schemas/        # Pydantic 스키마
 │   │   ├── services/       # 비즈니스 로직
 │   │   ├── repositories/   # 데이터 접근 계층
+│   │   ├── providers/      # AI provider 포트+어댑터 (LLM/임베딩/벡터, 교체 가능)
 │   │   ├── dependencies/   # 공용 의존성
 │   │   └── utils/          # 유틸리티
 │   ├── alembic/            # DB 마이그레이션
