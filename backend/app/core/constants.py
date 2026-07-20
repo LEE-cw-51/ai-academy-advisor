@@ -25,4 +25,13 @@ class CurriculumType(StrEnum):
     SUNEUNG = "suneung"  # 수능
 
 
+class ClickEvent(StrEnum):
+    """외부 행동 클릭 이벤트 (전화/홈페이지/길찾기/상세보기)."""
+
+    PHONE = "phone"  # 전화 클릭
+    WEBSITE = "website"  # 홈페이지 클릭
+    DIRECTIONS = "directions"  # 길찾기 클릭
+    DETAIL = "detail"  # 상세보기 클릭
+
+
 SUBJECT_MATH = "수학"
