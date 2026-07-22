@@ -39,7 +39,9 @@
   - 파이프라인: 질문 기록 → 의도 분석 → 필터 → 벡터 근거 검색 → 추천 이유 생성
   - provider 포트 경유(기본 stub), 의도 분석은 규칙 기반 (`app/services/intent.py`)
   - 기존 `academy_repository.list_recommendations` 필터 재사용
-- **실제 provider 미연동** (다음): OpenAI(LLM), bge-m3/OpenAI(임베딩), pgvector(VectorStore)
+- **LLM provider 실연동 완료**: Groq(Llama, 무료 티어) `GroqLLMProvider` 추가,
+  `LLM_PROVIDER=groq`로 전환 가능 (`docs/decision-log.md`)
+- **임베딩/VectorStore는 아직 미연동** (다음): bge-m3/OpenAI(임베딩), pgvector(VectorStore)
 - LlamaIndex 기반 RAG 엔진을 단일 `RagEngine` 포트 뒤에 채택 (교체 가능성 유지)
 - 프롬프트 설계 (prompts/), 리뷰 ingest 파이프라인, ANN 인덱스(ivfflat/hnsw) 튜닝
 - LLM 기반 의도 분석으로 `intent.parse_intent` 교체

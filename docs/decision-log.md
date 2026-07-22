@@ -2,6 +2,27 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-22 — Groq(Llama)로 첫 실제 LLM provider 연동 (Phase 4b)
+
+- **LLM provider로 OpenAI 대신 Groq를 우선 채택** (`app/providers/groq.py`의
+  `GroqLLMProvider`): 무료 티어로 Llama 계열 모델을 바로 쓸 수 있어 비용 없이
+  실제 LLM 호출 경로를 검증할 수 있음. `LLMProvider` 포트만 만족하면 되므로
+  기존 `ai_recommendation_service._build_reason` 등 호출부는 무변경 —
+  `LLM_PROVIDER=groq`로 config만 바꾸면 교체된다.
+- **별도 SDK 없이 `httpx.post`로 직접 호출**: Groq Chat Completions가 OpenAI와
+  동일한 REST 스펙(`/chat/completions`, `Authorization: Bearer`, `{model,
+  messages}`)이라 SDK 의존성을 추가할 필요가 없음. `httpx`는 기존에 dev
+  전용이었으나 런타임에서 실제로 쓰이므로 `pyproject.toml` 메인 의존성으로 승격.
+- **범위를 LLM 호출부로만 한정, 임베딩/VectorStore는 이번에도 stub 유지**:
+  Groq는 임베딩 API를 제공하지 않고, RAG 근거검색(pgvector)은 별도 결정이 필요한
+  더 큰 작업이라 이번 변경과 분리. `parsed_intent` 단계도 여전히 규칙 기반
+  (`intent.parse_intent`)으로 미변경.
+- **API 키 없이도 기존처럼 무설정 기동**: 기본값(`LLM_PROVIDER=stub`)은 그대로
+  두고, 사용자가 `.env`에 `GROQ_API_KEY`를 직접 넣고 `LLM_PROVIDER=groq`로
+  바꿔야 활성화되는 opt-in 구조 유지. 키 없이 `groq`로 호출 시엔 Groq API가
+  401을 반환하고 그대로 전파(별도 방어 코드 없음) — 네트워크/인증 실패는
+  시스템 경계이므로 서비스 계층에서 감추지 않는다는 기존 원칙과 일관.
+
 ## 2026-07-14 — PR 머지 후 자동수정 커밋이 main을 손상시킨 사고 (PR #7 → #8)
 
 - **증상**: PR #7(AI 추천 스켈레톤 + engagement API) 머지 시 자동으로 붙은 "Potential fix
