@@ -8,6 +8,7 @@ from functools import lru_cache
 
 from app.core.config import get_settings
 from app.providers.base import EmbeddingProvider, LLMProvider, VectorStore
+from app.providers.groq import GroqLLMProvider
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
@@ -33,8 +34,16 @@ def get_llm_provider() -> LLMProvider:
     name = settings.llm_provider
     if name == "stub":
         return StubLLMProvider()
+    if name == "groq":
+        return GroqLLMProvider(
+            api_key=settings.groq_api_key,
+            model=settings.llm_model,
+            base_url=settings.groq_base_url,
+        )
     # 다음 단계에서 추가: "openai"(gpt-4o-mini 등).
-    raise ValueError(f"지원하지 않는 llm_provider: {name!r} (현재 'stub'만 구현됨)")
+    raise ValueError(
+        f"지원하지 않는 llm_provider: {name!r} (현재 'stub'/'groq'만 구현됨)"
+    )
 
 
 @lru_cache

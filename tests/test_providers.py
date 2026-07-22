@@ -1,11 +1,16 @@
-"""provider 추상화 골격 테스트 (기본 stub 구현)."""
+"""provider 추상화 골격 테스트 (기본 stub 구현 + Groq 실 provider)."""
 
+import httpx
+import pytest
+
+from app.core.config import get_settings
 from app.providers.base import EmbeddingProvider, Hit, LLMProvider, VectorStore
 from app.providers.factory import (
     get_embedding_provider,
     get_llm_provider,
     get_vector_store,
 )
+from app.providers.groq import GroqLLMProvider
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
@@ -73,3 +78,58 @@ def test_stub_vector_store_returns_nearest_first():
     assert all(isinstance(h, Hit) for h in hits)
     assert hits[0].id == "0"
     assert hits[0].score >= hits[1].score
+
+
+def test_groq_llm_provider_sends_request_and_parses_response(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["json"] = json
+        return httpx.Response(
+            status_code=200,
+            json={"choices": [{"message": {"content": "추천 이유입니다"}}]},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    llm = GroqLLMProvider(
+        api_key="test-key", model="llama-3.3-70b-versatile", base_url="https://api.groq.com/openai/v1"
+    )
+    messages = [{"role": "user", "content": "고1 수학 학원 추천해줘"}]
+    result = llm.chat(messages)
+
+    assert result == "추천 이유입니다"
+    assert captured["url"] == "https://api.groq.com/openai/v1/chat/completions"
+    assert captured["headers"] == {"Authorization": "Bearer test-key"}
+    assert captured["json"] == {"model": "llama-3.3-70b-versatile", "messages": messages}
+
+
+def test_groq_llm_provider_raises_on_http_error(monkeypatch):
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=401,
+            json={"error": "invalid api key"},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    llm = GroqLLMProvider(api_key="bad-key", model="llama-3.3-70b-versatile", base_url="https://api.groq.com/openai/v1")
+    with pytest.raises(httpx.HTTPStatusError):
+        llm.chat([{"role": "user", "content": "hi"}])
+
+
+def test_factory_returns_groq_provider_when_configured(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    get_llm_provider.cache_clear()
+    try:
+        llm = get_llm_provider()
+        assert isinstance(llm, GroqLLMProvider)
+    finally:
+        get_settings.cache_clear()
+        get_llm_provider.cache_clear()

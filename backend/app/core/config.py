@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/ai_academy_advisor"
     openai_api_key: str = ""
+    groq_api_key: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
     secret_key: str = "change-me"
 
     @field_validator("database_url")
