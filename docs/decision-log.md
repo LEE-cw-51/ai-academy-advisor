@@ -2,6 +2,47 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-27 — OpenAI 임베딩 + pgvector VectorStore 실연동 (Phase 4b)
+
+- **임베딩 provider로 한국어 특화 모델(KURE-v1, bge-m3) 대신 OpenAI
+  `text-embedding-3-small`을 채택** (`app/providers/openai_embedding.py`의
+  `OpenAIEmbeddingProvider`): 한국어 리트리버로 정평이 난 `nlpai-lab/KURE-v1`과
+  config 기본값이던 `BAAI/bge-m3`도 검토했으나 (1) Hugging Face Inference
+  Providers 무료 티어는 월 $0.10 크레딧 수준이라 실사용에 부적합하고 PRO($9/월)
+  구독이 필요하며, (2) 로컬 실행은 `sentence-transformers`+`torch`(~1-2GB) 설치와
+  모델 가중치 다운로드가 필요해 소규모 단일 큐레이터 프로젝트의 컨테이너 배포에
+  부담스러움. OpenAI는 이 데이터 규모(학원 82건+리뷰)에서 실비용이 사실상
+  0에 가깝고(1M 토큰당 $0.02) 추가 의존성도 없어 최종 선택.
+- **`text-embedding-3-small`을 `dimensions=1024`로 요청해 truncate**: 네이티브
+  차원은 1536이지만 v3 모델은 요청 시 Matryoshka truncation을 지원해 원하는
+  차원을 지정할 수 있음 — 기존 `EMBEDDING_DIM=1024`/migration `0003`을 그대로
+  유지하고 스키마 변경을 회피. `Groq`와 동일하게 SDK 없이 `httpx.post`만으로 호출.
+- **`PgVectorStore`(`app/providers/pgvector_store.py`)는 `VectorStore` Protocol을
+  변경하지 않고 자체 세션으로 동작**: `search()`/`add()`는 `db` 세션을 받지
+  않는데, 호출부(`ai_recommendation_service._evidence_for`)에는 세션이 있지만
+  포트 시그니처에 인프라 관심사(세션)를 끌어들이지 않기 위해 `PgVectorStore`가
+  `app/db/session.py`의 `engine`에 바인딩된 자체 `sessionmaker`로 호출마다 짧은
+  세션을 연다. 별도 벡터 인덱스 테이블 없이 `reviews.embedding` 컬럼을 직접
+  조회/갱신하므로 `add()`는 신규 삽입이 아니라 id 기준 UPDATE 의미다(존재하지
+  않는 id는 조용히 무시 — ingest는 항상 실제 id를 쓰므로 안전).
+- **리뷰 임베딩 백필은 스크래핑 파이프라인이 아니라 최소 CLI**
+  (`app/services/review_embedding_service.py` + `app/cli/ingest_review_embeddings.py`,
+  `import_academies.py`와 동일한 서비스/CLI 분리 구조): `data/`에 리뷰 원본이
+  전혀 없어 지금은 DB에 이미 존재하는 `embedding IS NULL` 행을 채우는 용도로만
+  범위를 한정. 실제 리뷰 수집·적재 파이프라인은 별도 다음 단계.
+- **`docker-compose.yml`의 `db` 이미지를 `postgres:16` → `pgvector/pgvector:pg16`으로
+  교체**: 기존 plain Postgres 이미지에는 `vector` extension 바이너리가 없어
+  migration `0003`의 `CREATE EXTENSION IF NOT EXISTS vector`가 실패함.
+- **`pyproject.toml`은 변경하지 않음**: `httpx`, `pgvector>=0.3`(SQLAlchemy
+  `cosine_distance()` comparator 포함), `psycopg[binary]`로 충분해
+  `sentence-transformers`/`torch`/OpenAI SDK 추가를 의도적으로 회피.
+- **pgvector 통합 테스트는 실제 Postgres가 필요해 스킵 처리**
+  (`tests/test_pgvector_store.py`, `pytest.mark.skipif`로
+  `PGVECTOR_TEST_DATABASE_URL` 미설정 시 스킵 — 저장소 최초의 skip 패턴): 기본
+  CI는 SQLite 기반(`Review.embedding`이 JSON variant)이라 `cosine_distance()` SQL이
+  동작하지 않음. `OpenAIEmbeddingProvider`는 Groq 테스트와 동일하게 `httpx.post`를
+  monkeypatch해 일반 CI에서 검증.
+
 ## 2026-07-22 — Groq(Llama)로 첫 실제 LLM provider 연동 (Phase 4b)
 
 - **LLM provider로 OpenAI 대신 Groq를 우선 채택** (`app/providers/groq.py`의
