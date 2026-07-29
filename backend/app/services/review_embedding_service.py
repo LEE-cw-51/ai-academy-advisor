@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
@@ -22,8 +22,8 @@ class BackfillReport:
 
 
 def count_missing_embeddings(db: Session) -> int:
-    rows = db.scalars(select(Review.id).where(Review.embedding.is_(None))).all()
-    return len(rows)
+    missing = db.scalar(select(func.count()).select_from(Review).where(Review.embedding.is_(None)))
+    return int(missing or 0)
 
 
 def backfill_missing_embeddings(db: Session, batch_size: int = 100) -> BackfillReport:
