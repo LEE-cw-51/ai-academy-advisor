@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/ai_academy_advisor"
     openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
     secret_key: str = "change-me"
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
 
     # provider별 세부 설정 (실제 어댑터를 붙이는 다음 단계에서 사용).
     llm_model: str = "gpt-4o-mini"
-    embedding_model: str = "BAAI/bge-m3"
+    embedding_model: str = "text-embedding-3-small"
     # 임베딩 차원. Review.embedding 의 Vector(dim)과 일치해야 하며,
     # 변경 시 마이그레이션이 필요하다 (docs/decision-log.md 참고).
     embedding_dim: int = 1024

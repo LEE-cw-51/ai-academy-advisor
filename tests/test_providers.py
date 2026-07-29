@@ -11,6 +11,8 @@ from app.providers.factory import (
     get_vector_store,
 )
 from app.providers.groq import GroqLLMProvider
+from app.providers.openai_embedding import OpenAIEmbeddingProvider
+from app.providers.pgvector_store import PgVectorStore
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
@@ -133,3 +135,87 @@ def test_factory_returns_groq_provider_when_configured(monkeypatch):
     finally:
         get_settings.cache_clear()
         get_llm_provider.cache_clear()
+
+
+def test_openai_embedding_provider_sends_request_and_parses_response(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["json"] = json
+        return httpx.Response(
+            status_code=200,
+            json={
+                "data": [
+                    {"index": 1, "embedding": [0.2, 0.2]},
+                    {"index": 0, "embedding": [0.1, 0.1]},
+                ]
+            },
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    embedder = OpenAIEmbeddingProvider(
+        api_key="test-key",
+        model="text-embedding-3-small",
+        base_url="https://api.openai.com/v1",
+        dimensions=1024,
+    )
+    result = embedder.embed(["a", "b"])
+
+    assert embedder.dimension == 1024
+    assert result == [[0.1, 0.1], [0.2, 0.2]]  # index로 재정렬됨
+    assert captured["url"] == "https://api.openai.com/v1/embeddings"
+    assert captured["headers"] == {"Authorization": "Bearer test-key"}
+    assert captured["json"] == {
+        "model": "text-embedding-3-small",
+        "input": ["a", "b"],
+        "dimensions": 1024,
+    }
+
+
+def test_openai_embedding_provider_raises_on_http_error(monkeypatch):
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=401,
+            json={"error": "invalid api key"},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    embedder = OpenAIEmbeddingProvider(
+        api_key="bad-key",
+        model="text-embedding-3-small",
+        base_url="https://api.openai.com/v1",
+        dimensions=1024,
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        embedder.embed(["hi"])
+
+
+def test_factory_returns_openai_embedding_provider_when_configured(monkeypatch):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    get_embedding_provider.cache_clear()
+    try:
+        embedder = get_embedding_provider()
+        assert isinstance(embedder, OpenAIEmbeddingProvider)
+    finally:
+        get_settings.cache_clear()
+        get_embedding_provider.cache_clear()
+
+
+def test_factory_returns_pgvector_store_when_configured(monkeypatch):
+    monkeypatch.setenv("VECTOR_STORE", "pgvector")
+    get_settings.cache_clear()
+    get_vector_store.cache_clear()
+    try:
+        store = get_vector_store()
+        assert isinstance(store, PgVectorStore)
+    finally:
+        get_settings.cache_clear()
+        get_vector_store.cache_clear()

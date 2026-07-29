@@ -2,6 +2,41 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-29 — OpenAI 임베딩 + pgvector VectorStore 실연동 (Phase 4b)
+
+- **임베딩 provider로 OpenAI `text-embedding-3-small`을 `dimensions=1024`로 호출**
+  (`app/providers/openai_embedding.py`의 `OpenAIEmbeddingProvider`): 기존 고정
+  `embedding_dim=1024`/`Vector(1024)` 컬럼과 마이그레이션 없이 맞아떨어짐. Groq와
+  동일하게 SDK 없이 `httpx.post`로 직접 호출(`raise_for_status()`, 방어 코드 없음) —
+  API 실패는 시스템 경계이므로 서비스 계층에서 감추지 않는다는 기존 원칙과 일관.
+  OpenAI 응답의 `data[]`는 `index` 필드로 재정렬해 입력 `texts` 순서와 정렬한다.
+- **VectorStore는 `reviews.embedding` 컬럼을 직접 조회하는 pgvector 구현**
+  (`app/providers/pgvector_store.py`의 `PgVectorStore`): `VectorStore.search()` 포트
+  시그니처에 `db: Session`이 없어(다른 provider와 동일하게 config만으로 생성되는
+  무상태 싱글턴 유지), 호출마다 자체 세션을 열고 닫는 방식으로 구현.
+- **`Review.embedding.cosine_distance(...)`는 쓸 수 없음을 확인** —
+  `JSON().with_variant(Vector(dim), "postgresql")`은 DDL/바인드·결과 처리만
+  dialect별로 바뀌고, Python 표현식 빌드용 `comparator_factory`는 원본(JSON) 타입에
+  고정되어 `AttributeError`가 남 (postgres dialect라도 동일). 대신
+  `Review.embedding.op("<=>", return_type=Float)(embedding)`으로 pgvector 코사인
+  거리 연산자를 직접 호출 — 우변 바인드 파라미터는 여전히 컬럼과 같은 Variant
+  타입을 가져 실행 시점엔 postgres dialect_impl(Vector)의 bind_processor가 정상
+  적용됨을 별도로 검증함. `Hit.score`는 "클수록 유사" 계약을 지키기 위해
+  `1 - cosine_distance`로 변환(StubVectorStore의 코사인 유사도와 동일 스케일).
+- **테스트는 SQLite 기본 스위트를 깨지 않도록 계층 분리**: `add()`는 dialect-agnostic한
+  plain UPDATE라 기존 SQLite 픽스처로 실제 실행 검증. `search()`의 `<=>`는 Postgres
+  전용 SQL이라 실행할 수 없으므로, 쿼리 빌드를 순수 함수(`_build_search_statement`)로
+  분리해 DB 연결 없이 컴파일 결과(연산자/필터/정렬/LIMIT)만 검증하고, 실제 검색
+  동작은 `PGVECTOR_TEST_DATABASE_URL` 환경변수가 있을 때만 도는 opt-in 통합
+  테스트로 분리 — 기본 `pytest`는 여전히 무비용·결정적으로 유지.
+- **기본 config는 여전히 전부 stub** (`EMBEDDING_PROVIDER=stub`, `VECTOR_STORE=stub`):
+  Groq 때와 동일한 opt-in 구조. 사용자가 `.env`에 `OPENAI_API_KEY`를 넣고
+  `EMBEDDING_PROVIDER=openai`/`VECTOR_STORE=pgvector`로 바꿔야 활성화된다.
+  `embedding_model` 기본값은 미구현 상태였던 `BAAI/bge-m3`에서 `text-embedding-3-small`로
+  변경(존재하지 않는 provider를 가리키던 오해 소지 제거).
+- **범위 제한**: 리뷰 ingest 파이프라인, ANN 인덱스(ivfflat/hnsw) 튜닝, LLM 기반 의도
+  분석은 이번 변경에 포함하지 않음 — 이후 단계로 이연.
+
 ## 2026-07-22 — Groq(Llama)로 첫 실제 LLM provider 연동 (Phase 4b)
 
 - **LLM provider로 OpenAI 대신 Groq를 우선 채택** (`app/providers/groq.py`의

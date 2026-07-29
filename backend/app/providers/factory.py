@@ -9,6 +9,8 @@ from functools import lru_cache
 from app.core.config import get_settings
 from app.providers.base import EmbeddingProvider, LLMProvider, VectorStore
 from app.providers.groq import GroqLLMProvider
+from app.providers.openai_embedding import OpenAIEmbeddingProvider
+from app.providers.pgvector_store import PgVectorStore
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
@@ -22,9 +24,16 @@ def get_embedding_provider() -> EmbeddingProvider:
     name = settings.embedding_provider
     if name == "stub":
         return StubEmbeddingProvider(dim=settings.embedding_dim)
-    # 다음 단계에서 추가: "openai"(text-embedding-3-*), "bge-m3"(local HF).
+    if name == "openai":
+        return OpenAIEmbeddingProvider(
+            api_key=settings.openai_api_key,
+            model=settings.embedding_model,
+            base_url=settings.openai_base_url,
+            dimensions=settings.embedding_dim,
+        )
+    # 다음 단계에서 추가: "bge-m3"(local HF).
     raise ValueError(
-        f"지원하지 않는 embedding_provider: {name!r} (현재 'stub'만 구현됨)"
+        f"지원하지 않는 embedding_provider: {name!r} (현재 'stub'/'openai'만 구현됨)"
     )
 
 
@@ -52,5 +61,8 @@ def get_vector_store() -> VectorStore:
     name = settings.vector_store
     if name == "stub":
         return StubVectorStore()
-    # 다음 단계에서 추가: "pgvector"(Review.embedding 기반 ANN 검색).
-    raise ValueError(f"지원하지 않는 vector_store: {name!r} (현재 'stub'만 구현됨)")
+    if name == "pgvector":
+        return PgVectorStore()
+    raise ValueError(
+        f"지원하지 않는 vector_store: {name!r} (현재 'stub'/'pgvector'만 구현됨)"
+    )
