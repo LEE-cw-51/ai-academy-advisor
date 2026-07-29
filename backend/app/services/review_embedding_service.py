@@ -31,6 +31,10 @@ def backfill_missing_embeddings(db: Session, batch_size: int = 100) -> BackfillR
     embedder = get_embedding_provider()
     store = get_vector_store()
 
+    from app.providers.pgvector_store import PgVectorStore
+
+    if not isinstance(store, PgVectorStore):
+        raise ValueError("리뷰 임베딩 백필은 Review.embedding을 UPDATE할 VectorStore가 필요합니다. VECTOR_STORE=pgvector 로 설정하세요.")
     while True:
         rows = db.scalars(
             select(Review).where(Review.embedding.is_(None)).limit(batch_size)
