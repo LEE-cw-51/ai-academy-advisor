@@ -14,7 +14,7 @@ PostgreSQL(+ pgvector extension)에서만 동작한다 (SQLite 테스트는 JSON
 import os
 
 import pytest
-from sqlalchemy import create_engine, delete
+from sqlalchemy import create_engine, delete, text
 from sqlalchemy.orm import sessionmaker
 
 pytestmark = pytest.mark.skipif(
@@ -30,6 +30,8 @@ def pg_session_factory():
     from app.models.review import Review
 
     engine = create_engine(os.environ["PGVECTOR_TEST_DATABASE_URL"], future=True)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, future=True)
     yield factory
