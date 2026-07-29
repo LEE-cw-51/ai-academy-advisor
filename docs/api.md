@@ -124,9 +124,13 @@ POST /recommendations
 자연어 질문 기반 AI 추천 (기획안 §6 기능2·§9). 파이프라인은 provider 포트를 경유한다:
 질문 기록 → 의도 분석 → 조건 필터링 → RAG 근거 검색 → 추천 이유 생성.
 
-현재 provider는 기본 **stub**이며(키·비용 0), 의도 분석은 규칙 기반이다. 실제
-임베딩/LLM/pgvector·LlamaIndex는 config만 바꿔 교체된다 (`docs/architecture.md`).
-리뷰 ingest 전에는 `evidence_reviews`가 빈 배열일 수 있다.
+현재 provider 기본값은 **stub**이며(키·비용 0), 의도 분석은 규칙 기반이다.
+`EMBEDDING_PROVIDER=openai` + `VECTOR_STORE=pgvector`로 전환하면 실제 임베딩(OpenAI
+`text-embedding-3-small`)과 pgvector 코사인 검색이 동작한다 (config만 바꿔 교체,
+`docs/decision-log.md`). LLM은 여전히 config로 별도 선택(`LLM_PROVIDER=groq` 등).
+실제 provider로 전환한 뒤에도 `Review.embedding`을 채우는 백필 CLI
+(`uv run python -m app.cli.ingest_review_embeddings`)를 먼저 실행하지 않았다면
+`evidence_reviews`가 빈 배열일 수 있다.
 
 | 필드 | 값 | 의미 |
 |---|---|---|
