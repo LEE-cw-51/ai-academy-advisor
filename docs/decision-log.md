@@ -2,6 +2,31 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-29 — `PgVectorStore.search()`의 `cosine_distance()` AttributeError 수정
+
+- **증상**: `Review.embedding.cosine_distance(embedding)`을 호출하면 postgres
+  dialect에서도 `AttributeError: Neither 'InstrumentedAttribute' object nor
+  'Comparator' object associated with Review.embedding has an attribute
+  'cosine_distance'`가 난다. `Review.embedding`이
+  `JSON().with_variant(Vector(dim), "postgresql")`로 이중화되어 있는데,
+  `with_variant()`는 DDL/바인드·결과 처리만 dialect별로 바꿔치기하고, `.cosine_distance()`
+  같은 비교자를 제공하는 `comparator_factory`는 원본(JSON) 타입에 그대로 고정되기
+  때문 — dialect와 무관하게 항상 재현된다.
+  - **발견 경위**: `tests/test_pgvector_store.py`가 `PGVECTOR_TEST_DATABASE_URL`
+    없이는 통째로 스킵되도록 되어 있어 기본 `pytest`(SQLite)로는 이 경로가 전혀
+    실행되지 않았다 — 실제로 main 전체 스위트는 이 버그가 있는 채로도 계속
+    통과해 왔다. 별도 세션에서 같은 기능(Phase 4b 임베딩/VectorStore)을 중복
+    구현하다가 로컬에서 `uv run`으로 실제 provider 환경을 재현해보며 발견했다.
+- **조치**: `Review.embedding.op("<=>", return_type=Float)(embedding)`으로 pgvector의
+  코사인 거리 연산자를 직접 호출하도록 변경 (`app/providers/pgvector_store.py`).
+  우변 바인드 파라미터는 여전히 컬럼과 같은 Variant 타입을 가지므로, 실행 시점에는
+  postgres dialect_impl(Vector)의 bind_processor가 정상 적용된다.
+- **테스트**: 실 Postgres 없이도 이 버그를 잡을 수 있도록 `tests/test_pgvector_store_query.py`를
+  추가 — 가짜 세션(context manager)으로 `search()`를 호출해 거리 표현식을 만드는
+  단계까지 DB 연결 없이 검증한다(표현식 생성 자체가 문제였으므로 DB 연결 여부와
+  무관하게 재현/검증 가능). 기존 `tests/test_pgvector_store.py`(실 Postgres 필요,
+  opt-in)는 그대로 유지.
+
 ## 2026-07-27 — OpenAI 임베딩 + pgvector VectorStore 실연동 (Phase 4b)
 
 - **임베딩 provider로 한국어 특화 모델(KURE-v1, bge-m3) 대신 OpenAI

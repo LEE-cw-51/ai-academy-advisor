@@ -7,11 +7,19 @@ Protocol은 `db` 세션을 받지 않으므로(포트를 인프라 관심사로 
 `add()`는 별도 인덱스 삽입이 아니라 **기존 리뷰 행의 embedding 컬럼을 id로 UPDATE**하는
 것과 같다 — 존재하지 않는 id는 조용히 무시된다(0 rows affected). ingest 경로는 항상
 실제 리뷰 id를 사용하므로 안전하다.
+
+`Review.embedding.cosine_distance(...)`는 쓸 수 없다: 컬럼이
+`JSON().with_variant(Vector(dim), "postgresql")`로 선언되어 있는데, `with_variant()`는
+DDL/바인드·결과 처리만 dialect별로 바꿔치기하고 `.cosine_distance()` 같은 비교자를
+제공하는 `comparator_factory`는 원본(JSON) 타입에 고정되어 postgres dialect에서도
+`AttributeError`가 난다. 대신 `.op("<=>", ...)`로 pgvector의 코사인 거리 연산자를
+직접 호출한다 — 우변 바인드 파라미터는 여전히 컬럼과 같은 Variant 타입을 가지므로
+실행 시점엔 postgres dialect_impl(Vector)의 bind_processor가 정상 적용된다.
 """
 
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import Float, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.session import engine
@@ -37,7 +45,7 @@ class PgVectorStore:
 
     def search(self, embedding: list[float], top_k: int) -> list[Hit]:
         with self._session_factory() as db:
-            distance = Review.embedding.cosine_distance(embedding).label("distance")
+            distance = Review.embedding.op("<=>", return_type=Float)(embedding).label("distance")
             rows = db.execute(
                 select(Review.id, distance)
                 .where(Review.embedding.is_not(None))
