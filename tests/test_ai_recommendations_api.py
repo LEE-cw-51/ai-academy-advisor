@@ -122,6 +122,7 @@ def test_ai_recommend_includes_coordinates_for_map(client, db_session):
     response = client.post(
         "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
     )
+    assert response.status_code == 200
     items = {i["academy"]["name"]: i["academy"] for i in response.json()["items"]}
 
     assert items["가온수학(예시)"]["latitude"] == pytest.approx(37.5601526466)

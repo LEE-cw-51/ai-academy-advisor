@@ -112,6 +112,7 @@ def test_recommend_includes_coordinates_for_map(client, db_session):
     db_session.commit()
 
     response = client.post("/recommendations", json={})
+    assert response.status_code == 200
     by_name = {item["name"]: item for item in response.json()["items"]}
 
     assert by_name["가온수학(예시)"]["latitude"] == pytest.approx(37.5601526466)

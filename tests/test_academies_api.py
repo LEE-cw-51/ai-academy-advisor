@@ -130,6 +130,9 @@ def test_limit_above_100_returns_422(client):
 
 def test_detail_returns_all_fields_including_nulls(client, db_session):
     rows = seed_academies(db_session)
+    rows[0].latitude = 37.5601526466
+    rows[0].longitude = 127.1866028387
+    db_session.commit()
     response = client.get(f"/academies/{rows[0].id}")
     assert response.status_code == 200
     body = response.json()
@@ -141,9 +144,9 @@ def test_detail_returns_all_fields_including_nulls(client, db_session):
     assert body["registration_number"] is None
     assert body["operating_hours"] is None
     assert body["last_verified_at"] == "2026-07-01"
-    # AcademySummary에서 상속되는 좌표 필드도 detail 응답에 남아 있어야 한다.
-    assert body["latitude"] is None
-    assert body["longitude"] is None
+    # AcademySummary에서 상속되는 좌표 필드도 detail 응답에서 실제 값까지 직렬화되어야 한다.
+    assert body["latitude"] == pytest.approx(37.5601526466)
+    assert body["longitude"] == pytest.approx(127.1866028387)
     # 내부 관리용 타임스탬프는 노출하지 않는다.
     assert "created_at" not in body
     assert "updated_at" not in body
