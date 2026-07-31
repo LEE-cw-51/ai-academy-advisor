@@ -21,13 +21,16 @@ __pycache__/
 .idea/
 *.iml
 
-# Flutter (future frontend)
-frontend/build/
-frontend/.dart_tool/
-frontend/.flutter-plugins
-frontend/.flutter-plugins-dependencies
-frontend/.packages
-frontend/pubspec.lock
+# Frontend (Next.js)
+node_modules/
+.next/
+frontend/.env*
+!frontend/.env.local.example
+frontend/out/
+
+# 수집 원본 (네이버 검색 API 응답). 정본이 아니며 커밋하지 않는다 —
+# 제3자 저작물 텍스트가 들어 있고, 리뷰 본문은 DB에만 보관한다.
+data/raw/
 
 # OS
 .DS_Store

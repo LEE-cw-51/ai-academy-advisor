@@ -148,3 +148,20 @@ def test_detail_not_found_404(client):
     response = client.get("/academies/999999")
     assert response.status_code == 404
     assert response.json() == {"detail": "Academy not found"}
+
+
+def test_list_includes_coordinates_for_map(client, db_session):
+    """목록 응답에 좌표가 있어야 검색 결과를 바로 지도 마커로 찍을 수 있다."""
+    rows = seed_academies(db_session)
+    rows[0].latitude = 37.5601526466
+    rows[0].longitude = 127.1866028387
+    db_session.commit()
+
+    items = client.get("/academies").json()["items"]
+    by_name = {item["name"]: item for item in items}
+
+    assert by_name["가온수학(예시)"]["latitude"] == 37.5601526466
+    assert by_name["가온수학(예시)"]["longitude"] == 127.1866028387
+    # 좌표 미확인 학원도 키 자체는 존재해야 한다 (프론트가 분기 없이 필터링하도록).
+    assert by_name["나래수학(예시)"]["latitude"] is None
+    assert by_name["나래수학(예시)"]["longitude"] is None

@@ -2,6 +2,38 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-31 — 채팅+지도 웹 UI 및 리뷰 수집 착수: 범위·경로 결정
+
+- **프론트엔드 스택을 Next.js(App Router) + TypeScript로 확정**: `README.md`/`docs/roadmap.md`의
+  "Next.js vs Flutter 미정"을 여기서 종결한다. 화면 목표가 왼쪽 ChatGPT류 스트리밍 채팅 +
+  오른쪽 지도인데, SSE 소비·지도 SDK 연동·향후 SEO 확장성 모두 React 생태계가 가장 무난하고,
+  `.gitignore`에 이미 있던 Flutter 전용 블록은 이번에 Node 전용 블록으로 교체한다.
+- **리뷰 소스를 네이버 플레이스 크롤링에서 네이버 개발자센터 공식 검색 API로 전환**:
+  처음엔 오픈소스 크롤러를 붙이려 했으나 조사 결과 자체 호스팅 가능한 네이버 플레이스
+  크롤러가 전부 방치 상태였다(`chalkpe/naver-place`는 2019년 아카이브에 리뷰 기능 자체가
+  없음, `omnyx2/naver_place_crawling`은 라이선스 없음+README에 "현재 정상 작동하지 않습니다"
+  명시, `seolhalee/Naver-Place-scraper`는 place id 추출만). 유지보수되는 건 Apify 같은
+  상용 SaaS뿐이고 그마저 플레이스 전용이라 맘카페류 지역 카페를 다루지 못한다.
+  지역 맘카페 직접 수집(로그인)도 검토했으나, 지역 맘카페는 본인 인증+거주 확인+등업이
+  필요한 **로그인 담벼락 뒤**라 `docs/data-strategy.md` 수집 원칙 1번("공개된 사실만
+  수집한다")에 정면으로 어긋나고 계정 약관·개인정보·학원 항의 리스크가 모두 크다.
+  → **네이버 검색 오픈 API의 `cafearticle`(카페글, 공개 설정된 글만 색인)과 `blog`
+  엔드포인트**로 대체. 무료 25,000회/일, ToS상 완전 합법, 크롤링이 아니라 공식 API 호출이다.
+  `local`(지역검색) 엔드포인트는 리뷰가 아니라 학원 매칭·정본 보강(subjects/phone 채우기)에
+  쓴다. 상세 계획은 세션 플랜(`P4`/`P5`) 참고.
+- **수집은 실시간 폴링이 아니라 오프라인 배치**: 학원 리뷰는 분 단위로 바뀌지 않고,
+  지속 폴링은 봇 트래픽 패턴만 명확해져 리스크 대비 실익이 없다. `--dry-run`/`--from-raw`를
+  갖춘 CLI로 일/주 단위 재실행하는 구조로 간다 (`import_academies`/`convert_registry` 관례와
+  동일선상).
+- **`description` 필드는 스니펫(~200자)이지, 리뷰 전문이 아니다** — 원문 전체를 얻으려면
+  결국 별도 크롤링이 필요한데 그 순간 위 결정의 합법성 이점이 사라지므로 의도적으로
+  하지 않는다. 화면에는 이 스니펫들을 근거로 한 LLM 요약만 노출하고, 원문 자체는 절대
+  git에 커밋하지 않으며(`data/raw/`, gitignored) UI에도 노출하지 않는다.
+- **핵심 원칙**: 휴리스틱(과목 추정 등)은 런타임 랭킹(`scoring.py`, 다음 PR)에만 반영하고,
+  `data/academies/*.json`(git 정본)에는 검증된 사실만 쓴다 — 학원 이름에 "수학"이 들어간다고
+  `subjects`를 추측해 파일에 쓰지 않는다. 추측 금지 원칙과 랭킹 정확도를 동시에 만족시키는
+  방법이다.
+
 ## 2026-07-29 — `PgVectorStore.search()`의 `cosine_distance()` AttributeError 수정
 
 - **증상**: `Review.embedding.cosine_distance(embedding)`을 호출하면 postgres
