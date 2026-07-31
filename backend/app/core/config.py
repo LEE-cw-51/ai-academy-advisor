@@ -27,7 +27,9 @@ class Settings(BaseSettings):
             return value.replace("postgresql://", "postgresql+psycopg://", 1)
         return value
 
-    cors_origins: list[str] = ["*"]
+    # 브라우저 프론트엔드(Next.js)의 오리진. env로 줄 때는 JSON 배열 형식이어야 한다
+    # (pydantic-settings가 list[str]을 JSON으로 파싱하므로 콤마 나열은 기동 실패).
+    cors_origins: list[str] = ["http://localhost:3000"]
 
     log_level: str = "INFO"
 

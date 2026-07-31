@@ -98,6 +98,9 @@ class AcademySummary(BaseModel):
     shuttle_available: bool | None
     tuition_monthly_fee: int | None
     last_verified_at: date | None
+    # 지도 표시용. 목록 응답에도 포함해야 검색 결과를 바로 마커로 찍을 수 있다.
+    latitude: float | None
+    longitude: float | None
 
 
 class AcademyDetail(AcademySummary):
@@ -109,8 +112,6 @@ class AcademyDetail(AcademySummary):
     established_year: int | None
     teacher_count: int | None
     classroom_count: int | None
-    latitude: float | None
-    longitude: float | None
     source_note: str | None
 
 

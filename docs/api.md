@@ -60,7 +60,9 @@ Boolean 필드의 `null`은 '미확인'을 뜻하며 어떤 필터에도 매치�
       "curriculum_suneung": false,
       "shuttle_available": true,
       "tuition_monthly_fee": 280000,
-      "last_verified_at": "2026-07-01"
+      "last_verified_at": "2026-07-01",
+      "latitude": 37.5601526466,
+      "longitude": 127.1866028387
     }
   ],
   "total": 1,
@@ -70,11 +72,13 @@ Boolean 필드의 `null`은 '미확인'을 뜻하며 어떤 필터에도 매치�
 ```
 
 `total`은 필터 조건에 맞는 전체 개수다 ("검색 결과 N개 학원" 표시용).
+`latitude`/`longitude`는 목록 응답에도 포함된다 (지도에 검색 결과를 바로 표시하기 위함).
+미확인이면 `null`.
 
 ### GET /academies/{academy_id}
 학원 상세를 반환한다. 목록 필드에 더해 `registration_number`, `website_url`,
 `blog_url`, `instagram_url`, `operating_hours`, `established_year`,
-`teacher_count`, `classroom_count`, `latitude`, `longitude`, `source_note`가 포함된다.
+`teacher_count`, `classroom_count`, `source_note`가 포함된다.
 
 없는 id면 404:
 

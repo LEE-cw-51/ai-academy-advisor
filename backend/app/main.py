@@ -17,7 +17,9 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    # 쿠키/인증 헤더를 쓰지 않으므로 False. True로 두면 allow_origins=["*"] 조합을
+    # 브라우저가 거부하고, 자격증명 요청 자체가 필요 없다.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

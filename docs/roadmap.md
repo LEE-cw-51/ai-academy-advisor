@@ -56,9 +56,15 @@
 - 자연어 추천 시 `SearchHistory` 기록 ✅
 - KPI(외부 행동률·대기자 등록률 등) 측정용 DB 직접 쓰기 (`docs/data-strategy.md`)
 
-## Phase 5 — 프론트엔드 클라이언트 (스택 미정)
-- 프론트 스택(Next.js vs Flutter)은 다음 논의로 확정
-- 학원 검색/추천 화면, 지도, 백엔드 API 연동
+## Phase 5 — 프론트엔드 클라이언트 (진행 중)
+- **프론트 스택: Next.js(App Router) + TypeScript로 확정** (`docs/decision-log.md` 2026-07-31)
+- 좌: SSE 스트리밍 채팅(`POST /chat`, 신규) / 우: 네이버 지도로 검색 결과 마커 표시
+- engagement API(`/events`,`/feedback`,`/waitlist`) 연동이 KPI 계측의 실제 배선
+
+## Phase 4b (계속) — 리뷰 실데이터 수집 (진행 중)
+- 리뷰 소스: **네이버 검색 오픈 API** `cafearticle`(지역 카페 공개글) + `blog` (`docs/decision-log.md` 2026-07-31)
+- `local`(지역검색)로 학원 매칭 + `subjects`/`phone` 등 정본 파일 보강 (git 정본 원칙 유지)
+- AI 요약만 화면에 노출, 원문 스니펫은 DB 보관 + RAG 근거 전용, git 커밋 금지
 
 ## Phase 6 — 배포 및 운영
 - 운영 환경 Docker Compose / 인프라 구성 (infra/)
