@@ -2,6 +2,27 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-07-31 — AI 경로 소프트 필터 + 진짜 적합도 점수 (P1)
+
+- **증상**: `POST /recommendations/ai`가 실데이터(`data/academies` 411건)에서 항상 빈 배열.
+  `level_*`/`class_*`/`curriculum_*`/`shuttle`/`tuition`/`subjects`가 **0/411 non-null**인데
+  `_apply_filters`의 `.is_(True)`가 NULL(미확인)을 배제하기 때문. 동시에 `_score()`는
+  파싱된 필터 **개수**만 세어 한 응답 안 모든 항목이 동일 점수였다.
+- **결정**: AI 경로만 "넓은 후보 풀 + 랭킹"으로 전환. SQL 하드 필터는 `region`/`q`뿐이고
+  3상태·예산은 `services/scoring.py`에서 채점한다 (`True`=+1, `False`=−2, `None`=0).
+- **하드 엔드포인트는 유지**: `POST /recommendations`는 `docs/api.md`에 문서화된 계약이므로
+  한 줄도 건드리지 않는다. 명시적 필터 UI·디버그용으로 계속 쓸모 있다.
+- **과목 추출은 `scoring.py`에**: `RecommendationRequest`/`intent.py`에 넣으면 하드
+  엔드포인트가 조용히 무시하는 유령 파라미터가 생기고, 추정 과목이 SQL WHERE로 샐 수 있다.
+  scoring에 가두면 구조적으로 불가능. 키는 추정 신호임을 드러내도록 `"subject"`(단수).
+  이름에 "수학"이 있다고 `subjects` 컬럼을 채우지 않는다 — 2026-07-31 휴리스틱 원칙의 구현.
+- **완화 사다리**: 남는 하드 필터가 region/q뿐이므로 `q` → `region` 2단.
+  (마스터 플랜의 budget→level→region 은 소프트화 이후 죽은 코드가 되어 폐기.)
+- **`list_candidates`의 name_like 정렬 힌트**: region="미사"면 ~410행이 매치되는데
+  `ORDER BY name LIMIT 200`은 가나다순 앞쪽만 채점한다. 과목 토큰이 이름에 든 행을
+  풀 앞으로 올려 실버그를 막는다. `_apply_filters`와 절이 겹쳐도 **의도적 비공유** —
+  두 계약을 다시 결합하는 DRY 리팩터를 하지 말 것.
+
 ## 2026-07-31 — 채팅+지도 웹 UI 및 리뷰 수집 착수: 범위·경로 결정
 
 - **프론트엔드 스택을 Next.js(App Router) + TypeScript로 확정**: `README.md`/`docs/roadmap.md`의
@@ -29,7 +50,7 @@
   결국 별도 크롤링이 필요한데 그 순간 위 결정의 합법성 이점이 사라지므로 의도적으로
   하지 않는다. 화면에는 이 스니펫들을 근거로 한 LLM 요약만 노출하고, 원문 자체는 절대
   git에 커밋하지 않으며(`data/raw/`, gitignored) UI에도 노출하지 않는다.
-- **핵심 원칙**: 휴리스틱(과목 추정 등)은 런타임 랭킹(`scoring.py`, 다음 PR)에만 반영하고,
+- **핵심 원칙**: 휴리스틱(과목 추정 등)은 런타임 랭킹(`scoring.py`)에만 반영하고,
   `data/academies/*.json`(git 정본)에는 검증된 사실만 쓴다 — 학원 이름에 "수학"이 들어간다고
   `subjects`를 추측해 파일에 쓰지 않는다. 추측 금지 원칙과 랭킹 정확도를 동시에 만족시키는
   방법이다.
