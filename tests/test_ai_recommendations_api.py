@@ -1,5 +1,7 @@
 """POST /recommendations/ai — 자연어 추천 파이프라인(stub provider) 테스트."""
 
+import pytest
+
 from app.models.academy import Academy
 from app.models.review import Review
 from app.models.engagement import SearchHistory
@@ -108,3 +110,22 @@ def test_ai_recommend_evidence_loaded_when_reviews_indexed(client, db_session):
         assert evidence[0]["rating"] == 5
     finally:
         store._items.clear()  # lru_cache 싱글턴이라 다른 테스트에 누수 방지
+
+
+def test_ai_recommend_includes_coordinates_for_map(client, db_session):
+    """지도 마커용 좌표가 /recommendations/ai 응답의 academy에도 포함되어야 한다."""
+    rows = seed_academies(db_session)
+    rows[0].latitude = 37.5601526466
+    rows[0].longitude = 127.1866028387
+    db_session.commit()
+
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = {i["academy"]["name"]: i["academy"] for i in response.json()["items"]}
+
+    assert items["가온수학(예시)"]["latitude"] == pytest.approx(37.5601526466)
+    assert items["가온수학(예시)"]["longitude"] == pytest.approx(127.1866028387)
+    assert items["나래수학(예시)"]["latitude"] is None
+    assert items["나래수학(예시)"]["longitude"] is None

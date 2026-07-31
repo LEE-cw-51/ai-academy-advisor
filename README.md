@@ -79,7 +79,11 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 반
 
 1. Railway에서 새 프로젝트를 만들고 이 GitHub 리포를 연동합니다.
 2. 프로젝트에 **Postgres 플러그인**을 추가합니다. `DATABASE_URL`은 자동으로 서비스에 주입됩니다.
-3. 서비스의 Variables에 `OPENAI_API_KEY`, `SECRET_KEY`를 직접 설정합니다.
+3. 서비스의 Variables에 `OPENAI_API_KEY`, `SECRET_KEY`를 직접 설정합니다. 브라우저
+   프론트엔드(Vercel 등)에서 API를 호출하려면 `CORS_ORIGINS`도 함께 설정해야 합니다 —
+   반드시 JSON 배열 형식이어야 하며(예: `["https://your-app.vercel.app"]`), 설정하지
+   않으면 `http://localhost:3000` 기본값만 허용되어 배포된 프론트엔드의 요청이 CORS
+   오류로 막힙니다.
 4. `main` 브랜치에 push하면 `backend/Dockerfile`로 자동 빌드/배포되고, `/health`로 헬스체크됩니다.
 5. DB 마이그레이션은 배포 후 Railway CLI로 1회 실행합니다.
 

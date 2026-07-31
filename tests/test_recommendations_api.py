@@ -1,3 +1,5 @@
+import pytest
+
 from app.models.academy import Academy
 
 
@@ -100,3 +102,20 @@ def test_recommend_invalid_level_returns_422(client):
 def test_recommend_negative_budget_returns_422(client):
     response = client.post("/recommendations", json={"budget_max": -1})
     assert response.status_code == 422
+
+
+def test_recommend_includes_coordinates_for_map(client, db_session):
+    """지도 마커용 좌표가 /recommendations 응답에도 포함되어야 한다."""
+    rows = seed_academies(db_session)
+    rows[0].latitude = 37.5601526466
+    rows[0].longitude = 127.1866028387
+    db_session.commit()
+
+    response = client.post("/recommendations", json={})
+    assert response.status_code == 200
+    by_name = {item["name"]: item for item in response.json()["items"]}
+
+    assert by_name["가온수학(예시)"]["latitude"] == pytest.approx(37.5601526466)
+    assert by_name["가온수학(예시)"]["longitude"] == pytest.approx(127.1866028387)
+    assert by_name["나래수학(예시)"]["latitude"] is None
+    assert by_name["나래수학(예시)"]["longitude"] is None

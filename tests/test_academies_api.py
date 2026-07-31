@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from app.models.academy import Academy
 
 
@@ -128,6 +130,9 @@ def test_limit_above_100_returns_422(client):
 
 def test_detail_returns_all_fields_including_nulls(client, db_session):
     rows = seed_academies(db_session)
+    rows[0].latitude = 37.5601526466
+    rows[0].longitude = 127.1866028387
+    db_session.commit()
     response = client.get(f"/academies/{rows[0].id}")
     assert response.status_code == 200
     body = response.json()
@@ -139,6 +144,9 @@ def test_detail_returns_all_fields_including_nulls(client, db_session):
     assert body["registration_number"] is None
     assert body["operating_hours"] is None
     assert body["last_verified_at"] == "2026-07-01"
+    # AcademySummary에서 상속되는 좌표 필드도 detail 응답에서 실제 값까지 직렬화되어야 한다.
+    assert body["latitude"] == pytest.approx(37.5601526466)
+    assert body["longitude"] == pytest.approx(127.1866028387)
     # 내부 관리용 타임스탬프는 노출하지 않는다.
     assert "created_at" not in body
     assert "updated_at" not in body
@@ -160,8 +168,8 @@ def test_list_includes_coordinates_for_map(client, db_session):
     items = client.get("/academies").json()["items"]
     by_name = {item["name"]: item for item in items}
 
-    assert by_name["가온수학(예시)"]["latitude"] == 37.5601526466
-    assert by_name["가온수학(예시)"]["longitude"] == 127.1866028387
+    assert by_name["가온수학(예시)"]["latitude"] == pytest.approx(37.5601526466)
+    assert by_name["가온수학(예시)"]["longitude"] == pytest.approx(127.1866028387)
     # 좌표 미확인 학원도 키 자체는 존재해야 한다 (프론트가 분기 없이 필터링하도록).
     assert by_name["나래수학(예시)"]["latitude"] is None
     assert by_name["나래수학(예시)"]["longitude"] is None
