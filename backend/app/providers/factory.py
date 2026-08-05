@@ -7,13 +7,20 @@
 from functools import lru_cache
 
 from app.core.config import get_settings
-from app.providers.base import EmbeddingProvider, LLMProvider, VectorStore
+from app.providers.base import (
+    EmbeddingProvider,
+    LLMProvider,
+    ReviewSource,
+    VectorStore,
+)
 from app.providers.groq import GroqLLMProvider
+from app.providers.naver_review import NaverReviewSource
 from app.providers.openai_embedding import OpenAIEmbeddingProvider
 from app.providers.pgvector_store import PgVectorStore
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
+    StubReviewSource,
     StubVectorStore,
 )
 
@@ -65,4 +72,21 @@ def get_vector_store() -> VectorStore:
         return PgVectorStore()
     raise ValueError(
         f"지원하지 않는 vector_store: {name!r} (현재 'stub'/'pgvector'만 구현됨)"
+    )
+
+
+@lru_cache
+def get_review_source() -> ReviewSource:
+    settings = get_settings()
+    name = settings.review_source
+    if name == "stub":
+        return StubReviewSource()
+    if name == "naver":
+        return NaverReviewSource(
+            client_id=settings.naver_client_id,
+            client_secret=settings.naver_client_secret,
+            base_url=settings.naver_base_url,
+        )
+    raise ValueError(
+        f"지원하지 않는 review_source: {name!r} (현재 'stub'/'naver'만 구현됨)"
     )

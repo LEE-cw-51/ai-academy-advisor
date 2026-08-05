@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import math
 
-from app.providers.base import Hit
+from app.providers.base import Hit, ReviewItem
 
 
 class StubEmbeddingProvider:
@@ -83,3 +83,33 @@ class StubVectorStore:
         ]
         scored.sort(key=lambda hit: hit.score, reverse=True)
         return scored[:top_k]
+
+
+class StubReviewSource:
+    """질의 해시로 결정적 리뷰 스니펫을 만든다.
+
+    같은 질의는 항상 같은 `url`을 내므로 ingest 의 중복 제거(dedup)를 네트워크 없이
+    검증할 수 있다 — 두 번째 실행은 0건 삽입이어야 한다.
+
+    `content`에 질의어(학원명)를 그대로 포함시킨다. `review_ingest_service`의 이름
+    사후필터를 통과해야 stub 만으로 수집 경로 전체가 돌아가기 때문이다.
+    """
+
+    _ITEMS_PER_QUERY = 2
+
+    def search(self, query: str, limit: int = 10) -> list[ReviewItem]:
+        digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        count = min(self._ITEMS_PER_QUERY, limit)
+        return [
+            ReviewItem(
+                title=f"{query} 후기 (stub {i + 1})",
+                content=(
+                    f"{query}에 대한 결정적 stub 스니펫 {i + 1}번입니다. "
+                    "실제 네이버 응답이 아니며 테스트/개발용입니다."
+                ),
+                url=f"https://example.invalid/stub/{digest[:8]}-{i}",
+                source="stub",
+                published_at=None,
+            )
+            for i in range(count)
+        ]
