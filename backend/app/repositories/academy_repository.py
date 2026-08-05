@@ -1,4 +1,6 @@
-from sqlalchemy import Select, func, or_, select
+from collections.abc import Sequence
+
+from sqlalchemy import Select, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
@@ -108,3 +110,38 @@ def find_by_name_and_address(
 
 def list_all(db: Session) -> list[Academy]:
     return list(db.scalars(select(Academy).order_by(Academy.id)))
+
+
+def list_candidates(
+    db: Session,
+    params: RecommendationRequest,
+    pool_limit: int = 200,
+    name_like: Sequence[str] = (),
+) -> list[Academy]:
+    """AI 소프트 필터용 후보 풀.
+
+    `_apply_filters` / `_apply_recommendation_filters` 를 **의도적으로 재사용하지 않는다.**
+    그쪽은 POST /recommendations 의 동결된 하드 필터 계약이고, 이쪽은 리콜 확보용이다.
+    SQL 하드 필터는 region(address.ilike)과 q 뿐이며, 3상태 bool·budget 은
+    scoring.py 에서 랭킹한다. 두 계약을 다시 결합하는 DRY 리팩터를 하지 말 것.
+
+    `name_like` 는 필터가 아니라 정렬 힌트다. region 매치가 많아 LIMIT 으로
+    잘릴 때 과목 토큰이 이름에 든 행을 풀 앞쪽으로 올려 채점 기회를 준다.
+    """
+    stmt = select(Academy)
+    if params.region is not None:
+        stmt = stmt.where(Academy.address.ilike(f"%{params.region}%"))
+    if params.q is not None:
+        pattern = f"%{params.q}%"
+        stmt = stmt.where(
+            or_(Academy.name.ilike(pattern), Academy.address.ilike(pattern))
+        )
+
+    order_clauses: list = []
+    if name_like:
+        match_any = or_(*(Academy.name.ilike(pattern) for pattern in name_like))
+        order_clauses.append(case((match_any, 0), else_=1))
+    order_clauses.extend([Academy.name, Academy.id])
+
+    stmt = stmt.order_by(*order_clauses).limit(pool_limit)
+    return list(db.scalars(stmt))

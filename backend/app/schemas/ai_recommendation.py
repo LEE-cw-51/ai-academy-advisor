@@ -27,8 +27,11 @@ class AiRecommendationItem(BaseModel):
 
     academy: AcademySummary
     reason: str  # AI가 생성한 추천 이유
-    score: float  # 추천 점수 (높을수록 적합)
+    score: float  # 상대 랭킹 점수 (높을수록 적합, 절대값 의미 없음)
     evidence_reviews: list[ReviewEvidence]  # 근거 리뷰 (없으면 빈 배열)
+    matched_conditions: list[str] = Field(default_factory=list)
+    unknown_conditions: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
 
 
 class AiRecommendationResponse(BaseModel):
@@ -37,3 +40,4 @@ class AiRecommendationResponse(BaseModel):
     query: str
     parsed_intent: dict
     items: list[AiRecommendationItem]
+    relaxed: list[str] = Field(default_factory=list)

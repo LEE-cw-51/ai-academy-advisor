@@ -60,6 +60,9 @@
 - **프론트 스택: Next.js(App Router) + TypeScript로 확정** (`docs/decision-log.md` 2026-07-31)
 - 좌: SSE 스트리밍 채팅(`POST /chat`, 신규) / 우: 네이버 지도로 검색 결과 마커 표시
 - engagement API(`/events`,`/feedback`,`/waitlist`) 연동이 KPI 계측의 실제 배선
+- **P0** 좌표 노출 + CORS/railway 위생 ✅
+- **P1** AI 소프트 필터 + 진짜 적합도 점수 (`scoring.py` / `recommendation_pipeline.py`) ✅
+  — P2(`POST /chat` SSE)·P3(프론트)의 기반
 
 ## Phase 4b (계속) — 리뷰 실데이터 수집 (진행 중)
 - 리뷰 소스: **네이버 검색 오픈 API** `cafearticle`(지역 카페 공개글) + `blog` (`docs/decision-log.md` 2026-07-31)
