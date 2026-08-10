@@ -1,4 +1,5 @@
 import { Badge, Button, Card } from "@/components/ui";
+import { naverDirectionsUrl } from "@/lib/maps";
 import type { AiRecommendationItem, ClickEventType } from "@/lib/types";
 
 interface RecommendationCardProps {
@@ -6,6 +7,7 @@ interface RecommendationCardProps {
   rank: number;
   selected?: boolean;
   onSelect?: () => void;
+  onShowDetail?: () => void;
   onTrack?: (event: ClickEventType) => void;
 }
 
@@ -14,9 +16,14 @@ export function RecommendationCard({
   rank,
   selected,
   onSelect,
+  onShowDetail,
   onTrack,
 }: RecommendationCardProps) {
   const { academy, reason, evidence_reviews } = item;
+  const coords =
+    academy.latitude != null && academy.longitude != null
+      ? { lat: academy.latitude, lng: academy.longitude }
+      : null;
 
   return (
     <Card
@@ -71,18 +78,25 @@ export function RecommendationCard({
           onClick={(e) => {
             e.stopPropagation();
             onTrack?.("detail");
-            onSelect?.();
+            onShowDetail?.();
           }}
         >
           상세
         </Button>
-        {academy.latitude != null && academy.longitude != null ? (
+        {coords ? (
           <Button
             variant="ghost"
             className="!px-2.5 !py-1.5 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               onTrack?.("directions");
+              // 지도에서도 해당 학원으로 이동시켜 두고 네이버 길찾기를 새 탭으로 연다.
+              onSelect?.();
+              window.open(
+                naverDirectionsUrl(coords.lat, coords.lng, academy.name),
+                "_blank",
+                "noopener,noreferrer",
+              );
             }}
           >
             길찾기

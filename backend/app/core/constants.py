@@ -32,6 +32,3 @@ class ClickEvent(StrEnum):
     WEBSITE = "website"  # 홈페이지 클릭
     DIRECTIONS = "directions"  # 길찾기 클릭
     DETAIL = "detail"  # 상세보기 클릭
-
-
-SUBJECT_MATH = "수학"

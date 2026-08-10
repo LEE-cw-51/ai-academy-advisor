@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Badge, Chip } from "@/components/ui";
 import { requestAiRecommendations, trackEvent } from "@/lib/api";
 import type { AiRecommendationItem, ClickEventType } from "@/lib/types";
 import { ApiError } from "@/lib/types";
+import { AcademyDetailModal } from "./AcademyDetailModal";
 import { RecommendationCard } from "./RecommendationCard";
 
 const REGION = "하남 미사";
@@ -58,6 +59,7 @@ export function ChatPanel({
   const [error, setError] = useState("");
   const [items, setItems] = useState<AiRecommendationItem[]>([]);
   const [relaxed, setRelaxed] = useState<string[]>([]);
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const query = useMemo(
     () =>
@@ -111,6 +113,8 @@ export function ChatPanel({
       // tracking should not block UX
     }
   }
+
+  const closeDetail = useCallback(() => setDetailId(null), []);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
@@ -241,10 +245,20 @@ export function ChatPanel({
             rank={idx + 1}
             selected={selectedAcademyId === item.academy.id}
             onSelect={() => onSelectAcademy(item.academy.id)}
+            onShowDetail={() => {
+              onSelectAcademy(item.academy.id);
+              setDetailId(item.academy.id);
+            }}
             onTrack={(event) => void handleTrack(item.academy.id, event)}
           />
         ))}
       </div>
+
+      <AcademyDetailModal
+        academyId={detailId}
+        onClose={closeDetail}
+        onTrack={(academyId, event) => void handleTrack(academyId, event)}
+      />
     </div>
   );
 }

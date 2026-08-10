@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchAcademies } from "@/lib/api";
+import { fetchAllAcademies } from "@/lib/api";
 import type { AcademySummary, AiRecommendationItem } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
 import { MapPanel } from "./MapPanel";
@@ -14,7 +14,7 @@ export function AppShell() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchAcademies({ limit: 50 })
+    fetchAllAcademies()
       .then((res) => {
         if (cancelled) return;
         setListAcademies(res.items);
@@ -75,7 +75,7 @@ export function AppShell() {
           <MapPanel
             academies={mapAcademies}
             selectedId={selectedId}
-            onSelect={(id) => setSelectedId(id)}
+            onSelect={onSelect}
           />
         </section>
       </div>

@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     naver_client_id: str = ""
     naver_client_secret: str = ""
     naver_base_url: str = "https://openapi.naver.com/v1"
-    secret_key: str = "change-me"
 
     @field_validator("database_url")
     @classmethod

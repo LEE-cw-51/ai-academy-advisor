@@ -1,4 +1,5 @@
 import type {
+  AcademyDetail,
   AcademyListResponse,
   AiRecommendationResponse,
   ClickEventPayload,
@@ -69,6 +70,53 @@ export function fetchAcademies(params?: {
   if (params?.offset != null) search.set("offset", String(params.offset));
   const qs = search.toString();
   return request<AcademyListResponse>(`/academies${qs ? `?${qs}` : ""}`);
+}
+
+/** Backend `limit` max is 100 — page until all academies are collected. */
+const ACADEMY_PAGE_SIZE = 100;
+const ACADEMY_MAX_PAGES = 50;
+
+export async function fetchAllAcademies(params?: {
+  q?: string;
+}): Promise<AcademyListResponse> {
+  const all: AcademyListResponse["items"] = [];
+  let total = 0;
+  let offset = 0;
+
+  for (let page = 0; page < ACADEMY_MAX_PAGES; page++) {
+    const res = await fetchAcademies({
+      q: params?.q,
+      limit: ACADEMY_PAGE_SIZE,
+      offset,
+    });
+    total = res.total;
+    if (res.items.length === 0) {
+      break;
+    }
+    all.push(...res.items);
+    if (all.length >= total || res.items.length < ACADEMY_PAGE_SIZE) {
+      break;
+    }
+    const nextOffset = offset + res.items.length;
+    if (nextOffset <= offset) {
+      break;
+    }
+    offset = nextOffset;
+  }
+
+  return {
+    items: all,
+    total,
+    limit: all.length,
+    offset: 0,
+  };
+}
+
+export function fetchAcademyDetail(
+  academyId: number,
+  init?: RequestInit,
+): Promise<AcademyDetail> {
+  return request<AcademyDetail>(`/academies/${academyId}`, init);
 }
 
 export function requestAiRecommendations(

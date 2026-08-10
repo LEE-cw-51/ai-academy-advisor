@@ -23,6 +23,18 @@ export interface AcademySummary {
   longitude: number | null;
 }
 
+export interface AcademyDetail extends AcademySummary {
+  registration_number: string | null;
+  website_url: string | null;
+  blog_url: string | null;
+  instagram_url: string | null;
+  operating_hours: string | null;
+  established_year: number | null;
+  teacher_count: number | null;
+  classroom_count: number | null;
+  source_note: string | null;
+}
+
 export interface AcademyListResponse {
   items: AcademySummary[];
   total: number;
