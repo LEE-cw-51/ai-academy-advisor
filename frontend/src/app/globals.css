@@ -1,0 +1,11 @@
+@import "../styles/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-family: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+}

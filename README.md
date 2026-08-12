@@ -15,7 +15,8 @@
 - Pydantic Settings
 
 **Frontend**
-- 미정 (Next.js vs Flutter — 다음 논의로 확정)
+- Next.js 15 (App Router, TypeScript, Tailwind)
+- 네이버 지도 JavaScript API (선택)
 
 **AI**
 - provider 추상화 계층(`app/providers/`) — LLM/임베딩/벡터 스토어를 config로 교체
@@ -52,7 +53,21 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-### 4. 테스트 실행
+### 4. 프론트엔드 실행 (Next.js)
+
+백엔드가 `http://localhost:8000`에서 떠 있는 상태에서:
+
+```bash
+cd frontend
+cp .env.local.example .env.local   # NEXT_PUBLIC_API_URL, (선택) 네이버 지도 키
+npm install
+npm run dev
+```
+
+- 앱: http://localhost:3000
+- 자세한 안내는 [frontend/README.md](frontend/README.md)를 참고하세요.
+
+### 5. 테스트 실행
 
 ```bash
 cd backend
@@ -60,7 +75,7 @@ uv sync
 uv run pytest ../tests
 ```
 
-### 5. DB 마이그레이션 및 학원 데이터 적재
+### 6. DB 마이그레이션 및 학원 데이터 적재
 
 ```bash
 cd backend
@@ -79,7 +94,7 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 반
 
 1. Railway에서 새 프로젝트를 만들고 이 GitHub 리포를 연동합니다.
 2. 프로젝트에 **Postgres 플러그인**을 추가합니다. `DATABASE_URL`은 자동으로 서비스에 주입됩니다.
-3. 서비스의 Variables에 `OPENAI_API_KEY`, `SECRET_KEY`를 직접 설정합니다. 브라우저
+3. 서비스의 Variables에 `OPENAI_API_KEY`를 직접 설정합니다. 브라우저
    프론트엔드(Vercel 등)에서 API를 호출하려면 `CORS_ORIGINS`도 함께 설정해야 합니다 —
    반드시 JSON 배열 형식이어야 하며(예: `["https://your-app.vercel.app"]`), 설정하지
    않으면 `http://localhost:3000` 기본값만 허용되어 배포된 프론트엔드의 요청이 CORS
@@ -113,11 +128,9 @@ ai-academy-advisor/
 │   ├── alembic/            # DB 마이그레이션
 │   ├── pyproject.toml
 │   └── Dockerfile
+├── frontend/               # Next.js 앱 (학원콕 UI)
 ├── docs/                   # 프로젝트 문서
 ├── data/                   # 학원 데이터
-├── prompts/                # AI 프롬프트 템플릿
-├── infra/                  # 인프라 설정
-├── scripts/                # 운영/개발 스크립트
 ├── tests/                  # 테스트
 ├── docker-compose.yml
 └── .env.example
