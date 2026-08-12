@@ -28,6 +28,26 @@ def record_feedback(db: Session, payload: FeedbackCreate) -> Feedback:
 
 
 def register_waitlist(db: Session, payload: WaitlistCreate) -> Waitlist:
-    email = (payload.email or "").strip() or None
-    kakao = (payload.kakao or "").strip() or None
+    # 스키마에서 이미 strip/lowercase 정규화됨.
+    email = payload.email
+    kakao = payload.kakao
+
+    existing: Waitlist | None = None
+    if email:
+        existing = engagement_repository.find_waitlist_by_email(db, email)
+    if existing is None and kakao:
+        existing = engagement_repository.find_waitlist_by_kakao(db, kakao)
+
+    if existing is not None:
+        changed = False
+        if email and not existing.email:
+            existing.email = email
+            changed = True
+        if kakao and not existing.kakao:
+            existing.kakao = kakao
+            changed = True
+        if changed:
+            return engagement_repository.save_waitlist(db, existing)
+        return existing
+
     return engagement_repository.create_waitlist(db, email=email, kakao=kakao)

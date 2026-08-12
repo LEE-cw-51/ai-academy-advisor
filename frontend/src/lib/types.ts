@@ -75,6 +75,11 @@ export interface ClickEventPayload {
   event: ClickEventType;
 }
 
+export interface WaitlistPayload {
+  email?: string;
+  kakao?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,

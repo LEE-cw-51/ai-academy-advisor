@@ -6,9 +6,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.api.waitlist_rate_limit import enforce_waitlist_rate_limit
 from app.dependencies.db import get_db
 from app.schemas.engagement import (
     ClickEventCreate,
@@ -46,7 +47,9 @@ def submit_feedback(
 @router.post("/waitlist", response_model=CreatedResponse, status_code=status.HTTP_201_CREATED)
 def join_waitlist(
     payload: WaitlistCreate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> CreatedResponse:
+    enforce_waitlist_rate_limit(request)
     row = engagement_service.register_waitlist(db, payload)
     return CreatedResponse.model_validate(row)

@@ -4,6 +4,7 @@ import type {
   AiRecommendationResponse,
   ClickEventPayload,
   CreatedResponse,
+  WaitlistPayload,
 } from "./types";
 import { ApiError } from "./types";
 
@@ -12,6 +13,41 @@ const DEFAULT_API_URL = "http://localhost:8000";
 export function getApiBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL;
   return raw.replace(/\/$/, "");
+}
+
+/** FastAPI `detail`은 문자열 또는 `{msg,loc,...}[]`일 수 있다. */
+export function extractApiErrorMessage(
+  body: unknown,
+  status: number,
+): string {
+  let message = `요청 실패 (${status})`;
+  if (typeof body === "object" && body !== null && "detail" in body) {
+    const detail = (body as { detail: unknown }).detail;
+    if (typeof detail === "string" && detail.trim()) {
+      message = detail;
+    } else if (Array.isArray(detail)) {
+      const msgs = detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (
+            typeof item === "object" &&
+            item !== null &&
+            "msg" in item &&
+            typeof (item as { msg: unknown }).msg === "string"
+          ) {
+            return (item as { msg: string }).msg;
+          }
+          return null;
+        })
+        .filter((m): m is string => Boolean(m));
+      if (msgs.length > 0) {
+        message = msgs
+          .map((m) => m.replace(/^Value error,\s*/i, ""))
+          .join("; ");
+      }
+    }
+  }
+  return message;
 }
 
 async function request<T>(
@@ -28,9 +64,9 @@ async function request<T>(
         ...(init?.headers ?? {}),
       },
     });
-  } catch (err) {
+  } catch {
     throw new ApiError(
-      err instanceof Error ? err.message : "네트워크 오류",
+      "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
       0,
     );
   }
@@ -42,14 +78,11 @@ async function request<T>(
     } catch {
       body = undefined;
     }
-    const detail =
-      typeof body === "object" &&
-      body !== null &&
-      "detail" in body &&
-      typeof (body as { detail: unknown }).detail === "string"
-        ? (body as { detail: string }).detail
-        : `요청 실패 (${response.status})`;
-    throw new ApiError(detail, response.status, body);
+    throw new ApiError(
+      extractApiErrorMessage(body, response.status),
+      response.status,
+      body,
+    );
   }
 
   if (response.status === 204) {
@@ -131,6 +164,13 @@ export function requestAiRecommendations(
 
 export function trackEvent(payload: ClickEventPayload): Promise<CreatedResponse> {
   return request<CreatedResponse>("/events", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function joinWaitlist(payload: WaitlistPayload): Promise<CreatedResponse> {
+  return request<CreatedResponse>("/waitlist", {
     method: "POST",
     body: JSON.stringify(payload),
   });

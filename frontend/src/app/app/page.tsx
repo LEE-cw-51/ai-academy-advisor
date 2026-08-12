@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AppShell } from "@/components/app/AppShell";
 
-export default function AppRedirectPage() {
-  redirect("/");
+export default function AppPage() {
+  return <AppShell />;
 }
