@@ -33,10 +33,25 @@ def create_feedback(db: Session, rating: str, comment: str | None) -> Feedback:
     return row
 
 
+def find_waitlist_by_email(db: Session, email: str) -> Waitlist | None:
+    return db.scalars(select(Waitlist).where(Waitlist.email == email)).first()
+
+
+def find_waitlist_by_kakao(db: Session, kakao: str) -> Waitlist | None:
+    return db.scalars(select(Waitlist).where(Waitlist.kakao == kakao)).first()
+
+
 def create_waitlist(
     db: Session, email: str | None, kakao: str | None
 ) -> Waitlist:
     row = Waitlist(email=email, kakao=kakao)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def save_waitlist(db: Session, row: Waitlist) -> Waitlist:
     db.add(row)
     db.commit()
     db.refresh(row)

@@ -4,10 +4,14 @@
 """
 
 from datetime import datetime
+import re
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.constants import ClickEvent
+
+# 가벼운 형식 검사 (email-validator 의존성 없이). 저장 전 lowercase 정규화.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class ClickEventCreate(BaseModel):
@@ -31,11 +35,15 @@ class WaitlistCreate(BaseModel):
     kakao: str | None = Field(default=None, max_length=255)
 
     @model_validator(mode="after")
-    def _require_contact(self) -> "WaitlistCreate":
-        email = (self.email or "").strip()
-        kakao = (self.kakao or "").strip()
+    def _normalize_and_require_contact(self) -> "WaitlistCreate":
+        email = (self.email or "").strip().lower() or None
+        kakao = (self.kakao or "").strip() or None
         if not email and not kakao:
             raise ValueError("email 또는 kakao 중 하나는 필요합니다")
+        if email is not None and not _EMAIL_RE.match(email):
+            raise ValueError("올바른 이메일 형식이 아닙니다")
+        self.email = email
+        self.kakao = kakao
         return self
 
 
