@@ -32,11 +32,11 @@ frontend/out/
 # 제3자 저작물 텍스트가 들어 있고, 리뷰 본문은 DB에만 보관한다.
 data/raw/
 
-# 공공데이터 원본 다운로드(경기도 학원·교습소 현황 등). 정본은 data/academies/*.json이며
-# 원본은 convert_registry CLI의 입력일 뿐이므로 커밋하지 않는다.
-*.csv
-*.xlsx
-!data/academies/**/*.csv
+# 루트에 받아둔 공공데이터 원본(경기도 학원·교습소 현황 등). 정본은 data/academies/*.json이고
+# 원본은 convert_registry CLI의 입력일 뿐이라 커밋하지 않는다. (루트만 대상 — 나중에
+# 정본으로 커밋할 표 데이터가 생기면 그건 그대로 추적된다.)
+/*.csv
+/*.xlsx
 
 # 로컬 SQLite (개발용 파생 DB). 정본이 아니다.
 *.db
