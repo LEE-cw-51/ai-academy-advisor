@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 에이전트 공통 계약 (AGENTS.md)
+    url: https://github.com/LEE-cw-51/ai-academy-advisor/blob/main/AGENTS.md
+    about: 모든 AI가 작업 전에 읽는 규칙. 규칙 변경은 Issue가 아니라 이 파일 PR로 한다.
+  - name: 의사결정 로그
+    url: https://github.com/LEE-cw-51/ai-academy-advisor/blob/main/docs/decision-log.md
+    about: 이미 내려진 결정과 이유. 제안 전에 충돌 여부를 먼저 확인한다.

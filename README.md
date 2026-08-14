@@ -1,7 +1,11 @@
-# AI Academy Advisor
+# AI Academy Advisor (학원콕)
 
-하남 미사 지역의 수학학원을 AI가 추천해주는 도메인 특화 AI 서비스입니다. 현재는 MVP 단계로,
+하남 미사 지역의 학원을 AI가 추천해주는 도메인 특화 AI 서비스입니다. 현재는 MVP 단계로,
 확장성보다 명확한 구조와 유지보수성을 우선하여 개발합니다.
+
+> **AI와 함께 작업한다면 먼저 [AGENTS.md](AGENTS.md)를 읽으세요.**
+> 이 저장소는 여러 AI(ChatGPT·Claude·Cursor·Manus)가 공유하는 단일 정본이며,
+> 공통 계약과 역할 규약은 [AGENTS.md](AGENTS.md)와 [docs/ai-team.md](docs/ai-team.md)에 있습니다.
 
 ## 기술 스택
 
@@ -130,8 +134,11 @@ ai-academy-advisor/
 │   └── Dockerfile
 ├── frontend/               # Next.js 앱 (학원콕 UI)
 ├── docs/                   # 프로젝트 문서
-├── data/                   # 학원 데이터
+├── data/                   # 학원 데이터 (정본)
 ├── tests/                  # 테스트
+├── .github/                # PR/Issue 템플릿 (AI 인계 형식)
+├── AGENTS.md               # 에이전트 공통 계약 (모든 AI가 먼저 읽는 파일)
+├── CLAUDE.md               # Claude 진입점 (AGENTS.md를 가리킴)
 ├── docker-compose.yml
 └── .env.example
 ```

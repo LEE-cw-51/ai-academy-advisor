@@ -1,0 +1,70 @@
+name: 결정 요청 (Decision)
+description: Founder의 판단이 필요한 제품·기술·사업 선택지 정리
+title: "[Decision] "
+labels: ["decision"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **AI는 선택지를 분석하고, 결정은 Founder가 한다.**
+        제시 순서: 문제 → 현재 구조 → 대안 → 트레이드오프 → 추천안.
+        결정이 나면 `docs/decision-log.md`에 기록하고 이 Issue를 닫는다.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 문제 / 결정이 필요한 지점
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 현재 구조 · 관련 기존 결정
+      description: 이 결정이 뒤집거나 확장하는 `docs/decision-log.md` 항목이 있으면 링크한다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: 대안과 트레이드오프
+      value: |
+        ### 대안 A —
+        - 장점:
+        - 단점 / 비용:
+        - 되돌리기 난이도:
+
+        ### 대안 B —
+        - 장점:
+        - 단점 / 비용:
+        - 되돌리기 난이도:
+    validations:
+      required: true
+
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: 추천안과 근거
+      description: 하나를 명확히 고르고 이유를 쓴다. "둘 다 좋습니다"는 결정을 돕지 않는다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: unknown
+    attributes:
+      label: 불확실성 / 이 결정을 바꿀 수 있는 정보
+      description: 추가 조사가 필요하면 조사 의뢰 Issue를 함께 연결한다.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: reversibility
+    attributes:
+      label: 되돌리기 난이도
+      options:
+        - 쉬움 — 코드 수정으로 원복 가능
+        - 보통 — 마이그레이션·데이터 재적재 필요
+        - 어려움 — 외부 계약·비용·공개 발행 등 비가역
+    validations:
+      required: true
