@@ -26,7 +26,12 @@ def reset_waitlist_rate_limit() -> None:
 
 
 def enforce_waitlist_rate_limit(request: Request) -> None:
-    ip = request.client.host if request.client else "unknown"
+    forwarded_for = request.headers.get("x-forwarded-for")
+    ip = (
+        forwarded_for.split(",")[0].strip()
+        if forwarded_for
+        else (request.client.host if request.client else "unknown")
+    )
     now = time.monotonic()
     with _lock:
         recent = [t for t in _buckets[ip] if now - t < WAITLIST_RATE_WINDOW_SEC]
