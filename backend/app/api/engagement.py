@@ -51,5 +51,8 @@ def join_waitlist(
     db: Annotated[Session, Depends(get_db)],
 ) -> CreatedResponse:
     enforce_waitlist_rate_limit(request)
-    row = engagement_service.register_waitlist(db, payload)
+    try:
+        row = engagement_service.register_waitlist(db, payload)
+    except engagement_service.WaitlistConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return CreatedResponse.model_validate(row)

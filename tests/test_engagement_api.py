@@ -113,6 +113,19 @@ def test_join_waitlist_duplicate_merges_kakao(client, db_session):
     assert row.kakao == "merge_kakao"
 
 
+def test_join_waitlist_email_kakao_conflict_returns_409(client):
+    reset_waitlist_rate_limit()
+    first = client.post("/waitlist", json={"email": "conflict@example.com"})
+    second = client.post("/waitlist", json={"kakao": "conflict_kakao"})
+    conflict = client.post(
+        "/waitlist",
+        json={"email": "conflict@example.com", "kakao": "conflict_kakao"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert conflict.status_code == 409
+
+
 def test_join_waitlist_rate_limited(client):
     reset_waitlist_rate_limit()
     for i in range(10):
