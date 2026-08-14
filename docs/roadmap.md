@@ -63,6 +63,9 @@
 - **P0** 좌표 노출 + CORS/railway 위생 ✅
 - **P1** AI 소프트 필터 + 진짜 적합도 점수 (`scoring.py` / `recommendation_pipeline.py`) ✅
   — P2(`POST /chat` SSE)·P3(프론트)의 기반
+- **P3** 안내형 추천 화면(학년·학교·과목·학습 스타일 입력 폼) + 지도 마커 + 랜딩/대기자 ✅
+- **P2** `POST /chat` SSE 스트리밍 채팅 — **미착수**. 라우터 자체가 없으며(`backend/app/api/`),
+  배포된 UI는 자유 대화형 채팅이 아니라 안내형 추천 폼이다. 완료된 것처럼 전제하지 않는다.
 
 ## Phase 4b (계속) — 리뷰 실데이터 수집 (진행 중)
 - 리뷰 소스: **네이버 검색 오픈 API** `cafearticle`(지역 카페 공개글) + `blog` (`docs/decision-log.md` 2026-07-31)
