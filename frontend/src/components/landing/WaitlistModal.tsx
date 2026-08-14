@@ -34,7 +34,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     onClose();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: import("react").FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmedEmail = email.trim();
     const trimmedKakao = kakao.trim();
