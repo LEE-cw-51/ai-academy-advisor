@@ -38,6 +38,10 @@ data/raw/
 /*.csv
 /*.xlsx
 
+# 디자인 캔버스 번들 (~7.8MB). 테마 참조 전용이고 정본이 아니다 — 추출된 토큰·카피는
+# docs/design/theme.md가 정본이다. 저장소에 넣으면 배포 진입점이 될 위험도 있다.
+docs/design/academy-kok-landing.html
+
 # 로컬 SQLite (개발용 파생 DB). 정본이 아니다.
 *.db
 *.sqlite3

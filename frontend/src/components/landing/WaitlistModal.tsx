@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Button, Input, Modal } from "@/components/ui";
-import { joinWaitlist } from "@/lib/api";
-import { ApiError } from "@/lib/types";
+import Link from "next/link";
+import { Button, Modal, buttonClassName } from "@/components/ui";
+import { KakaoChannelLink } from "./KakaoChannelLink";
 
 interface WaitlistModalProps {
   open: boolean;
@@ -11,111 +10,46 @@ interface WaitlistModalProps {
 }
 
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
-  const [email, setEmail] = useState("");
-  const [kakao, setKakao] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-  const openRef = useRef(open);
-  openRef.current = open;
-  const submitGenRef = useRef(0);
-
-  function reset() {
-    setEmail("");
-    setKakao("");
-    setError("");
-    setDone(false);
-    setLoading(false);
-  }
-
-  function handleClose() {
-    submitGenRef.current += 1;
-    reset();
-    onClose();
-  }
-
-  async function handleSubmit(e: import("react").FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const trimmedEmail = email.trim();
-    const trimmedKakao = kakao.trim();
-    if (!trimmedEmail && !trimmedKakao) {
-      setError("이메일 또는 카카오톡 아이디 중 하나는 입력해 주세요.");
-      return;
-    }
-    const submitGen = ++submitGenRef.current;
-    setLoading(true);
-    setError("");
-    try {
-      await joinWaitlist({
-        email: trimmedEmail || undefined,
-        kakao: trimmedKakao || undefined,
-      });
-      if (submitGen !== submitGenRef.current || !openRef.current) return;
-      setDone(true);
-    } catch (err) {
-      if (submitGen !== submitGenRef.current || !openRef.current) return;
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : "신청에 실패했어요. 잠시 후 다시 시도해 주세요.",
-      );
-    } finally {
-      if (submitGen === submitGenRef.current) {
-        setLoading(false);
-      }
-    }
-  }
-
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      title={done ? "신청 완료" : "출시 알림을 받으시겠어요?"}
-    >
-      {done ? (
-        <div className="space-y-4">
-          <p>
-            신청이 접수됐어요. 정식 출시 소식과 무료 이용 안내를 가장 먼저
-            보내드릴게요.
-          </p>
-          <Button fullWidth onClick={handleClose}>
-            닫기
+      onClose={onClose}
+      title="출시 알림을 받으시겠어요?"
+      footer={
+        <>
+          {/* 모달이 닫히면 Modal이 null을 반환해 링크가 언마운트되므로,
+              다시 열 때 중복 발사 가드(trackedRef)가 새로 시작된다. */}
+          <KakaoChannelLink
+            className={buttonClassName({
+              variant: "kakao",
+              fullWidth: true,
+              className: "!py-3 text-base",
+            })}
+          >
+            카카오톡 채널 추가하고 알림 받기
+          </KakaoChannelLink>
+          <Button variant="secondary" fullWidth onClick={onClose}>
+            아니요, 나중에
           </Button>
-        </div>
-      ) : (
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <p>
-            무료로 추천을 체험하실 수 있어요. 이메일 또는 카카오톡 아이디 중
-            하나만 남겨 주시면 출시 소식을 가장 먼저 알려드립니다.
+          <p className="text-center text-xs text-ink-subtle">
+            채널 추가 과정의 개인정보 처리는 카카오의 정책을 따릅니다. 학원콕의{" "}
+            <Link href="/privacy" className="underline underline-offset-2">
+              개인정보처리방침
+            </Link>
+            도 확인해 보세요.
           </p>
-          <Input
-            label="이메일"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            disabled={loading}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            label="카카오톡 아이디"
-            name="kakao"
-            placeholder="카카오톡 아이디 (선택)"
-            value={kakao}
-            disabled={loading}
-            onChange={(e) => setKakao(e.target.value)}
-          />
-          {error ? <p className="text-xs text-warn">{error}</p> : null}
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={handleClose}>
-              아니요
-            </Button>
-            <Button type="submit" fullWidth disabled={loading}>
-              {loading ? "신청 중…" : "출시 알림 신청하기"}
-            </Button>
-          </div>
-        </form>
-      )}
+        </>
+      }
+    >
+      <p>
+        카카오톡 채널을 추가하시면, 학원콕이 정식 출시하는 날 가장 먼저 알림을
+        보내드립니다.
+      </p>
+      <ul className="mt-3 list-disc space-y-1 pl-5">
+        <li>신청은 무료이고, 결제 정보는 받지 않습니다.</li>
+        <li>이 화면에서 이름·연락처를 따로 입력받지 않습니다.</li>
+        <li>채널 차단·해제는 카카오톡에서 언제든지 하실 수 있어요.</li>
+      </ul>
     </Modal>
   );
 }

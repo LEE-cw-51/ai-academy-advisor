@@ -8,36 +8,38 @@ export default {
   ],
   theme: {
     extend: {
+      // 토큰은 RGB 채널값이라 `<alpha-value>`로 합성한다. 이래야 `text-surface/80`,
+      // `bg-ink/40` 같은 투명도 표기가 동작한다 (src/styles/tokens.css 주석 참고).
       colors: {
-        canvas: "var(--color-canvas)",
+        canvas: "rgb(var(--color-canvas) / <alpha-value>)",
         surface: {
-          DEFAULT: "var(--color-surface)",
-          muted: "var(--color-surface-muted)",
-          subtle: "var(--color-surface-subtle)",
+          DEFAULT: "rgb(var(--color-surface) / <alpha-value>)",
+          muted: "rgb(var(--color-surface-muted) / <alpha-value>)",
+          subtle: "rgb(var(--color-surface-subtle) / <alpha-value>)",
         },
         brand: {
-          DEFAULT: "var(--color-brand)",
-          dark: "var(--color-brand-dark)",
+          DEFAULT: "rgb(var(--color-brand) / <alpha-value>)",
+          dark: "rgb(var(--color-brand-dark) / <alpha-value>)",
         },
         ink: {
-          DEFAULT: "var(--color-ink)",
-          strong: "var(--color-ink-strong)",
-          muted: "var(--color-ink-muted)",
-          subtle: "var(--color-ink-subtle)",
+          DEFAULT: "rgb(var(--color-ink) / <alpha-value>)",
+          strong: "rgb(var(--color-ink-strong) / <alpha-value>)",
+          muted: "rgb(var(--color-ink-muted) / <alpha-value>)",
+          subtle: "rgb(var(--color-ink-subtle) / <alpha-value>)",
         },
         border: {
-          DEFAULT: "var(--color-border)",
-          soft: "var(--color-border-soft)",
+          DEFAULT: "rgb(var(--color-border) / <alpha-value>)",
+          soft: "rgb(var(--color-border-soft) / <alpha-value>)",
         },
         success: {
-          DEFAULT: "var(--color-success)",
-          bg: "var(--color-success-bg)",
+          DEFAULT: "rgb(var(--color-success) / <alpha-value>)",
+          bg: "rgb(var(--color-success-bg) / <alpha-value>)",
         },
         warn: {
-          DEFAULT: "var(--color-warn)",
-          bg: "var(--color-warn-bg)",
+          DEFAULT: "rgb(var(--color-warn) / <alpha-value>)",
+          bg: "rgb(var(--color-warn-bg) / <alpha-value>)",
         },
-        kakao: "var(--color-kakao)",
+        kakao: "rgb(var(--color-kakao) / <alpha-value>)",
       },
       fontFamily: {
         sans: ['"Noto Sans KR"', "sans-serif"],

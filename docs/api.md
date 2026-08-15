@@ -214,7 +214,7 @@ POST /recommendations/ai
 | 필드 | 값 | 의미 |
 |---|---|---|
 | `academy_id` | 정수 ≥ 1 \| null | 대상 학원 (없어도 됨) |
-| `event` | `phone` \| `website` \| `directions` \| `detail` | 전화/홈페이지/길찾기/상세보기 |
+| `event` | `phone` \| `website` \| `directions` \| `detail` \| `kakao_channel` | 전화/홈페이지/길찾기/상세보기/카카오 채널 추가 |
 
 잘못된 `event`는 422, 존재하지 않는 `academy_id`는 404.
 

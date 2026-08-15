@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Badge } from "@/components/ui";
 import { fetchAllAcademies } from "@/lib/api";
 import type { AcademySummary, AiRecommendationItem } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
@@ -51,9 +53,18 @@ export function AppShell() {
       <header className="border-b border-border bg-surface/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
           <span className="text-lg font-black text-ink">학원콕</span>
+          {/* 배지는 모든 폭에서 보여야 한다 — 아래 설명 span은 sm 미만에서 숨겨지는데,
+              출시 전이라는 사실은 모바일에서도 가려지면 안 된다. */}
+          <Badge tone="warn">출시 준비 중</Badge>
           <span className="hidden text-sm text-ink-subtle sm:inline">
             AI 추천 · 하남 미사
           </span>
+          <Link
+            href="/privacy"
+            className="ml-auto text-xs text-ink-subtle underline underline-offset-2"
+          >
+            개인정보처리방침
+          </Link>
         </div>
       </header>
 

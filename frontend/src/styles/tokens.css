@@ -1,21 +1,27 @@
+/* 색 토큰은 hex가 아니라 공백으로 구분한 RGB 채널값이다.
+   Tailwind의 투명도 표기(`text-surface/80`, `bg-ink/40`)가 동작하려면
+   `rgb(var(--x) / <alpha-value>)`로 합성할 수 있어야 하고, 그러려면 변수가
+   채널값이어야 한다. hex를 넣으면 `rgb(#ffffff / 0.8)`이라는 무효 CSS가 만들어져
+   선언이 조용히 버려진다. 직접 쓸 때도 `rgb(var(--color-ink))`로 감싼다.
+   대응 hex는 docs/design/theme.md 참고. */
 :root {
-  --color-canvas: #faf9f5;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f9fafb;
-  --color-surface-subtle: #f3f4f6;
-  --color-brand: #f5a623;
-  --color-brand-dark: #d98c0e;
-  --color-ink: #1e2b3c;
-  --color-ink-strong: #111827;
-  --color-ink-muted: #374151;
-  --color-ink-subtle: #6b7280;
-  --color-border: #e5e7eb;
-  --color-border-soft: #e7ebf0;
-  --color-success-bg: #f0fdf4;
-  --color-success: #15803d;
-  --color-warn-bg: #fef3c7;
-  --color-warn: #b45309;
-  --color-kakao: #fee500;
+  --color-canvas: 250 249 245; /* #faf9f5 */
+  --color-surface: 255 255 255; /* #ffffff */
+  --color-surface-muted: 249 250 251; /* #f9fafb */
+  --color-surface-subtle: 243 244 246; /* #f3f4f6 */
+  --color-brand: 245 166 35; /* #f5a623 */
+  --color-brand-dark: 217 140 14; /* #d98c0e */
+  --color-ink: 30 43 60; /* #1e2b3c */
+  --color-ink-strong: 17 24 39; /* #111827 */
+  --color-ink-muted: 55 65 81; /* #374151 */
+  --color-ink-subtle: 107 114 128; /* #6b7280 */
+  --color-border: 229 231 235; /* #e5e7eb */
+  --color-border-soft: 231 235 240; /* #e7ebf0 */
+  --color-success-bg: 240 253 244; /* #f0fdf4 */
+  --color-success: 21 128 61; /* #15803d */
+  --color-warn-bg: 254 243 199; /* #fef3c7 */
+  --color-warn: 180 83 9; /* #b45309 */
+  --color-kakao: 254 229 0; /* #fee500 */
   --radius-card: 12px;
   --radius-btn: 8px;
   --shadow-card: 0 4px 24px rgba(30, 43, 60, 0.08);

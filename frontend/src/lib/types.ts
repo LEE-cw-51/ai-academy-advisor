@@ -1,4 +1,9 @@
-export type ClickEventType = "phone" | "website" | "directions" | "detail";
+export type ClickEventType =
+  | "phone"
+  | "website"
+  | "directions"
+  | "detail"
+  | "kakao_channel";
 
 export interface AcademySummary {
   id: number;
