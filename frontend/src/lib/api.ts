@@ -169,6 +169,7 @@ export function trackEvent(payload: ClickEventPayload): Promise<CreatedResponse>
   });
 }
 
+/** 백엔드 POST /waitlist 계약 유지용. 랜딩은 카카오 채널 추가로 대체되어 호출하지 않는다. */
 export function joinWaitlist(payload: WaitlistPayload): Promise<CreatedResponse> {
   return request<CreatedResponse>("/waitlist", {
     method: "POST",

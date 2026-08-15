@@ -55,6 +55,8 @@
 - 클릭 추적(`POST /events`), 피드백(`POST /feedback`), 대기자(`POST /waitlist`) ✅
 - 자연어 추천 시 `SearchHistory` 기록 ✅
 - KPI(외부 행동률·대기자 등록률 등) 측정용 DB 직접 쓰기 (`docs/data-strategy.md`)
+  — 2026-08-15 이후 배포 랜딩은 `POST /waitlist`를 호출하지 않으며, 대기자 KPI는
+  카카오 채널 클릭(`kakao_channel`) 수로 대체. API 계약·테스트는 유지.
 
 ## Phase 5 — 프론트엔드 클라이언트 (진행 중)
 - **프론트 스택: Next.js(App Router) + TypeScript로 확정** (`docs/decision-log.md` 2026-07-31)
@@ -64,6 +66,8 @@
 - **P1** AI 소프트 필터 + 진짜 적합도 점수 (`scoring.py` / `recommendation_pipeline.py`) ✅
   — P2(`POST /chat` SSE)·P3(프론트)의 기반
 - **P3** 안내형 추천 화면(학년·학교·과목·학습 스타일 입력 폼) + 지도 마커 + 랜딩/대기자 ✅
+  — 랜딩(`/`)은 출시 전 대기자 페이지. 추천 UI는 `/app`. 랜딩은 `POST /waitlist`를
+  호출하지 않으며 알림은 카카오 채널 추가.
 - **P2** `POST /chat` SSE 스트리밍 채팅 — **미착수**. 라우터 자체가 없으며(`backend/app/api/`),
   배포된 UI는 자유 대화형 채팅이 아니라 안내형 추천 폼이다. 완료된 것처럼 전제하지 않는다.
 

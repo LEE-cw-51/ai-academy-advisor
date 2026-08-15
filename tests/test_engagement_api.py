@@ -34,6 +34,15 @@ def test_track_click_without_academy_id_allowed(client, db_session):
     assert db_session.query(ClickLog).count() == 1
 
 
+def test_track_click_kakao_channel_event(client, db_session):
+    response = client.post("/events", json={"event": "kakao_channel"})
+    assert response.status_code == 201
+    rows = db_session.query(ClickLog).all()
+    assert len(rows) == 1
+    assert rows[0].event == "kakao_channel"
+    assert rows[0].academy_id is None
+
+
 def test_track_click_invalid_event_returns_422(client):
     response = client.post("/events", json={"event": "share"})
     assert response.status_code == 422

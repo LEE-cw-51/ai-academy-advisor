@@ -5,6 +5,8 @@ import { HeroSection } from "./HeroSection";
 import { LandingFooter } from "./LandingFooter";
 import { LandingHeader } from "./LandingHeader";
 import { PainPointsSection } from "./PainPointsSection";
+import { PlannedFeaturesSection } from "./PlannedFeaturesSection";
+import { ServicePreviewSection } from "./ServicePreviewSection";
 import { WaitlistModal } from "./WaitlistModal";
 import { WaitlistSection } from "./WaitlistSection";
 
@@ -20,6 +22,8 @@ export function LandingPage() {
       <main className="flex-1">
         <HeroSection onRequestWaitlist={openWaitlist} />
         <PainPointsSection />
+        <PlannedFeaturesSection />
+        <ServicePreviewSection />
         <WaitlistSection onRequestWaitlist={openWaitlist} />
       </main>
       <LandingFooter />
