@@ -25,7 +25,8 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
         <br />
         우리 아이에게 맞는 곳부터
       </h1>
-      <p className="mx-auto mt-4 max-w-xl text-sm text-ink-subtle sm:text-base">
+      {/* break-keep: 375px에서 "410곳/을 모았습니다"처럼 조사가 떨어져 나가지 않게 한다. */}
+      <p className="mx-auto mt-4 max-w-xl break-keep text-sm text-ink-subtle sm:text-base">
         경기도 공공데이터 기준 미사 지역 등록 학원·교습소 410곳을 모았습니다.
         여기에 학년·과목·학습 스타일을 더해 맞는 곳을 추려드리는 서비스를
         준비하고 있습니다.
