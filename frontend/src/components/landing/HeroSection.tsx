@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/ui";
 
 interface HeroSectionProps {
   onRequestWaitlist: () => void;
@@ -25,13 +25,7 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
         <br />
         우리 아이에게 맞는 곳부터
       </h1>
-      {/* 첫 문장은 PainPointsSection이 카드 2장으로 하던 말이다 — 섹션 하나를
-          없애고 여기로 흡수했다. break-keep: 375px에서 단어 중간 끊김 방지. */}
-      <p className="mx-auto mt-4 max-w-xl break-keep text-sm text-ink-subtle sm:text-base">
-        맘카페·블로그를 뒤져도 우리 아이에게 맞는 곳인지는 확신이 서지 않죠.
-        학년·과목·아이 성향에 맞는 곳을, 근거와 함께 추려드릴 준비를 하고 있어요.
-      </p>
-      <div className="mt-5 flex flex-col items-center justify-center gap-3">
+      <div className="mt-6 flex flex-col items-center justify-center gap-3">
         <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
           카카오톡으로 무료 출시 알림 받기
         </Button>
@@ -41,6 +35,24 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
           무료 · 개인정보 입력 없음 · 언제든 차단 가능
         </p>
       </div>
+      {/* 없어진 PainPointsSection이 카드 2장으로 하던 일을 이 박스 하나가 대신한다.
+          아이콘 🔍/✨도 그 카드들에서 가져와 시각 언어를 잇는다.
+          CTA 아래에 두는 이유: 박스가 위로 가면 375px에서 버튼이 접힘선 밖으로 밀린다. */}
+      <Card padding="lg" className="mx-auto mt-8 max-w-md text-left">
+        <div className="flex gap-3">
+          <span className="text-lg leading-none" aria-hidden>🔍</span>
+          <p className="break-keep text-sm text-ink-subtle">
+            맘카페·블로그를 뒤져도 우리 아이에게 맞는 곳인지는 확신이 서지 않죠.
+          </p>
+        </div>
+        <hr className="my-4 border-0 border-t border-border-soft" />
+        <div className="flex gap-3">
+          <span className="text-lg leading-none" aria-hidden>✨</span>
+          <p className="break-keep text-sm font-semibold text-ink">
+            학년·과목·아이 성향에 맞는 곳을, 근거와 함께 추려드릴 준비를 하고 있어요.
+          </p>
+        </div>
+      </Card>
       {/* 410곳의 출처. 본문에서 빼되 지우지는 않는다 — 이 각주가 있어야 숫자가 정직해진다. */}
       <p className="mx-auto mt-5 max-w-xl break-keep text-[11px] text-ink-subtle">
         410곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소
