@@ -25,8 +25,10 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
         <br />
         우리 아이에게 맞는 곳부터
       </h1>
-      {/* break-keep: 375px에서 조사가 앞말과 떨어져 나가지 않게 한다. */}
+      {/* 첫 문장은 PainPointsSection이 카드 2장으로 하던 말이다 — 섹션 하나를
+          없애고 여기로 흡수했다. break-keep: 375px에서 단어 중간 끊김 방지. */}
       <p className="mx-auto mt-4 max-w-xl break-keep text-sm text-ink-subtle sm:text-base">
+        맘카페·블로그를 뒤져도 우리 아이에게 맞는 곳인지는 확신이 서지 않죠.
         학년·과목·아이 성향에 맞는 곳을, 근거와 함께 추려드릴 준비를 하고 있어요.
       </p>
       <div className="mt-5 flex flex-col items-center justify-center gap-3">

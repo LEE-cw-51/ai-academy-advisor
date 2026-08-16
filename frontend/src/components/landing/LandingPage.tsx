@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import { HeroSection } from "./HeroSection";
 import { LandingFooter } from "./LandingFooter";
 import { LandingHeader } from "./LandingHeader";
-import { PainPointsSection } from "./PainPointsSection";
 import { PlannedFeaturesSection } from "./PlannedFeaturesSection";
 import { ServicePreviewSection } from "./ServicePreviewSection";
 import { StickyCtaBar } from "./StickyCtaBar";
@@ -25,7 +24,6 @@ export function LandingPage() {
         <HeroSection onRequestWaitlist={openWaitlist} />
         {/* 히어로 CTA를 지나쳤는지 판단하는 기준점 — StickyCtaBar가 관찰한다. */}
         <div ref={stickySentinelRef} aria-hidden />
-        <PainPointsSection />
         <PlannedFeaturesSection />
         <ServicePreviewSection />
         <WaitlistSection onRequestWaitlist={openWaitlist} />
