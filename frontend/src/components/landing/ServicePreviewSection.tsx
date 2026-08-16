@@ -25,10 +25,8 @@ export function ServicePreviewSection() {
       <h2 className="text-center text-xl font-bold text-ink sm:text-2xl">
         서비스 화면 예시
       </h2>
-      <p className="mx-auto mt-2 max-w-xl text-center text-sm text-ink-subtle">
-        정식 출시 후 이런 모습으로 맞춤 추천을 보여드릴 예정이에요.
-      </p>
-
+      {/* 부제를 두지 않는다 — 제목 "서비스 화면 예시" + "AI 추천 예시" 배지 +
+          아래 Disclaimer가 이미 예시임을 세 번 말한다. */}
       <div className="mx-auto mt-6 max-w-md space-y-3">
         {EXAMPLE_ITEMS.map((item) => (
           <Card key={item.rank} padding="sm">
@@ -46,9 +44,6 @@ export function ServicePreviewSection() {
               </p>
               <p className="mt-1 text-xs text-ink-subtle">“{item.reason}”</p>
             </div>
-            <p className="mt-3 text-xs text-ink-subtle">
-              전화 · 상세 · 길찾기 — 정식 출시 후 제공
-            </p>
           </Card>
         ))}
       </div>

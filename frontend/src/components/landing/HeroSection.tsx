@@ -25,11 +25,9 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
         <br />
         우리 아이에게 맞는 곳부터
       </h1>
-      {/* break-keep: 375px에서 "410곳/을 모았습니다"처럼 조사가 떨어져 나가지 않게 한다. */}
+      {/* break-keep: 375px에서 조사가 앞말과 떨어져 나가지 않게 한다. */}
       <p className="mx-auto mt-4 max-w-xl break-keep text-sm text-ink-subtle sm:text-base">
-        경기도 공공데이터 기준 미사 지역 등록 학원·교습소 410곳을 모았습니다.
-        여기에 학년·과목·학습 스타일을 더해 맞는 곳을 추려드리는 서비스를
-        준비하고 있습니다.
+        학년·과목·아이 성향에 맞는 곳을, 근거와 함께 추려드릴 준비를 하고 있어요.
       </p>
       <div className="mt-5 flex flex-col items-center justify-center gap-3">
         <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
@@ -41,6 +39,10 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
           무료 · 개인정보 입력 없음 · 언제든 차단 가능
         </p>
       </div>
+      {/* 410곳의 출처. 본문에서 빼되 지우지는 않는다 — 이 각주가 있어야 숫자가 정직해진다. */}
+      <p className="mx-auto mt-5 max-w-xl break-keep text-[11px] text-ink-subtle">
+        410곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소
+      </p>
     </section>
   );
 }

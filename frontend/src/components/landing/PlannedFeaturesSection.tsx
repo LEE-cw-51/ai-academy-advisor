@@ -1,17 +1,19 @@
 import { Card } from "@/components/ui";
 
+/** 본문은 명사구로 짧게 둔다. 시점("출시하면")은 섹션 제목이 이미 말하므로
+ *  카드마다 "~할 예정입니다 / 준비 중입니다"를 되풀이하지 않는다. */
 const FEATURES = [
   {
     title: "맞춤 학원 추천",
-    body: "학년·과목·학습 스타일을 알려주시면, 조건에 맞는 학원을 추려드릴 예정입니다.",
+    body: "학년·과목·성향에 맞는 곳을 근거와 함께",
   },
   {
     title: "학원 정보 비교",
-    body: "수업 형태, 커리큘럼, 셔틀 운행 여부처럼 확인된 정보를 나란히 비교하실 수 있게 준비 중입니다.",
+    body: "수업 형태·커리큘럼·셔틀 등 확인된 정보만 나란히",
   },
   {
     title: "상담 연결",
-    body: "마음에 드는 학원에 직접 문의하실 수 있도록 연결하는 기능을 준비 중입니다.",
+    body: "마음에 드는 학원에 바로 문의",
   },
 ] as const;
 
@@ -25,7 +27,8 @@ export function PlannedFeaturesSection() {
         {FEATURES.map((f) => (
           <Card key={f.title} padding="lg" className="text-center">
             <h3 className="font-bold text-ink">{f.title}</h3>
-            <p className="mt-2 text-sm text-ink-subtle">{f.body}</p>
+            {/* break-keep: 좁은 폭에서 단어 중간이 끊기지 않게 한다. */}
+            <p className="mt-2 break-keep text-sm text-ink-subtle">{f.body}</p>
           </Card>
         ))}
       </div>
