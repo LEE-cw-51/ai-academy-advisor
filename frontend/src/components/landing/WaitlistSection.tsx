@@ -17,10 +17,10 @@ export function WaitlistSection({ onRequestWaitlist }: WaitlistSectionProps) {
         </p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
-            무료 출시 알림 신청하기
+            카카오톡으로 무료 출시 알림 받기
           </Button>
           <p className="text-xs text-surface/70">
-            수강 신청이나 결제가 아니고, 비용도 들지 않습니다.
+            비용 없음 · 수강 신청/결제 아님 · 출시 소식만 안내
           </p>
         </div>
       </div>
