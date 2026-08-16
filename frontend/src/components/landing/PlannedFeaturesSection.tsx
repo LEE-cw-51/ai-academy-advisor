@@ -1,4 +1,4 @@
-import { Card, Disclaimer } from "@/components/ui";
+import { Card } from "@/components/ui";
 
 const FEATURES = [
   {
@@ -19,11 +19,8 @@ export function PlannedFeaturesSection() {
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <h2 className="text-center text-xl font-bold text-ink sm:text-2xl">
-        정식 출시 후 제공될 기능
+        출시하면 이렇게 쓰시게 됩니다
       </h2>
-      <p className="mx-auto mt-2 max-w-xl text-center text-sm text-ink-subtle">
-        아래 기능은 준비 중이며, 아직 이용하실 수 없습니다.
-      </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {FEATURES.map((f) => (
           <Card key={f.title} padding="lg" className="text-center">
@@ -32,10 +29,6 @@ export function PlannedFeaturesSection() {
           </Card>
         ))}
       </div>
-      <Disclaimer className="mt-6">
-        학원콕은 학원을 중개하거나 수강료를 대신 받지 않습니다. 이 사이트에는
-        결제·수강 계약·예약금 결제 기능이 없습니다.
-      </Disclaimer>
     </section>
   );
 }

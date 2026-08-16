@@ -19,8 +19,9 @@ export function WaitlistSection({ onRequestWaitlist }: WaitlistSectionProps) {
           <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
             카카오톡으로 무료 출시 알림 받기
           </Button>
+          {/* HeroSection·StickyCtaBar와 같은 문구를 쓴다 (WaitlistModal의 3개 항목). */}
           <p className="text-xs text-surface/70">
-            비용 없음 · 수강 신청/결제 아님 · 출시 소식만 안내
+            무료 · 개인정보 입력 없음 · 언제든 차단 가능
           </p>
         </div>
       </div>

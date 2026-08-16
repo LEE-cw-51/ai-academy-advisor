@@ -7,11 +7,13 @@ const EXAMPLE_ITEMS = [
     rank: 1,
     name: "OO수학학원",
     tagline: "소수정예 · 내신 대비 · 도보 6분",
+    reason: "아이가 경쟁 분위기에 예민하다고 하셔서 소수정예 위주로 골랐어요.",
   },
   {
     rank: 2,
     name: "△△영어학원",
     tagline: "그룹수업 · 선행 · 도보 9분",
+    reason: "또래와 같이 할 때 더 잘한다고 하셔서 그룹수업을 함께 담았어요.",
   },
 ] as const;
 
@@ -36,6 +38,14 @@ export function ServicePreviewSection() {
               <h3 className="font-semibold text-ink">{item.name}</h3>
             </div>
             <p className="text-sm text-ink-muted">{item.tagline}</p>
+            {/* 추천 이유를 대는 것이 이 제품의 차별점이라 예시에도 함께 보여준다.
+                문구는 어디까지나 예시다 — 실제 추천 근거는 출시 후 AI가 생성한다. */}
+            <div className="mt-3 rounded-btn bg-surface-muted px-3 py-2">
+              <p className="text-xs font-semibold text-ink-muted">
+                💡 왜 추천했나요?
+              </p>
+              <p className="mt-1 text-xs text-ink-subtle">“{item.reason}”</p>
+            </div>
             <p className="mt-3 text-xs text-ink-subtle">
               전화 · 상세 · 길찾기 — 정식 출시 후 제공
             </p>
