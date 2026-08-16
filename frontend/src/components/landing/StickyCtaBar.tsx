@@ -2,10 +2,13 @@
 
 import { useEffect, useState, type RefObject } from "react";
 import { Button } from "@/components/ui";
+import { CTA_REASSURANCE } from "./landingFacts";
 
 interface StickyCtaBarProps {
   /** 히어로 CTA 바로 아래에 놓인 감시용 엘리먼트. 이게 화면 위로 벗어나면 바가 뜬다. */
   sentinelRef: RefObject<HTMLElement | null>;
+  /** 대기자 모달이 열린 동안에는 바를 내린다 — 포커스가 모달 밖으로 새지 않게. */
+  suppressed: boolean;
   onRequestWaitlist: () => void;
 }
 
@@ -16,8 +19,13 @@ interface StickyCtaBarProps {
  *
  *  버튼은 WaitlistModal을 여는 기존 흐름을 그대로 쓴다. 여기서 카카오 링크를 새로
  *  만들면 KakaoChannelLink의 kakao_channel 계측을 우회하게 되므로 만들지 않는다. */
-export function StickyCtaBar({ sentinelRef, onRequestWaitlist }: StickyCtaBarProps) {
+export function StickyCtaBar({
+  sentinelRef,
+  suppressed,
+  onRequestWaitlist,
+}: StickyCtaBarProps) {
   const [visible, setVisible] = useState(false);
+  const shown = visible && !suppressed;
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -37,22 +45,23 @@ export function StickyCtaBar({ sentinelRef, onRequestWaitlist }: StickyCtaBarPro
 
   return (
     <div
-      aria-hidden={!visible}
+      inert={!shown}
+      aria-hidden={!shown}
       className={[
         "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 shadow-card backdrop-blur transition-transform duration-200 sm:hidden",
-        visible ? "translate-y-0" : "translate-y-full",
+        shown ? "translate-y-0" : "pointer-events-none translate-y-full",
       ].join(" ")}
     >
       <Button
         fullWidth
         className="!py-3 text-base"
         onClick={onRequestWaitlist}
-        tabIndex={visible ? undefined : -1}
+        tabIndex={shown ? undefined : -1}
       >
         카카오톡으로 무료 출시 알림 받기
       </Button>
       <p className="pb-3 pt-2 text-center text-xs text-ink-subtle">
-        무료 · 개인정보 입력 없음 · 언제든 차단 가능
+        {CTA_REASSURANCE}
       </p>
     </div>
   );

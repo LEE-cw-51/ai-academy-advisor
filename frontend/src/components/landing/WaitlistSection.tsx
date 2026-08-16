@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui";
+import { CTA_REASSURANCE } from "./landingFacts";
 
 interface WaitlistSectionProps {
   onRequestWaitlist: () => void;
@@ -21,7 +22,7 @@ export function WaitlistSection({ onRequestWaitlist }: WaitlistSectionProps) {
           </Button>
           {/* HeroSection·StickyCtaBar와 같은 문구를 쓴다 (WaitlistModal의 3개 항목). */}
           <p className="text-xs text-surface/70">
-            무료 · 개인정보 입력 없음 · 언제든 차단 가능
+            {CTA_REASSURANCE}
           </p>
         </div>
       </div>

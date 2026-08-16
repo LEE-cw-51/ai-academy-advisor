@@ -1,11 +1,15 @@
+import type { RefObject } from "react";
 import Image from "next/image";
 import { Badge, Button, Card } from "@/components/ui";
+import { CTA_REASSURANCE, MISA_ACADEMY_COUNT } from "./landingFacts";
 
 interface HeroSectionProps {
   onRequestWaitlist: () => void;
+  /** 히어로 CTA 직후. 화면 위로 나가면 StickyCtaBar가 뜬다. */
+  ctaSentinelRef: RefObject<HTMLDivElement | null>;
 }
 
-export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
+export function HeroSection({ onRequestWaitlist, ctaSentinelRef }: HeroSectionProps) {
   return (
     <section className="mx-auto max-w-5xl px-4 pb-10 pt-8 text-center sm:px-6 sm:pt-16">
       <Image
@@ -18,10 +22,10 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
       />
       <Badge tone="warn" className="mt-4">정식 출시 준비 중 · 하남 미사</Badge>
       {/* break-keep: 한글 단어 중간에서 줄이 끊기지 않게 한다 (375px에서 "서비/스," 방지) */}
-      {/* 410 = data/academies/*.json 중 주소에 "미사"가 포함된 실측값 (전체 411곳,
-          나머지 1곳은 덕풍동). 카피에 쓰는 숫자는 반드시 정본에서 다시 세고 고친다. */}
+      {/* MISA_ACADEMY_COUNT = 주소에 "미사"가 포함된 실측값 (전체 411곳 중
+          나머지 1곳은 덕풍동). 카피에 쓰는 숫자는 정본에서 다시 세고 고친다. */}
       <h1 className="mx-auto mt-5 max-w-2xl break-keep text-3xl font-black leading-tight text-ink sm:text-4xl">
-        하남 미사 학원 410곳,
+        하남 미사 학원 {MISA_ACADEMY_COUNT}곳,
         <br />
         우리 아이에게 맞는 곳부터
       </h1>
@@ -32,9 +36,13 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
         {/* WaitlistModal이 모달 안에서만 보여주던 세 가지 사실을 버튼 옆으로 끌어올린 것.
             새 약속을 만들지 않는다 — 문구를 바꾸려면 WaitlistModal도 함께 고친다. */}
         <p className="text-xs text-ink-subtle">
-          무료 · 개인정보 입력 없음 · 언제든 차단 가능
+          {CTA_REASSURANCE}
         </p>
       </div>
+      {/* 히어로 CTA를 지나쳤는지 판단하는 기준점 — StickyCtaBar가 관찰한다.
+          카드·각주보다 앞에 둬야, 접힘선 아래 카드를 읽는 중에도 바가 뜬다.
+          h-px: 높이 0 노드는 iOS IntersectionObserver가 콜백을 안 줄 수 있다. */}
+      <div ref={ctaSentinelRef} className="h-px w-full" aria-hidden />
       {/* 없어진 PainPointsSection이 카드 2장으로 하던 일을 이 박스 하나가 대신한다.
           아이콘 🔍/✨도 그 카드들에서 가져와 시각 언어를 잇는다.
           CTA 아래에 두는 이유: 박스가 위로 가면 375px에서 버튼이 접힘선 밖으로 밀린다. */}
@@ -55,7 +63,7 @@ export function HeroSection({ onRequestWaitlist }: HeroSectionProps) {
       </Card>
       {/* 410곳의 출처. 본문에서 빼되 지우지는 않는다 — 이 각주가 있어야 숫자가 정직해진다. */}
       <p className="mx-auto mt-5 max-w-xl break-keep text-[11px] text-ink-subtle">
-        410곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소
+        {MISA_ACADEMY_COUNT}곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소
       </p>
     </section>
   );

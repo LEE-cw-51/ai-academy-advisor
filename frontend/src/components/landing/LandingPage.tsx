@@ -21,9 +21,10 @@ export function LandingPage() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <LandingHeader />
       <main className="flex-1">
-        <HeroSection onRequestWaitlist={openWaitlist} />
-        {/* 히어로 CTA를 지나쳤는지 판단하는 기준점 — StickyCtaBar가 관찰한다. */}
-        <div ref={stickySentinelRef} aria-hidden />
+        <HeroSection
+          onRequestWaitlist={openWaitlist}
+          ctaSentinelRef={stickySentinelRef}
+        />
         <PlannedFeaturesSection />
         <ServicePreviewSection />
         <WaitlistSection onRequestWaitlist={openWaitlist} />
@@ -33,6 +34,7 @@ export function LandingPage() {
       <div className="h-28 sm:hidden" aria-hidden />
       <StickyCtaBar
         sentinelRef={stickySentinelRef}
+        suppressed={waitlistOpen}
         onRequestWaitlist={openWaitlist}
       />
       <WaitlistModal open={waitlistOpen} onClose={closeWaitlist} />
