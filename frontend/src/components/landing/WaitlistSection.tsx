@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui";
+import { CTA_REASSURANCE } from "./landingFacts";
 
 interface WaitlistSectionProps {
   onRequestWaitlist: () => void;
@@ -11,16 +12,17 @@ export function WaitlistSection({ onRequestWaitlist }: WaitlistSectionProps) {
         <h2 className="text-xl font-bold text-surface sm:text-2xl">
           출시하면 가장 먼저 알려드릴게요.
         </h2>
-        <p className="mt-2 text-sm text-surface/80">
-          지금 하실 수 있는 건 무료 출시 알림 신청뿐이에요. 카카오톡 채널을
-          추가해 두시면 정식 출시하는 날 알림을 보내드립니다.
+        {/* "지금 할 수 있는 건 알림 신청뿐"은 푸터 고지 블록에 이미 있어 뺐다. */}
+        <p className="mt-2 break-keep text-sm text-surface/80">
+          카카오톡 채널을 추가해 두시면 출시하는 날 알려드릴게요.
         </p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
             카카오톡으로 무료 출시 알림 받기
           </Button>
+          {/* HeroSection·StickyCtaBar와 같은 문구를 쓴다 (WaitlistModal의 3개 항목). */}
           <p className="text-xs text-surface/70">
-            비용 없음 · 수강 신청/결제 아님 · 출시 소식만 안내
+            {CTA_REASSURANCE}
           </p>
         </div>
       </div>
