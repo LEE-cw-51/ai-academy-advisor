@@ -26,10 +26,19 @@ class CurriculumType(StrEnum):
 
 
 class ClickEvent(StrEnum):
-    """외부 행동 클릭 이벤트 (전화/홈페이지/길찾기/상세보기/카카오 채널)."""
+    """클릭·랜딩 퍼널 이벤트.
+
+    전화/홈페이지 등은 학원 상세의 외부 행동이고, mini_check_* /
+    checklist_kakao_clicked 는 /check 전환 퍼널이다. 페이지뷰는 넣지 않는다.
+    """
 
     PHONE = "phone"  # 전화 클릭
     WEBSITE = "website"  # 홈페이지 클릭
     DIRECTIONS = "directions"  # 길찾기 클릭
     DETAIL = "detail"  # 상세보기 클릭
-    KAKAO_CHANNEL = "kakao_channel"  # 카카오 채널 추가 클릭
+    KAKAO_CHANNEL = "kakao_channel"  # 카카오 채널 추가 클릭 (유기 유입)
+    MINI_CHECK_STARTED = "mini_check_started"
+    MINI_CHECK_COMPLETED = "mini_check_completed"
+    MINI_CHECK_RESULT_VIEWED = "mini_check_result_viewed"
+    MINI_CHECK_HOME_CLICKED = "mini_check_home_clicked"
+    CHECKLIST_KAKAO_CLICKED = "checklist_kakao_clicked"

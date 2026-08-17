@@ -1,6 +1,9 @@
 """engagement 쓰기 API (/events, /feedback, /waitlist) 테스트."""
 
+import pytest
+
 from app.api.waitlist_rate_limit import reset_waitlist_rate_limit
+from app.core.constants import ClickEvent
 from app.models.academy import Academy
 from app.models.engagement import ClickLog, Feedback, Waitlist
 
@@ -43,9 +46,33 @@ def test_track_click_kakao_channel_event(client, db_session):
     assert rows[0].academy_id is None
 
 
+@pytest.mark.parametrize(
+    "event",
+    [
+        "mini_check_started",
+        "mini_check_completed",
+        "mini_check_result_viewed",
+        "mini_check_home_clicked",
+        "checklist_kakao_clicked",
+    ],
+)
+def test_track_landing_funnel_events(client, db_session, event):
+    response = client.post("/events", json={"event": event})
+    assert response.status_code == 201
+    rows = db_session.query(ClickLog).all()
+    assert len(rows) == 1
+    assert rows[0].event == event
+    assert rows[0].academy_id is None
+
+
 def test_track_click_invalid_event_returns_422(client):
     response = client.post("/events", json={"event": "share"})
     assert response.status_code == 422
+
+
+def test_click_event_values_fit_string_50_column():
+    for event in ClickEvent:
+        assert len(event.value) <= 50
 
 
 def test_track_click_unknown_academy_returns_404(client, db_session):
