@@ -30,7 +30,6 @@ export function LandingPage() {
         <WaitlistSection onRequestWaitlist={openWaitlist} />
       </main>
       <LandingFooter />
-      {/* 스티키 바가 푸터 마지막 줄을 가리지 않도록, 페이지 끝에 바 높이만큼 여백을 둔다. */}
       <div className="h-28 sm:hidden" aria-hidden />
       <StickyCtaBar
         sentinelRef={stickySentinelRef}

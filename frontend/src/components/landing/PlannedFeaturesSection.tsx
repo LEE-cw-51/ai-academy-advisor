@@ -25,10 +25,10 @@ export function PlannedFeaturesSection() {
       </h2>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {FEATURES.map((f) => (
-          <Card key={f.title} padding="lg" className="text-center">
+          <Card key={f.title} padding="lg" className="border border-border-soft text-center shadow-none">
             <h3 className="font-bold text-ink">{f.title}</h3>
             {/* break-keep: 좁은 폭에서 단어 중간이 끊기지 않게 한다. */}
-            <p className="mt-2 break-keep text-sm text-ink-subtle">{f.body}</p>
+            <p className="mt-2 break-keep text-sm text-ink-muted">{f.body}</p>
           </Card>
         ))}
       </div>

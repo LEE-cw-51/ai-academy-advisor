@@ -40,9 +40,9 @@ export function ServicePreviewSection() {
                 문구는 어디까지나 예시다 — 실제 추천 근거는 출시 후 AI가 생성한다. */}
             <div className="mt-3 rounded-btn bg-surface-muted px-3 py-2">
               <p className="text-xs font-semibold text-ink-muted">
-                💡 왜 추천했나요?
+                왜 추천했나요?
               </p>
-              <p className="mt-1 text-xs text-ink-subtle">“{item.reason}”</p>
+              <p className="mt-1 text-xs text-ink-muted">&ldquo;{item.reason}&rdquo;</p>
             </div>
           </Card>
         ))}

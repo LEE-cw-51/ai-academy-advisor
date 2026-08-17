@@ -3,7 +3,12 @@ export type ClickEventType =
   | "website"
   | "directions"
   | "detail"
-  | "kakao_channel";
+  | "kakao_channel"
+  | "mini_check_started"
+  | "mini_check_completed"
+  | "mini_check_result_viewed"
+  | "mini_check_home_clicked"
+  | "checklist_kakao_clicked";
 
 export interface AcademySummary {
   id: number;

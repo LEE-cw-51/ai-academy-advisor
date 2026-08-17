@@ -12,7 +12,7 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "학원콕 | 하남 미사 AI 학원 추천 (정식 출시 준비 중)",
   description:
-    "학원콕은 아직 정식 출시 전입니다. 지금은 무료 출시 알림 신청만 받고 있으며, 맞춤 추천·비교·상담 연결은 출시 후 제공될 예정입니다.",
+    "학원콕은 아직 정식 출시 전입니다. 지금 다니는 학원이 맞는지 1분 점검해 보세요. 맞춤 추천·비교·상담 연결은 출시 후 제공될 예정입니다.",
 };
 
 export default function RootLayout({
