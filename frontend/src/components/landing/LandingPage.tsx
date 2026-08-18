@@ -34,7 +34,6 @@ export function LandingPage() {
       <StickyCtaBar
         sentinelRef={stickySentinelRef}
         suppressed={waitlistOpen}
-        onRequestWaitlist={openWaitlist}
       />
       <WaitlistModal open={waitlistOpen} onClose={closeWaitlist} />
     </div>

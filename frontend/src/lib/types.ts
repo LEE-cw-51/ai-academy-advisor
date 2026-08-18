@@ -8,6 +8,7 @@ export type ClickEventType =
   | "mini_check_completed"
   | "mini_check_result_viewed"
   | "mini_check_home_clicked"
+  | "home_check_clicked"
   | "checklist_kakao_clicked";
 
 export interface AcademySummary {

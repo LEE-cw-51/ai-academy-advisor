@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Disclaimer } from "@/components/ui";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { KakaoChannelLink } from "./KakaoChannelLink";
+import { FOOTER_STATUS_COPY } from "./landingFacts";
 
 export function LandingFooter() {
   return (
@@ -12,9 +13,7 @@ export function LandingFooter() {
             같은 내용이 남아 있는지 먼저 확인한다. */}
         <Disclaimer>
           <p>
-            학원콕은 아직 정식 출시 전입니다. 지금은 1분 학원 점검, 체크리스트
-            웹 자료, 무료 출시 알림 신청을 이용하실 수 있습니다. 맞춤 추천·비교·
-            상담 연결은 정식 출시 후 제공될 예정입니다.
+            {FOOTER_STATUS_COPY}
           </p>
           <p className="mt-2">
             학원을 중개하거나 수강료를 대신 받지 않으며, 결제·수강 계약·예약금
