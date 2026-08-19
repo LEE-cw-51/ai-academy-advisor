@@ -5,7 +5,7 @@ import { trackEvent } from "@/lib/api";
 import { KAKAO_CHANNEL_URL } from "@/lib/contact";
 import type { ClickEventType } from "@/lib/types";
 
-type KakaoTrackEvent = Extract<
+export type KakaoTrackEvent = Extract<
   ClickEventType,
   "kakao_channel" | "checklist_kakao_clicked"
 >;

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { LandingFooter } from "@/components/landing/LandingFooter";
-import { LandingHeader } from "@/components/landing/LandingHeader";
+import { SiteChrome } from "@/components/landing/SiteChrome";
 import { CONTACT_EMAIL } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -9,8 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
-      <LandingHeader />
+    <SiteChrome>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-black text-ink">개인정보처리방침</h1>
         <p className="mt-2 text-sm text-ink-subtle">
@@ -109,7 +107,6 @@ export default function PrivacyPage() {
           </section>
         </div>
       </main>
-      <LandingFooter />
-    </div>
+    </SiteChrome>
   );
 }

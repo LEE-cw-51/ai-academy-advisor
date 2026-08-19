@@ -189,3 +189,88 @@ export const CHECKLISTS: Checklist[] = [
     ],
   },
 ];
+
+/** `/checklists` 상담 랜딩(2026-08-19 개편)이 쓰는 5묶음.
+ *  `CHECKLISTS`가 문항 정본이고, 여기는 checklistId·title로 **참조**만 한다 —
+ *  카피를 두 곳에 복제하면 한쪽만 고쳐 어긋나기 쉽다.
+ *  앞 4묶음은 `before-enroll`의 12항목을 빠짐없이 정확히 한 번씩 쓴다
+ *  (tests/test_landing_copy.py가 강제). 다섯 번째는 `before-switch`에서
+ *  이전을 고민하는 방문자에게만 필요한 2항목을 추가로 더한다. */
+export interface ConsultGroupRef {
+  checklistId: string;
+  itemTitle: string;
+}
+
+export interface ConsultGroup {
+  heading: string;
+  refs: ConsultGroupRef[];
+}
+
+export const CONSULT_GROUPS: ConsultGroup[] = [
+  {
+    heading: "아이와 수업의 적합도",
+    refs: [
+      { checklistId: "before-enroll", itemTitle: "학습 상황 진단과 수업 적합도" },
+      { checklistId: "before-enroll", itemTitle: "레벨 테스트와 반 배정 기준" },
+      { checklistId: "before-enroll", itemTitle: "강사와 아이와의 관계" },
+    ],
+  },
+  {
+    heading: "학습 관리 방식",
+    refs: [
+      { checklistId: "before-enroll", itemTitle: "숙제 확인과 오답 피드백" },
+      { checklistId: "before-enroll", itemTitle: "테스트·학습 기록 관리" },
+      { checklistId: "before-enroll", itemTitle: "학습 기록 공유 주기" },
+    ],
+  },
+  {
+    heading: "보완과 소통",
+    refs: [
+      { checklistId: "before-enroll", itemTitle: "보강·보충 체계" },
+      { checklistId: "before-enroll", itemTitle: "학부모와 실제 담당 강사의 소통" },
+    ],
+  },
+  {
+    heading: "분위기와 지속 가능성",
+    refs: [
+      { checklistId: "before-enroll", itemTitle: "같은 반 친구들과의 관계" },
+      { checklistId: "before-enroll", itemTitle: "수업 분위기와 학습 문화" },
+      { checklistId: "before-enroll", itemTitle: "생활 리듬과 학습의 지속 가능성" },
+      { checklistId: "before-enroll", itemTitle: "장기 학습 계획과 성장 방향" },
+    ],
+  },
+  {
+    heading: "이전을 고민 중이라면",
+    refs: [
+      { checklistId: "before-switch", itemTitle: "현재 학원에서 보완 가능한 부분" },
+      { checklistId: "before-switch", itemTitle: "새 학원에 전달할 학습 정보" },
+    ],
+  },
+];
+
+export interface ResolvedConsultGroup {
+  heading: string;
+  items: ChecklistItem[];
+}
+
+/** `CONSULT_GROUPS`의 참조를 `CHECKLISTS` 실제 문항으로 바꾼다.
+ *  참조가 어긋나면(오타·삭제된 항목) 빌드 시점에 바로 드러나도록 던진다 —
+ *  화면에서 빈 항목이 조용히 사라지는 것보다 낫다. */
+export function resolveConsultGroups(): ResolvedConsultGroup[] {
+  return CONSULT_GROUPS.map((group) => ({
+    heading: group.heading,
+    items: group.refs.map((ref) => {
+      const checklist = CHECKLISTS.find((c) => c.id === ref.checklistId);
+      if (!checklist) {
+        throw new Error(`CONSULT_GROUPS: unknown checklistId "${ref.checklistId}"`);
+      }
+      const item = checklist.items.find((i) => i.title === ref.itemTitle);
+      if (!item) {
+        throw new Error(
+          `CONSULT_GROUPS: "${ref.itemTitle}" not found in checklist "${ref.checklistId}"`,
+        );
+      }
+      return item;
+    }),
+  }));
+}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Disclaimer } from "@/components/ui";
 import { CONTACT_EMAIL } from "@/lib/contact";
-import { KakaoChannelLink } from "./KakaoChannelLink";
+import { KakaoChannelCta } from "./KakaoChannelCta";
 import { FOOTER_STATUS_COPY } from "./landingFacts";
 
 export function LandingFooter() {
@@ -37,9 +37,9 @@ export function LandingFooter() {
             개인정보처리방침
           </Link>
           {" · "}
-          <KakaoChannelLink className="underline underline-offset-2">
+          <KakaoChannelCta className="underline underline-offset-2">
             카카오톡 채널
-          </KakaoChannelLink>
+          </KakaoChannelCta>
         </p>
         <p className="text-xs text-ink-muted">
           사업자 정보는 정식 출시 시점에 이곳에 표기할 예정입니다.

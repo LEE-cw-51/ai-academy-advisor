@@ -55,6 +55,9 @@ def test_track_click_kakao_channel_event(client, db_session):
         "mini_check_home_clicked",
         "home_check_clicked",
         "checklist_kakao_clicked",
+        "home_explore_selected",
+        "explore_check_clicked",
+        "check_explore_clicked",
     ],
 )
 def test_track_landing_funnel_events(client, db_session, event):

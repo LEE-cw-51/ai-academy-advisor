@@ -9,7 +9,10 @@ export type ClickEventType =
   | "mini_check_result_viewed"
   | "mini_check_home_clicked"
   | "home_check_clicked"
-  | "checklist_kakao_clicked";
+  | "checklist_kakao_clicked"
+  | "home_explore_selected"
+  | "explore_check_clicked"
+  | "check_explore_clicked";
 
 export interface AcademySummary {
   id: number;

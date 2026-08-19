@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./Button";
 
 export interface ModalProps {
@@ -72,7 +73,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   if (!open) return null;
 
-  return (
+  const dialog = (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -104,4 +105,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       </div>
     </div>
   );
+
+  // 하단 고정 바(`backdrop-filter`) 안에 두면 fixed 모달이 바에 갇힌다.
+  return createPortal(dialog, document.body);
 }

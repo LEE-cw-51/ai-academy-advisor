@@ -133,7 +133,7 @@ def test_pick_counseling_questions_priority_and_well_prompts():
     assert len(mixed_priority) == 3
 
 
-def test_check_intro_copy_is_two_complete_lines():
+def test_check_intro_uses_home_hero_and_keeps_the_start_button():
     facts = (
         REPO_ROOT / "frontend" / "src" / "components" / "landing" / "landingFacts.ts"
     ).read_text(encoding="utf-8")
@@ -141,12 +141,14 @@ def test_check_intro_copy_is_two_complete_lines():
         REPO_ROOT / "frontend" / "src" / "app" / "check" / "page.tsx"
     ).read_text(encoding="utf-8")
     mini = MINI_CHECK.read_text(encoding="utf-8")
-    assert 'CHECK_INTRO_HEADLINE = "지금 다니는 아이의 학원,"' in facts
-    assert 'CHECK_INTRO_HEADLINE_LINE2 = "1분만 점검해 보세요"' in facts
-    assert "짚어 드려요" in facts
-    assert "짚어\n" not in check_page
-    assert 'src="/logo.png"' in mini
-    assert "CHECK_INTRO_HEADLINE" in mini
-    assert 'alt=""' in mini
+    assert 'CHECK_INTRO_HEADLINE = "지금 수업,"' in facts
+    assert 'CHECK_INTRO_HEADLINE_LINE2 = "우리 아이에게 계속 맞을까요?"' in facts
+    # metadata는 페이지 전용으로 남긴다 — 화면 히어로만 홈과 통일.
+    assert "CHECK_INTRO_HEADLINE" in check_page
+    assert "HeroSection" in mini
+    assert "PageHero" not in mini
+    assert "headline={CHECK_INTRO_HEADLINE}" not in mini
+    assert "CHECK_CTA_LABEL" in mini
+    assert "CHECK_CTA_HINT" in mini
     assert '<h1 className="text-sm font-semibold text-ink">{CHECK_CTA_LABEL}</h1>' in mini
     assert "1분 학원 점검</p>" not in mini
