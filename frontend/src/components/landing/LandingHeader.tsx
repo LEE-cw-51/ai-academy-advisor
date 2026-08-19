@@ -1,13 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { HEADER_STATUS_NOTICE } from "./landingFacts";
 
-/** "정식 출시 준비 중" 배지는 HeroSection이 지역까지 붙여 보여준다.
- *  헤더에서 같은 배지를 반복하면 스크롤 내내 부정 신호가 따라다녀 여기서는 뺐다. */
+/** 로고 옆에 운영 전·판매 없음 고지를 둔다. 배지 형태는 쓰지 않는다 —
+ *  2026-08-16이 헤더에서 뺀 것은 스크롤 내내 따라다니는 배지였다. */
 export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center px-4 py-3 sm:px-6">
-        <Link href="/" aria-label="학원콕 홈">
+      <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+        <Link href="/" aria-label="학원콕 홈" className="shrink-0">
           <Image
             src="/logo.png"
             alt="학원콕"
@@ -17,6 +18,9 @@ export function LandingHeader() {
             className="h-9 w-9 sm:h-10 sm:w-10"
           />
         </Link>
+        <p className="break-keep text-xs leading-snug text-ink-muted">
+          {HEADER_STATUS_NOTICE}
+        </p>
       </div>
     </header>
   );

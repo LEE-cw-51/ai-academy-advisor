@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { MiniAcademyCheck } from "@/components/check/MiniAcademyCheck";
-import { LandingFooter } from "@/components/landing/LandingFooter";
-import { LandingHeader } from "@/components/landing/LandingHeader";
+import { SiteChrome } from "@/components/landing/SiteChrome";
 import {
   CHECK_INTRO_HEADLINE,
   CHECK_INTRO_HEADLINE_LINE2,
@@ -14,12 +13,10 @@ export const metadata: Metadata = {
 
 export default function CheckPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
-      <LandingHeader />
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <SiteChrome>
+      <main className="flex-1">
         <MiniAcademyCheck />
       </main>
-      <LandingFooter />
-    </div>
+    </SiteChrome>
   );
 }

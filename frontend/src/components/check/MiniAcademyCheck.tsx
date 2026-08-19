@@ -1,22 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Badge, Button, ButtonLink, Card, buttonClassName } from "@/components/ui";
-import { KakaoChannelLink } from "@/components/landing/KakaoChannelLink";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { KakaoChannelCta } from "@/components/landing/KakaoChannelCta";
 import {
   CHECK_CTA_HINT,
   CHECK_CTA_LABEL,
-  CHECK_INTRO_HEADLINE,
-  CHECK_INTRO_HEADLINE_LINE2,
-  CHECK_INTRO_BADGE,
-  CHECK_INTRO_SUPPORT,
-  CHECK_INTRO_SUPPORT_NEXT,
+  CHECK_RESULT_CONSULT_LABEL,
   CHECK_RESULT_HOME_LABEL,
   CHECK_RESULT_KAKAO_LABEL,
   CTA_REASSURANCE,
   KAKAO_WELCOME_HINT,
 } from "@/components/landing/landingFacts";
+import { TrackedLink } from "@/components/landing/TrackedLink";
 import { trackEvent } from "@/lib/api";
 import {
   ANSWERS,
@@ -88,30 +85,9 @@ export function MiniAcademyCheck() {
 
   if (phase === "intro") {
     return (
-      <div className="flex flex-col items-center text-center">
-        <Image
-          src="/logo.png"
-          alt=""
-          width={1254}
-          height={1254}
-          priority
-          className="h-16 w-16 sm:h-20 sm:w-20"
-        />
-        <Badge tone="warn" className="mt-5">
-          {CHECK_INTRO_BADGE}
-        </Badge>
-        <h1 className="mt-4 break-keep text-2xl font-black leading-tight text-ink sm:text-3xl">
-          {CHECK_INTRO_HEADLINE}
-          <br />
-          {CHECK_INTRO_HEADLINE_LINE2}
-        </h1>
-        <p className="mt-4 max-w-sm break-keep text-sm leading-relaxed text-ink-muted">
-          {CHECK_INTRO_SUPPORT}
-        </p>
-        <p className="mt-1 max-w-sm break-keep text-sm leading-relaxed text-ink-muted">
-          {CHECK_INTRO_SUPPORT_NEXT}
-        </p>
-        <div className="mt-8 w-full space-y-3">
+      <>
+        <HeroSection />
+        <div className="mx-auto w-full max-w-lg space-y-3 px-4 pb-8 sm:px-6">
           <Button
             fullWidth
             className="!px-6 !py-3 text-base"
@@ -119,9 +95,9 @@ export function MiniAcademyCheck() {
           >
             {CHECK_CTA_LABEL}
           </Button>
-          <p className="text-xs text-ink-muted">{CHECK_CTA_HINT}</p>
+          <p className="text-center text-xs text-ink-muted">{CHECK_CTA_HINT}</p>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -131,10 +107,10 @@ export function MiniAcademyCheck() {
     const counseling = pickCounselingQuestions(answers);
 
     return (
-      <div className="space-y-5">
+      <div className="mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-12">
         <ProgressHeader label={progressLabel} ratio={progressRatio} />
         <Card padding="lg">
-          <Badge tone="brand">학원 평가가 아닙니다</Badge>
+          <Badge tone="neutral">학원 평가가 아닙니다</Badge>
           <h2 className="mt-3 break-keep text-xl font-bold text-ink sm:text-2xl">
             {copy.headline}
           </h2>
@@ -162,7 +138,7 @@ export function MiniAcademyCheck() {
           ) : null}
         </Card>
         <div className="flex flex-col items-stretch gap-3">
-          <KakaoChannelLink
+          <KakaoChannelCta
             event="checklist_kakao_clicked"
             className={buttonClassName({
               variant: "kakao",
@@ -171,14 +147,24 @@ export function MiniAcademyCheck() {
             })}
           >
             {CHECK_RESULT_KAKAO_LABEL}
-          </KakaoChannelLink>
+          </KakaoChannelCta>
           <p className="text-center text-xs leading-relaxed text-ink-muted">
             {CTA_REASSURANCE} · {KAKAO_WELCOME_HINT}
           </p>
+          <TrackedLink
+            href="/checklists"
+            event="check_explore_clicked"
+            className={buttonClassName({
+              variant: "secondary",
+              className: "!px-6 !py-3 text-base",
+            })}
+          >
+            {CHECK_RESULT_CONSULT_LABEL}
+          </TrackedLink>
           <ButtonLink
             href="/"
-            variant="secondary"
-            className="!px-6 !py-3 text-base"
+            variant="ghost"
+            className="text-sm"
             onClick={trackHomeClick}
           >
             {CHECK_RESULT_HOME_LABEL}
@@ -189,7 +175,7 @@ export function MiniAcademyCheck() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-lg space-y-5 px-4 py-8 sm:px-6 sm:py-12">
       <ProgressHeader label={progressLabel} ratio={progressRatio} />
       <Card padding="lg">
         <p className="break-keep text-lg font-bold leading-snug text-ink sm:text-xl">
