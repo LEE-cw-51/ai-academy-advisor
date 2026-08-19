@@ -2,12 +2,27 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui";
 
+function HeadlineLines({ lines }: { lines: readonly string[] }) {
+  return (
+    <>
+      {lines.map((line, index) => (
+        <span key={line}>
+          {index > 0 ? <br /> : null}
+          {line}
+        </span>
+      ))}
+    </>
+  );
+}
+
 interface PageHeroProps {
   /** `/`·`/check` 인트로에서 true. 헤더에 이미 작은 로고가 있어 `/checklists`는 반복하지 않는다. */
   logo?: boolean;
   badge: string;
   headline: string;
   headlineLine2?: string;
+  /** sm 미만에서만 쓰는 h1 줄바꿈. 없으면 headline·headlineLine2 한 세트로 렌더한다. */
+  headlineMobileLines?: readonly string[];
   support: string;
   /** 즉시 효익 한 줄. `/`만 쓴다 — `/check`·`/checklists`는 각자 CTA 옆에 이미 같은 문구가 있다. */
   reassurance?: string;
@@ -23,6 +38,7 @@ export function PageHero({
   badge,
   headline,
   headlineLine2,
+  headlineMobileLines,
   support,
   reassurance,
   children,
@@ -48,13 +64,32 @@ export function PageHero({
         {badge}
       </Badge>
       <h1 className="hero-fade-up hero-fade-up-delay-1 mx-auto mt-4 max-w-2xl break-keep text-3xl font-black leading-tight text-ink sm:text-4xl">
-        {headline}
-        {headlineLine2 ? (
+        {headlineMobileLines ? (
           <>
-            <br />
-            {headlineLine2}
+            <span className="sm:hidden">
+              <HeadlineLines lines={headlineMobileLines} />
+            </span>
+            <span className="hidden sm:inline">
+              {headline}
+              {headlineLine2 ? (
+                <>
+                  <br />
+                  {headlineLine2}
+                </>
+              ) : null}
+            </span>
           </>
-        ) : null}
+        ) : (
+          <>
+            {headline}
+            {headlineLine2 ? (
+              <>
+                <br />
+                {headlineLine2}
+              </>
+            ) : null}
+          </>
+        )}
       </h1>
       <p className="hero-fade-up hero-fade-up-delay-2 mx-auto mt-4 max-w-md break-keep text-sm leading-relaxed text-ink-muted">
         {support}

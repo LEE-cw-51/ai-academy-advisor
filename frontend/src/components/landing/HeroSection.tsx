@@ -3,6 +3,7 @@ import {
   HERO_BADGE,
   HERO_HEADLINE,
   HERO_HEADLINE_LINE2,
+  HERO_HEADLINE_MOBILE_LINES,
   HERO_REASSURANCE,
   HERO_SUPPORT,
 } from "./landingFacts";
@@ -16,6 +17,7 @@ export function HeroSection() {
       badge={HERO_BADGE}
       headline={HERO_HEADLINE}
       headlineLine2={HERO_HEADLINE_LINE2}
+      headlineMobileLines={HERO_HEADLINE_MOBILE_LINES}
       support={HERO_SUPPORT}
       reassurance={HERO_REASSURANCE}
     />

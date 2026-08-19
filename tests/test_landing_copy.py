@@ -170,7 +170,13 @@ def test_home_is_a_situation_router_not_a_single_feature_page():
     # 옛 3시점 카드·단일 CTA 히어로로 되돌아가지 않았는지.
     assert "LIFECYCLE_STAGES" not in facts
     assert "WaitlistModal" not in page
-    for const in ("HERO_BADGE", "HERO_HEADLINE", "HERO_HEADLINE_LINE2", "HERO_SUPPORT"):
+    for const in (
+        "HERO_BADGE",
+        "HERO_HEADLINE",
+        "HERO_HEADLINE_LINE2",
+        "HERO_HEADLINE_MOBILE_LINES",
+        "HERO_SUPPORT",
+    ):
         assert const in hero, f"{const} not rendered by HeroSection"
 
 
