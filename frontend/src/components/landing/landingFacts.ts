@@ -18,6 +18,13 @@ export const KAKAO_WELCOME_HINT = "채널 추가 후 웰컴메시지로 보내�
 export const HERO_BADGE = "하남 미사 학부모를 위한 학원 선택 가이드";
 export const HERO_HEADLINE = "학원을 알아볼 때도, 다니는 동안에도";
 export const HERO_HEADLINE_LINE2 = "우리 아이에게 맞는 선택을 돕습니다";
+/** sm 미만에서 h1 줄바꿈 고정 — 좁은 폭에서 자동 줄바꿈에 맡기지 않는다. */
+export const HERO_HEADLINE_MOBILE_LINES = [
+  "학원을 알아볼 때도,",
+  "다니는 동안에도",
+  "우리 아이에게 맞는",
+  "선택을 돕습니다",
+] as const;
 export const HERO_SUPPORT =
   "상담에서 무엇을 확인할지, 지금 학원이 아이에게 맞는지부터 차근차근 정리해 드립니다.";
 /** `/checklists`의 `CONSULT_REASSURANCE`, `/check`의 `CHECK_CTA_HINT`와 같은
