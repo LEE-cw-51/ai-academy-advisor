@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
+import { FOOTER_STATUS_COPY } from "@/components/landing/landingFacts";
 
 const notoSansKr = Noto_Sans_KR({
   subsets: ["latin"],
@@ -11,8 +12,7 @@ const notoSansKr = Noto_Sans_KR({
 
 export const metadata: Metadata = {
   title: "학원콕 | 하남 미사 AI 학원 추천 (정식 출시 준비 중)",
-  description:
-    "학원콕은 아직 정식 출시 전입니다. 지금 다니는 학원이 맞는지 1분 점검해 보세요. 맞춤 추천·비교·상담 연결은 출시 후 제공될 예정입니다.",
+  description: FOOTER_STATUS_COPY,
 };
 
 export default function RootLayout({

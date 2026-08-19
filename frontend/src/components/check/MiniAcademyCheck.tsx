@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Badge, Button, ButtonLink, Card, buttonClassName } from "@/components/ui";
 import { KakaoChannelLink } from "@/components/landing/KakaoChannelLink";
 import {
   CHECK_CTA_HINT,
   CHECK_CTA_LABEL,
+  CHECK_INTRO_HEADLINE,
+  CHECK_INTRO_HEADLINE_LINE2,
+  CHECK_INTRO_BADGE,
+  CHECK_INTRO_SUPPORT,
+  CHECK_INTRO_SUPPORT_NEXT,
   CHECK_RESULT_HOME_LABEL,
   CHECK_RESULT_KAKAO_LABEL,
   CTA_REASSURANCE,
@@ -19,6 +25,8 @@ import {
   classifyResult,
   pickCounselingQuestions,
   type AnswerId,
+  COUNSELING_HEADING_DEFAULT,
+  COUNSELING_HEADING_STABLE,
 } from "./checkData";
 
 type Phase = "intro" | "questions" | "result";
@@ -80,15 +88,39 @@ export function MiniAcademyCheck() {
 
   if (phase === "intro") {
     return (
-      <div className="space-y-5">
-        <Button
-          fullWidth
-          className="!px-6 !py-3 text-base"
-          onClick={startCheck}
-        >
-          {CHECK_CTA_LABEL}
-        </Button>
-        <p className="text-center text-xs text-ink-muted">{CHECK_CTA_HINT}</p>
+      <div className="flex flex-col items-center text-center">
+        <Image
+          src="/logo.png"
+          alt=""
+          width={1254}
+          height={1254}
+          priority
+          className="h-16 w-16 sm:h-20 sm:w-20"
+        />
+        <Badge tone="warn" className="mt-5">
+          {CHECK_INTRO_BADGE}
+        </Badge>
+        <h1 className="mt-4 break-keep text-2xl font-black leading-tight text-ink sm:text-3xl">
+          {CHECK_INTRO_HEADLINE}
+          <br />
+          {CHECK_INTRO_HEADLINE_LINE2}
+        </h1>
+        <p className="mt-4 max-w-sm break-keep text-sm leading-relaxed text-ink-muted">
+          {CHECK_INTRO_SUPPORT}
+        </p>
+        <p className="mt-1 max-w-sm break-keep text-sm leading-relaxed text-ink-muted">
+          {CHECK_INTRO_SUPPORT_NEXT}
+        </p>
+        <div className="mt-8 w-full space-y-3">
+          <Button
+            fullWidth
+            className="!px-6 !py-3 text-base"
+            onClick={startCheck}
+          >
+            {CHECK_CTA_LABEL}
+          </Button>
+          <p className="text-xs text-ink-muted">{CHECK_CTA_HINT}</p>
+        </div>
       </div>
     );
   }
@@ -114,7 +146,11 @@ export function MiniAcademyCheck() {
           </p>
           {counseling.length > 0 ? (
             <div className="mt-5 border-t border-border-soft pt-5">
-              <p className="text-sm font-semibold text-ink">상담 때 물어보세요</p>
+              <p className="text-sm font-semibold text-ink">
+                {kind === "stable"
+                  ? COUNSELING_HEADING_STABLE
+                  : COUNSELING_HEADING_DEFAULT}
+              </p>
               <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-ink-muted">
                 {counseling.map((item) => (
                   <li key={item} className="break-keep">
@@ -186,7 +222,7 @@ function ProgressHeader({ label, ratio }: { label: string; ratio: number }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-ink">1분 학원 점검</p>
+        <h1 className="text-sm font-semibold text-ink">{CHECK_CTA_LABEL}</h1>
         <p className="text-sm text-ink-muted">{label}</p>
       </div>
       <div

@@ -53,6 +53,7 @@ def test_track_click_kakao_channel_event(client, db_session):
         "mini_check_completed",
         "mini_check_result_viewed",
         "mini_check_home_clicked",
+        "home_check_clicked",
         "checklist_kakao_clicked",
     ],
 )

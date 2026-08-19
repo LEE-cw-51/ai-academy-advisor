@@ -214,7 +214,7 @@ POST /recommendations/ai
 | 필드 | 값 | 의미 |
 |---|---|---|
 | `academy_id` | 정수 ≥ 1 \| null | 대상 학원 (없어도 됨) |
-| `event` | `phone` \| `website` \| `directions` \| `detail` \| `kakao_channel` \| `mini_check_started` \| `mini_check_completed` \| `mini_check_result_viewed` \| `mini_check_home_clicked` \| `checklist_kakao_clicked` | 전화/홈페이지/길찾기/상세보기/카카오 채널 추가(유기 유입)/미니 점검 퍼널/점검 경로 카카오 CTA |
+| `event` | `phone` \| `website` \| `directions` \| `detail` \| `kakao_channel` \| `mini_check_started` \| `mini_check_completed` \| `mini_check_result_viewed` \| `mini_check_home_clicked` \| `home_check_clicked` \| `checklist_kakao_clicked` | 전화/홈페이지/길찾기/상세보기/카카오 채널 추가(유기 유입)/미니 점검 퍼널/`home_check_clicked`는 홈→`/check` CTA/`mini_check_home_clicked`는 점검→홈/점검 경로 카카오 CTA |
 
 잘못된 `event`는 422, 존재하지 않는 `academy_id`는 404.
 

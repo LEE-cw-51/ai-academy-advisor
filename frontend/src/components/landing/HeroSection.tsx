@@ -1,7 +1,13 @@
 import type { RefObject } from "react";
 import Image from "next/image";
 import { Badge, Button } from "@/components/ui";
-import { CTA_REASSURANCE, MISA_ACADEMY_COUNT, WAITLIST_CTA_LABEL } from "./landingFacts";
+import { CheckCtaLink } from "./CheckCtaLink";
+import {
+  HOME_CHECK_CTA_LABEL,
+  HOME_CHECK_REASSURANCE,
+  MISA_ACADEMY_COUNT,
+  WAITLIST_CTA_LABEL,
+} from "./landingFacts";
 
 interface HeroSectionProps {
   onRequestWaitlist: () => void;
@@ -32,10 +38,17 @@ export function HeroSection({ onRequestWaitlist, ctaSentinelRef }: HeroSectionPr
         맘카페·블로그를 뒤져도 우리 아이에게 맞는 곳인지는 확신이 서지 않죠.
       </p>
       <div className="hero-fade-up hero-fade-up-delay-3 mt-6 flex flex-col items-center justify-center gap-3">
-        <Button className="!px-6 !py-3 text-base" onClick={onRequestWaitlist}>
+        <CheckCtaLink className="!px-6 !py-3 text-base">
+          {HOME_CHECK_CTA_LABEL}
+        </CheckCtaLink>
+        <p className="text-xs text-ink-muted">{HOME_CHECK_REASSURANCE}</p>
+        <Button
+          variant="secondary"
+          className="!px-6 !py-3 text-base"
+          onClick={onRequestWaitlist}
+        >
           {WAITLIST_CTA_LABEL}
         </Button>
-        <p className="text-xs text-ink-muted">{CTA_REASSURANCE}</p>
       </div>
       <div ref={ctaSentinelRef} className="h-px w-full" aria-hidden />
       <div className="mx-auto mt-8 max-w-md text-left">

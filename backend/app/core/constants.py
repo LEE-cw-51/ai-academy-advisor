@@ -29,7 +29,8 @@ class ClickEvent(StrEnum):
     """클릭·랜딩 퍼널 이벤트.
 
     전화/홈페이지 등은 학원 상세의 외부 행동이고, mini_check_* /
-    checklist_kakao_clicked 는 /check 전환 퍼널이다. 페이지뷰는 넣지 않는다.
+    home_check_clicked / checklist_kakao_clicked 는 랜딩·점검 퍼널이다.
+    페이지뷰는 넣지 않는다.
     """
 
     PHONE = "phone"  # 전화 클릭
@@ -41,4 +42,5 @@ class ClickEvent(StrEnum):
     MINI_CHECK_COMPLETED = "mini_check_completed"
     MINI_CHECK_RESULT_VIEWED = "mini_check_result_viewed"
     MINI_CHECK_HOME_CLICKED = "mini_check_home_clicked"
+    HOME_CHECK_CLICKED = "home_check_clicked"
     CHECKLIST_KAKAO_CLICKED = "checklist_kakao_clicked"

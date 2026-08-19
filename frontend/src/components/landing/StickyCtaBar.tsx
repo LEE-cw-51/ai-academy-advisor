@@ -1,21 +1,17 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Button } from "@/components/ui";
-import { CTA_REASSURANCE, WAITLIST_CTA_LABEL } from "./landingFacts";
+import { CheckCtaLink } from "./CheckCtaLink";
+import { HOME_CHECK_CTA_LABEL, STICKY_CHECK_REASSURANCE } from "./landingFacts";
 
 interface StickyCtaBarProps {
   sentinelRef: RefObject<HTMLElement | null>;
   suppressed: boolean;
-  onRequestWaitlist: () => void;
 }
 
-/** 모바일 전용 하단 고정 CTA. WaitlistModal을 연다 — KakaoChannelLink 계측을 우회하지 않는다. */
-export function StickyCtaBar({
-  sentinelRef,
-  suppressed,
-  onRequestWaitlist,
-}: StickyCtaBarProps) {
+/** 모바일 전용 하단 고정 CTA. `/check`로 이동한다.
+ *  WaitlistModal이 열려 있으면 suppressed로 숨겨 모달 뒤에서 탭되지 않게 한다. */
+export function StickyCtaBar({ sentinelRef, suppressed }: StickyCtaBarProps) {
   const [visible, setVisible] = useState(false);
   const shown = visible && !suppressed;
 
@@ -42,16 +38,15 @@ export function StickyCtaBar({
         shown ? "translate-y-0" : "pointer-events-none translate-y-full",
       ].join(" ")}
     >
-      <Button
+      <CheckCtaLink
         fullWidth
         className="!py-3 text-[15px] leading-snug"
-        onClick={onRequestWaitlist}
         tabIndex={shown ? undefined : -1}
       >
-        {WAITLIST_CTA_LABEL}
-      </Button>
+        {HOME_CHECK_CTA_LABEL}
+      </CheckCtaLink>
       <p className="pb-3 pt-2 text-center text-xs leading-relaxed text-ink-muted">
-        {CTA_REASSURANCE}
+        {STICKY_CHECK_REASSURANCE}
       </p>
     </div>
   );

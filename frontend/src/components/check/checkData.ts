@@ -14,7 +14,7 @@ export type ResultKind = "stable" | "check_needed" | "needs_attention";
 export interface CheckQuestion {
   id: string;
   prompt: string;
-  counseling: Partial<Record<Exclude<AnswerId, "well">, string>>;
+  counseling: Partial<Record<AnswerId, string>>;
 }
 
 export const QUESTIONS: CheckQuestion[] = [
@@ -22,6 +22,7 @@ export const QUESTIONS: CheckQuestion[] = [
     id: "fit",
     prompt: "우리 아이는 지금 수업을 자신의 수준에 맞게 따라가고 있나요?",
     counseling: {
+      well: "아이의 현재 수준을 어떤 근거로 판단했고, 다음 평가 전까지 무엇을 관찰하나요?",
       sometimes:
         "수업이 너무 쉽거나 어렵지 않은지, 아이 수준에 맞춰 진도를 조절해 주시나요?",
       needs_work:
@@ -34,6 +35,7 @@ export const QUESTIONS: CheckQuestion[] = [
     id: "feedback",
     prompt: "숙제·테스트·오답을 통해 부족한 부분이 꾸준히 관리되고 있나요?",
     counseling: {
+      well: "숙제·테스트·오답에서 반복되는 유형은 무엇이며, 다음 보완 계획은 무엇인가요?",
       sometimes:
         "숙제와 테스트 결과를 학부모가 어떤 방식으로, 얼마나 자주 확인할 수 있나요?",
       needs_work: "오답이 반복될 때 어떤 피드백과 보충을 하시나요?",
@@ -45,6 +47,7 @@ export const QUESTIONS: CheckQuestion[] = [
     id: "climate",
     prompt: "아이에게 강사·친구·수업 분위기가 편안하고 긍정적인가요?",
     counseling: {
+      well: "아이가 질문하거나 이해를 표현하기 어려울 때, 어떤 방식으로 확인하고 돕나요?",
       sometimes: "아이가 수업 시간에 질문하거나 어려움을 말하기 편한 분위기인가요?",
       needs_work:
         "아이와 강사·친구 관계가 불편하다면, 반 조정이나 상담은 어떻게 진행되나요?",
@@ -84,10 +87,14 @@ export function classifyResult(answers: AnswerId[]): ResultKind {
   return "stable";
 }
 
-const COUNSELING_PRIORITY: Exclude<AnswerId, "well">[] = [
+export const COUNSELING_HEADING_STABLE = "다음 상담에서 확인해 보세요";
+export const COUNSELING_HEADING_DEFAULT = "상담 때 물어보세요";
+
+export const COUNSELING_PRIORITY: AnswerId[] = [
   "needs_work",
   "unknown",
   "sometimes",
+  "well",
 ];
 
 export function pickCounselingQuestions(answers: AnswerId[]): string[] {
