@@ -27,6 +27,12 @@
 후기, 별점, 추천, 실제 학부모 경험. 이 단계의 쓰기는 DB 직접 쓰기이며
 git 정본을 거치지 않는다 (사실 데이터와 저장 경로가 다르다).
 
+### 운영·관리 신호 — Phase 1~3을 가로지르는 후속 실험
+
+반의 실제 인원, 수업 중 질문 가능 시간, 동시 질문 대응 인력, 오답·클리닉 제공처럼 학습 관리 경험에 영향을 주는 운영 조건은 학원 전체의 고정 사실로 취급하지 않는다. 이 값은 **과목·학년군·수업반·시간대·관측일**에 따라 달라질 수 있고, 단일 값만으로 학원의 교육 품질을 판정할 수 없다.
+
+따라서 `질문 대응 여유` 같은 신호는 사실 DB의 필드나 학원 별점으로 저장하지 않는다. 공개 출처에서 확인한 값은 출처·확인일을 가진 별도 운영 프로필에, 학부모가 등록 후 확인한 경험은 개인 점검 또는 사용자 데이터에 분리한다. 충분한 입력값이 없으면 `미확인`으로 표현하고 상담 질문만 제공한다. 이 신호의 상세 적용은 [대기행렬 기반 질문 대응 여유 신호 제안](queueing-management-signal-proposal.md)을 따른다.
+
 ## 3상태(tri-state) 원칙
 
 Boolean 필드는 3가지 상태를 갖는다.
@@ -59,8 +65,8 @@ JSON 키(정본 파일)와 DB 컬럼은 1:1로 같다.
 | `shuttle_available` | bool \| null | 차량운행 | |
 | `operating_hours` | string \| null | 운영시간 | 자유 서술 |
 | `established_year` | int \| null | 개원년도 | |
-| `teacher_count` | int \| null | 강사수 | |
-| `classroom_count` | int \| null | 강의실수 | |
+| `teacher_count` | int \| null | 강사수 | 학원 전체의 공개 강사 수. 특정 반의 질문 대응 인력 또는 학생당 강사 수로 추론하지 않는다. |
+| `classroom_count` | int \| null | 강의실수 | 학원 전체의 공개 강의실 수. 반별 수업 환경이나 정원으로 추론하지 않는다. |
 | `tagline` | string \| null | 한 줄 소개 | 홈페이지 요약. 의견이 아닌 사실 요약으로 유지 |
 | `latitude` / `longitude` | float \| null | 좌표 | 추후 지도 기능용 |
 | `source_note` | string \| null | 출처 메모 | 어디서 확인한 사실인지 |
@@ -138,3 +144,4 @@ engagement 로그는 KPI 측정을 위한 런타임 기록이다. 사실 DB의 d
 - 과목 필터가 필요해지면 `subjects` JSON 컬럼 → `academy_subjects` junction 테이블 마이그레이션.
 - 필터 파라미터 다중값(`level=middle,high`), 정렬 옵션 추가.
 - Phase 2 AI 요약은 별도 테이블로 추가 (기존 스키마 변경 없음).
+- 질문 대응·오답 관리 같은 운영 신호도 사실 테이블과 분리한다. 향후 운영 프로필은 `academy_id` 외에 `course_scope`, `observed_at`, `source_type`, `source_note`, `calculation_version`, `status`를 포함해 반 단위·관측일 단위로 해석 가능해야 한다.
