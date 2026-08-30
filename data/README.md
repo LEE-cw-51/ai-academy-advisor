@@ -37,6 +37,15 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 업
 ```
 
 - 임포트는 **sync 의미론**: 파일 내용으로 전 필드를 덮어쓴다 (`null` 포함).
+- 검색 제안(과목·홈페이지·블로그 URL)은 JSON을 건드리지 않는다.
+
+```bash
+cd backend
+uv run python -m app.cli.enrich_academy_from_search ../data/academies --dry-run --limit 8
+```
+
+CSV는 `data/raw/naver/` (gitignore). Founder 확인 후 정본 JSON PR.
+
 - 파일에 없는 DB 행은 삭제하지 않고 리포트만 한다. 폐원 등으로 행을 지울 때는
   파일 삭제 후 DB에서 수동으로 삭제한다.
 

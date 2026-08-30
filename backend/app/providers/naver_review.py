@@ -1,9 +1,9 @@
-"""네이버 검색 오픈 API 기반 `ReviewSource` 구현.
+"""NAVER API HUB 검색 기반 `ReviewSource` 구현.
 
-크롤링이 아니라 **공식 검색 API 호출**이다 (docs/decision-log.md 2026-07-31).
+크롤링이 아니라 **공식 Search API 호출**이다 (docs/decision-log.md 2026-08-30).
 `blog`와 `cafearticle` 두 엔드포인트만 쓴다 — `cafearticle`은 공개 설정된 카페 글만
 색인하므로 로그인 담벼락을 넘지 않는다. `local`(지역검색)은 리뷰가 아니라 학원 매칭용이라
-여기 포함하지 않는다.
+여기 포함하지 않는다 (`naver_local.py`).
 
 응답 `description`은 검색 결과 스니펫(~200자)이며 리뷰 전문이 아니다. 전문 수집은
 의도적으로 하지 않는다 (그 순간 공식 API를 쓴 법적 근거가 사라진다).
@@ -17,8 +17,7 @@ import html
 import re
 from datetime import date, datetime
 
-import httpx
-
+from app.providers import naver_hub
 from app.providers.base import ReviewItem
 
 # 네이버는 질의어와 일치한 부분을 <b>…</b>로 감싸고 나머지는 HTML escape해서 준다.
@@ -54,7 +53,7 @@ def parse_postdate(value: object) -> date | None:
 
 
 class NaverReviewSource:
-    """네이버 검색 오픈 API를 호출하는 `ReviewSource` 구현."""
+    """NAVER API HUB Search를 호출하는 `ReviewSource` 구현."""
 
     def __init__(
         self,
@@ -75,17 +74,15 @@ class NaverReviewSource:
         return items
 
     def _search_one(self, endpoint: str, query: str, limit: int) -> list[ReviewItem]:
-        response = httpx.get(
-            f"{self._base_url}/search/{endpoint}.json",
-            headers={
-                "X-Naver-Client-Id": self._client_id,
-                "X-Naver-Client-Secret": self._client_secret,
-            },
-            params={"query": query, "display": limit, "sort": "date"},
-            timeout=30.0,
+        rows = naver_hub.search(
+            client_id=self._client_id,
+            client_secret=self._client_secret,
+            base_url=self._base_url,
+            endpoint=endpoint,
+            query=query,
+            display=limit,
+            sort="date",
         )
-        response.raise_for_status()
-
         source = _SOURCE_LABELS.get(endpoint, f"naver_{endpoint}")
         return [
             ReviewItem(
@@ -95,5 +92,5 @@ class NaverReviewSource:
                 source=source,
                 published_at=parse_postdate(row.get("postdate")),
             )
-            for row in response.json().get("items", [])
+            for row in rows
         ]

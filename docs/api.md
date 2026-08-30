@@ -242,6 +242,64 @@ POST /events
 | `email` | 문자열 \| null | 이메일 |
 | `kakao` | 문자열 \| null | 카카오 플러스친구 식별자 |
 
+### POST /consultation/questions
+학부모 입력으로 **상담에서 그대로 읽을 확인 질문 3~5개**를 만든다. 학원 추천·평가가
+아니다. DB에 저장하지 않는다. LLM은 `get_llm_provider` 포트만 탄다.
+
+| 필드 | 값 | 의미 |
+|---|---|---|
+| `grade` | 문자열 (1–20, 필수) | 학년 (예: `중2`) |
+| `subject` | 문자열 (1–20, 필수) | 과목 (예: `수학`) |
+| `school` | 문자열 (기본 `""`, ≤50) | 학교명 |
+| `current_academy` | 문자열 (기본 `""`, ≤100) | 현재 다니는 학원. 비면 알아보는 중 |
+| `style_tags` | 문자열 배열 (기본 `[]`, ≤8개) | 학습 스타일 (예: `내신 대비`) |
+| `concern` | 문자열 (1–500, 필수) | 걱정·원하는 점 |
+| `intent` | `counsel_only` (기본) \| `find_new_academy` | 현재 학원 상담 vs 새 학원 찾기 |
+
+잘못된 enum·빈 `grade`/`subject`/`concern`은 422. 성공은 항상 200.
+
+```json
+POST /consultation/questions
+{
+  "grade": "중2",
+  "subject": "수학",
+  "school": "미사중학교",
+  "current_academy": "",
+  "style_tags": ["내신 대비"],
+  "concern": "숙제가 많고 아이가 지쳐 보여요",
+  "intent": "counsel_only"
+}
+```
+
+```json
+{
+  "questions": [
+    {
+      "topic": "강사와 아이와의 관계",
+      "prompt": "이 수업을 담당할 강사는 누구이고, 아이와 어떻게 맞춰 가나요?"
+    }
+  ],
+  "disclaimer": "학원 평가가 아닌 상담 확인용 질문입니다.",
+  "model": "StubLLMProvider",
+  "used_fallback": true
+}
+```
+
+**LLM과 fallback**: 프롬프트는 JSON만 요구하고 학원 판정을 금지한다. 톤 few-shot은
+`checkData.ts`·`checklistsData.ts` 문장이다. `llm.chat` 예외, stub처럼 JSON이 아닌
+응답, 코드펜스 밖 파싱 실패, 유효 질문 3개 미만이면 **체크리스트 5문항**으로 대체한다.
+`used_fallback`이 그 출처다.
+
+| 조건 | fallback 출처 |
+|---|---|
+| `intent=find_new_academy` | 옮기기 전 체크리스트 |
+| `current_academy`가 있음 | `/check` 상담 문항 |
+| 그 외 (알아보는 중) | 등록 전 체크리스트 |
+
+기본 `LLM_PROVIDER=stub`이면 stub은 JSON을 만들지 않으므로 항상 fallback이다.
+`LLM_PROVIDER=groq`이면 실제 모델 JSON을 쓰고, 실패 시에만 fallback. 키가 없어도
+이 엔드포인트는 완료로 본다.
+
 ---
 
 학원 데이터에 대한 쓰기(POST/PUT) API는 의도적으로 없다 — 정본은 git의

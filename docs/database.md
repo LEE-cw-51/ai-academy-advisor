@@ -43,8 +43,9 @@
 
 ### subjects 컬럼
 SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된다
-(`with_variant`). JSON containment 연산이 dialect 간 호환되지 않으므로
-표시 전용이며, 과목 필터가 필요해지면 `academy_subjects` junction 테이블로 이관한다.
+(`with_variant`). 허용 값은 `국어`/`영어`/`수학`/`과학`/`기타` 뿐이며 복수 기입 가능하다.
+JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프트 랭킹 전용이며,
+과목 하드 필터가 필요해지면 `academy_subjects` junction 테이블로 이관한다.
 
 ## reviews (후기) — Phase 3에서 검토
 학원별 후기/평점. 사용자 쓰기 데이터이므로 git 정본을 거치지 않고 DB에 직접 쓴다.
