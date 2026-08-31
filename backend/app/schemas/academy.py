@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
+from app.core.subjects import normalize_subjects
 
 _STRING_FIELDS = (
     "registration_number",
@@ -72,7 +73,7 @@ class AcademyRecord(BaseModel):
         cleaned = [item.strip() for item in value]
         if any(item == "" for item in cleaned):
             raise ValueError("subjects에 빈 문자열이 있습니다")
-        return cleaned
+        return normalize_subjects(cleaned)
 
 
 class AcademySummary(BaseModel):

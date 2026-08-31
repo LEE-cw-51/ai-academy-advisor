@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.academies import router as academies_router
+from app.api.consultation import router as consultation_router
 from app.api.engagement import router as engagement_router
 from app.api.recommendations import router as recommendations_router
 from app.api.routes import router
@@ -28,3 +29,4 @@ app.include_router(router)
 app.include_router(academies_router)
 app.include_router(recommendations_router)
 app.include_router(engagement_router)
+app.include_router(consultation_router)

@@ -1,4 +1,4 @@
-"""네이버 검색 오픈 API `ReviewSource` 어댑터 테스트 (네트워크 없이 monkeypatch)."""
+"""NAVER API HUB Search `ReviewSource` 테스트 (네트워크 없이 monkeypatch)."""
 
 from datetime import date
 
@@ -8,6 +8,7 @@ import pytest
 from app.core.config import get_settings
 from app.providers.base import ReviewItem, ReviewSource
 from app.providers.factory import get_review_source
+from app.providers.naver_hub import DEFAULT_BASE_URL
 from app.providers.naver_review import (
     NaverReviewSource,
     clean_text,
@@ -15,7 +16,7 @@ from app.providers.naver_review import (
 )
 from app.providers.stub import StubReviewSource
 
-BASE_URL = "https://openapi.naver.com/v1"
+BASE_URL = DEFAULT_BASE_URL
 
 
 def _blog_payload(**overrides):
@@ -60,10 +61,10 @@ def test_sends_expected_url_headers_and_params(monkeypatch):
     _source(endpoints=("blog",)).search("가온수학", limit=5)
 
     call = captured["calls"][0]
-    assert call["url"] == f"{BASE_URL}/search/blog.json"
+    assert call["url"] == f"{BASE_URL}/search/v1/blog"
     assert call["headers"] == {
-        "X-Naver-Client-Id": "test-id",
-        "X-Naver-Client-Secret": "test-secret",
+        "X-NCP-APIGW-API-KEY-ID": "test-id",
+        "X-NCP-APIGW-API-KEY": "test-secret",
     }
     assert call["params"] == {"query": "가온수학", "display": 5, "sort": "date"}
 
@@ -76,8 +77,8 @@ def test_queries_both_endpoints_and_labels_source(monkeypatch):
 
     urls = [call["url"] for call in captured["calls"]]
     assert urls == [
-        f"{BASE_URL}/search/blog.json",
-        f"{BASE_URL}/search/cafearticle.json",
+        f"{BASE_URL}/search/v1/blog",
+        f"{BASE_URL}/search/v1/cafearticle",
     ]
     assert [item.source for item in items] == ["naver_blog", "naver_cafearticle"]
 

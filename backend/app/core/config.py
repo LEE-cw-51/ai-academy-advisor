@@ -16,11 +16,10 @@ class Settings(BaseSettings):
     openai_embedding_base_url: str = "https://api.openai.com/v1"
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    # 네이버 검색 오픈 API (developers.naver.com 에서 앱 등록 후 발급).
-    # 무료 25,000회/일. blog/cafearticle 두 엔드포인트만 사용한다.
+    # NAVER API HUB Search (콘솔에서 앱 등록). 무료 25,000회/일.
     naver_client_id: str = ""
     naver_client_secret: str = ""
-    naver_base_url: str = "https://openapi.naver.com/v1"
+    naver_base_url: str = "https://naverapihub.apigw.ntruss.com"
 
     @field_validator("database_url")
     @classmethod
@@ -30,6 +29,15 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return value.replace("postgresql://", "postgresql+psycopg://", 1)
         return value
+
+    @field_validator("naver_base_url")
+    @classmethod
+    def normalize_naver_base_url(cls, value: str) -> str:
+        stripped = value.rstrip("/")
+        # 개발자센터 호스트가 .env에 남아 있으면 HUB로 올린다. HUB 키는 옛 URL에서 실패한다.
+        if "openapi.naver.com" in stripped:
+            return "https://naverapihub.apigw.ntruss.com"
+        return stripped
 
     # 브라우저 프론트엔드(Next.js)의 오리진. env로 줄 때는 JSON 배열 형식이어야 한다
     # (pydantic-settings가 list[str]을 JSON으로 파싱하므로 콤마 나열은 기동 실패).

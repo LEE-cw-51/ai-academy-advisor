@@ -2,6 +2,37 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-08-30 — POST /consultation/questions 상담 질문 계약 (LLM JSON + 체크리스트 fallback)
+
+- **계기**: `/app` 입력→질문→추천 합류 전에, 상담 질문 API 계약을 stub으로 고정한다.
+  Groq 키가 없어도 Track C 완료로 본다. 학원을 고르거나 평가하는 엔드포인트가 아니다.
+- **결정**:
+  - `POST /consultation/questions` — 학년·과목·걱정 등 입력 → 상담에서 읽을 질문 3~5개.
+    DB 저장 없음. 라우터는 HTTP·검증만, 생성은 `consultation_service`, LLM은
+    `get_llm_provider` 포트만. 벤더 SDK는 `providers/` 밖 금지.
+  - 프롬프트(`prompts/consultation.py`)는 JSON만 출력하고 학원 판정·추천을 금지한다.
+    few-shot은 `checkData.ts` 상담 문항과 `checklistsData.ts` 등록 전 문항을 그대로 쓴다.
+  - stub 응답·`llm.chat` 예외·JSON 파싱 실패·유효 질문 3개 미만은 모두 **200 + 체크리스트
+    fallback**. `/recommendations/ai`와 달리 여기선 질문이 비면 안 되므로 실패를 감추는
+    것이 계약이다. `used_fallback`으로 출처를 드러낸다.
+  - fallback 고름: `find_new_academy` → 옮기기 전, `current_academy` 있음 → `/check` 상담
+    문항, 그 외 → 등록 전 5문항.
+- **바꾸지 않은 것**: `/app` UI, 랜딩 CTA, 학원 JSON, `POST /chat`, `scoring.py`,
+  추천 두 계약의 분리.
+
+## 2026-08-30 — 네이버 검색을 API HUB로 전환, 과목 5종
+
+- **계기**: 개발자센터 Search API가 NAVER API HUB로 이관됐다. Founder가 HUB에서
+  지역·블로그를 신청했다. 학원 정본의 `subjects`·공식 URL은 검색으로 제안한다.
+- **결정**:
+  - 호출은 `https://naverapihub.apigw.ntruss.com/search/v1/{blog|local|cafearticle}`
+    + 헤더 `X-NCP-APIGW-API-KEY-ID` / `X-NCP-APIGW-API-KEY` 만 쓴다.
+    개발자센터 듀얼 스택은 넣지 않는다. `.env`의 옛 `openapi.naver.com` URL은
+    config가 HUB 호스트로 정규화한다.
+  - `subjects` 허용 값: `국어`·`영어`·`수학`·`과학`·`기타` (복수 배열).
+  - 검색 CLI `enrich_academy_from_search`는 CSV 제안만. JSON 자동 기입 없음.
+- **바꾸지 않은 것**: git JSON 정본, 쓰기 API 없음, `POST /chat` 미구현, `/app` 공개 퍼널 미연결.
+
 ## 2026-08-21 — 학원 추천에서 ‘학원·학습 블랙박스 해소’로 첫 MVP를 재정의
 
 - **계기**: 광고 성과와 학부모 상담에서 반복된 문제는 단순한 ‘좋은 학원 찾기’가 아니었다. 바쁜 학부모는 아이가 학원에서 실제로 무엇을 경험하는지, 진도·오답·보강·질문 대응·소통이 어떻게 이루어지는지 직접 확인하기 어렵다. 사춘기 학생과의 정보 비대칭 때문에 강사 상담에 판단을 의존하게 되고, 상담이 충분하지 않으면 계속 다닐지·옮길지의 근거도 부족해진다. 초기 당근 광고에서는 학원비 점검 프레이밍의 클릭률이 일반적인 ‘현재 학원이 최선인가’ 비교 프레이밍보다 높게 관찰됐지만, 기간·타깃·예산 통제가 확인되지 않아 인과로 단정하지 않는다. 이 수치는 외부 카피의 근거로 쓰지 않는다.
