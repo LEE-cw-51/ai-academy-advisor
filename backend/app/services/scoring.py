@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from typing import Mapping, Sequence
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
+from app.core.subjects import extract_subjects_from_text
 from app.schemas.academy import AcademySummary, RecommendationRequest
 
 # --- 가중치 (모듈 상수) ---
@@ -27,11 +28,9 @@ EVIDENCE_CAP = 4
 WEIGHT_FRESHNESS = 0.2
 FRESHNESS_DAYS = 180
 
-# 질문·이름에서 매칭할 과목 어휘. app.core.subjects.SUBJECT_TAXONOMY(5종)와
-# 반드시 같아야 한다 — academy.subjects 가 그 5종만 가질 수 있어서, 어휘가
-# 어긋나면 "물리" 같은 질의가 subjects=["과학"]인 학원을 매칭이 아니라
-# 충돌(감점)로 취급하게 된다.
-_SUBJECT_VOCAB: tuple[str, ...] = ("수학", "영어", "국어", "과학", "기타")
+# 질의 과목 추출은 app.core.subjects 와 같은 규칙을 쓴다. academy.subjects 가
+# 5종만 가질 수 있어서, "물리"를 잡지 않으면 subjects=["과학"] 학원이 매칭이
+# 아니라 충돌(감점)로 떨어진다.
 
 _LEVEL_ATTR = {
     SchoolLevel.ELEMENTARY: "level_elementary",
@@ -62,12 +61,8 @@ class ScoredAcademy:
 
 
 def extract_subjects(query: str) -> list[str]:
-    """질문에서 과목 키워드를 추출한다. 등장 순서·어휘 순으로 중복 없이."""
-    found: list[str] = []
-    for subject in _SUBJECT_VOCAB:
-        if subject in query and subject not in found:
-            found.append(subject)
-    return found
+    """질문에서 과목 키워드를 추출한다. taxonomy와 동일한 규칙을 쓴다."""
+    return extract_subjects_from_text(query)
 
 
 def name_patterns(subjects: Sequence[str]) -> tuple[str, ...]:

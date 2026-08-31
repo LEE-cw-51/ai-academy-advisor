@@ -94,6 +94,7 @@ class LocalPlace:
     category: str
     address: str
     road_address: str
+    telephone: str = ""
 
 
 @runtime_checkable

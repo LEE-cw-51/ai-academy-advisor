@@ -6,7 +6,9 @@
   "website_url": null,
   "blog_url": null,
   "instagram_url": null,
-  "subjects": null,
+  "subjects": [
+    "기타"
+  ],
   "level_elementary": null,
   "level_middle": null,
   "level_high": null,
@@ -25,6 +27,6 @@
   "tagline": null,
   "latitude": 37.5701806483,
   "longitude": 127.1850773746,
-  "source_note": "경기데이터드림(학원 및 교습소 현황), 2026-07-10 변환",
-  "last_verified_at": "2026-07-10"
+  "source_note": "경기데이터드림(학원 및 교습소 현황), 2026-07-10 변환; 네이버 API HUB 지역·블로그 검색 A3 반영 (category 과목·URL), 2026-09-01; A3 URL 롤백 (잘못 매칭·비홈페이지), 2026-09-01",
+  "last_verified_at": "2026-09-01"
 }

@@ -30,6 +30,7 @@ _CSV_FIELDS = (
     "proposed_subjects",
     "website_url",
     "blog_url",
+    "proposed_phone",
     "confidence",
     "evidence",
     "source_note",

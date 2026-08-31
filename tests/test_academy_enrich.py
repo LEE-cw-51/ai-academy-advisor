@@ -69,12 +69,40 @@ def test_homepage_rejects_place_and_blog():
     assert is_homepage_url("https://example-academy.com")
     assert not is_homepage_url("https://https//naver.me/5xL7F49a")
     assert not is_homepage_url("https://blog.naver.com/foo")
+    assert not is_homepage_url("https://www.instagram.com/academy")
+    assert not is_homepage_url("http://pf.kakao.com/_abc")
+    assert not is_homepage_url("https://youtube.com/@channel")
 
 
 def test_official_blog_home_only():
     assert is_official_blog_url("https://blog.naver.com/academyid")
     assert not is_official_blog_url("https://blog.naver.com/academyid/123456")
     assert not is_official_blog_url("https://cafe.naver.com/hanam")
+
+
+def test_build_proposal_subjects_from_category_only_not_title():
+    """과목은 category에서만 추출 — title의 '수학'은 무시한다."""
+    record = AcademyRecord(name="미사수학학원", address="경기도 하남시 미사강변남로 1")
+    place_general = LocalPlace(
+        title="미사수학학원",
+        link="",
+        category="학원>종합학원",
+        address="",
+        road_address="경기도 하남시 미사강변남로 1",
+    )
+    proposal_general = build_proposal(Path("x.json"), record, [place_general], [])
+    assert "수학" not in proposal_general.proposed_subjects
+    assert "subjects_from=category" in proposal_general.evidence
+
+    place_math = LocalPlace(
+        title="미사수학학원",
+        link="",
+        category="학원>수학학원",
+        address="",
+        road_address="경기도 하남시 미사강변남로 1",
+    )
+    proposal_math = build_proposal(Path("x.json"), record, [place_math], [])
+    assert "수학" in proposal_math.proposed_subjects
 
 
 def test_build_proposal_high_when_address_and_category():
@@ -103,37 +131,125 @@ def test_build_proposal_low_without_match():
 
 
 def test_pick_blog_url_from_post_link():
-    record = AcademyRecord(name="가온수학학원")
+    record = AcademyRecord(name="gaontest학원")
     items = [
         ReviewItem(
-            title="가온수학 후기",
-            content="미사 가온수학학원",
-            url="https://blog.naver.com/gaonmath/111",
+            title="gaontest학원 안내",
+            content="미사 gaontest학원 공지",
+            url="https://blog.naver.com/gaontest/111",
             source="naver_blog",
             published_at=None,
         )
     ]
-    assert pick_blog_url(record, items) == "https://blog.naver.com/gaonmath"
+    assert pick_blog_url(record, items) == "https://blog.naver.com/gaontest"
+
+
+def test_pick_blog_url_skips_parent_review_posts():
+    record = AcademyRecord(name="gaontest학원")
+    items = [
+        ReviewItem(
+            title="gaon테스트 후기",
+            content="아이가 다녀본 미사 gaon테스트학원",
+            url="https://blog.naver.com/gaontest/111",
+            source="naver_blog",
+            published_at=None,
+        )
+    ]
+    assert pick_blog_url(record, items) == ""
+
+
+def test_pick_blog_url_skips_unrelated_blog_id_even_without_parent_markers():
+    record = AcademyRecord(name="수학의힘학원")
+    items = [
+        ReviewItem(
+            title="수학의힘학원 소개",
+            content="하남 미사 수학의힘학원 안내",
+            url="https://blog.naver.com/royalsolar/111",
+            source="naver_blog",
+            published_at=None,
+        )
+    ]
+    assert pick_blog_url(record, items) == ""
 
 
 def test_pick_blog_url_from_legacy_postview_link():
     """PostView.nhn?blogId=... 형태는 blogId를 path가 아니라 쿼리에서 뽑는다."""
-    record = AcademyRecord(name="가온수학학원")
+    record = AcademyRecord(name="gaontest학원")
     items = [
         ReviewItem(
-            title="가온수학 후기",
-            content="미사 가온수학학원",
-            url="https://blog.naver.com/PostView.nhn?blogId=gaonmath&logNo=111",
+            title="gaontest학원 안내",
+            content="미사 gaontest학원 공지",
+            url="https://blog.naver.com/PostView.nhn?blogId=gaontest&logNo=111",
             source="naver_blog",
             published_at=None,
         )
     ]
-    assert pick_blog_url(record, items) == "https://blog.naver.com/gaonmath"
+    assert pick_blog_url(record, items) == "https://blog.naver.com/gaontest"
     assert not is_official_blog_url(
-        "https://blog.naver.com/PostView.nhn?blogId=gaonmath&logNo=111"
+        "https://blog.naver.com/PostView.nhn?blogId=gaontest&logNo=111"
     )
 
 
+def test_build_proposal_ignores_blog_snippet_subjects():
+    record = AcademyRecord(name="미사종합학원", address="경기도 하남시 미사강변남로 1")
+    place = LocalPlace(
+        title="미사종합학원",
+        link="",
+        category="학원>종합학원",
+        address="",
+        road_address="경기도 하남시 미사강변남로 1",
+    )
+    blogs = [
+        ReviewItem(
+            title="영어학원도 다녔다",
+            content="영어 학원 후기",
+            url="https://blog.naver.com/someone/1",
+            source="naver_blog",
+            published_at=None,
+        )
+    ]
+    proposal = build_proposal(Path("x.json"), record, [place], blogs)
+    assert "영어" not in proposal.proposed_subjects
+
+
+def test_build_proposal_high_when_address_and_homepage_without_subjects():
+    record = AcademyRecord(name="미사종합학원", address="경기도 하남시 미사강변남로 1")
+    place = LocalPlace(
+        title="미사종합학원",
+        link="https://misa-jonghap.example.com",
+        category="학원>종합학원",
+        address="",
+        road_address="경기도 하남시 미사강변남로 1",
+        telephone="031-111-2222",
+    )
+    proposal = build_proposal(Path("x.json"), record, [place], [])
+    assert proposal.confidence == "high"
+    assert proposal.website_url == "https://misa-jonghap.example.com"
+    assert proposal.proposed_phone == "031-111-2222"
+    assert proposal.proposed_subjects == []
+
+
+def test_build_proposal_skips_website_when_name_mismatch():
+    record = AcademyRecord(
+        name="비긴잉글리시학원",
+        address="경기도 하남시 미사강변대로34번길 82",
+    )
+    place = LocalPlace(
+        title="클루잉글리시",
+        link="https://www.instagram.com/clue_english_/",
+        category="어학교육>영어교육",
+        address="",
+        road_address="경기도 하남시 미사강변대로34번길 82",
+    )
+    proposal = build_proposal(Path("x.json"), record, [place], [])
+    assert proposal.website_url == ""
+    assert proposal.confidence == "high"
+    assert "영어" in proposal.proposed_subjects
+
+
+def test_names_match_bidirectional():
+    assert names_match("이에스파워어학학원", "이에스파워 국제어학원")
+    assert not names_match("비긴잉글리시학원", "클루잉글리시")
 def test_names_match_ignores_spaces_on_both_sides():
     """학원명에 공백이 있어도(양쪽 다 제거 후 비교) 매칭돼야 한다."""
     assert names_match("미사 스타 영어학원", "미사스타영어학원")

@@ -29,6 +29,7 @@ def test_dry_run_needs_no_credentials_and_writes_all_csv_columns(tmp_path):
     # 지금까지 CSV에서 조용히 빠지던 두 컬럼이 실제로 채워져 있어야 한다.
     assert rows[0]["file_name"] == "a.json"
     assert rows[0]["matched_local_title"] != ""
+    assert "proposed_phone" in rows[0]
 
 
 def test_one_academy_failure_does_not_lose_other_rows(tmp_path, monkeypatch):
