@@ -224,7 +224,12 @@ def test_freshness_boundary():
         ("영어 학원", ["영어"]),
         ("수학 영어", ["수학", "영어"]),
         ("숙제 적은 학원", []),
-        ("물리화학", ["물리", "화학"]),
+        # academy.subjects는 5종(국어/영어/수학/과학/기타)만 가지므로 어휘도 5종으로
+        # 맞춘다 — "물리"/"화학"은 더 이상 별도 키워드가 아니다 (academy_enrich_
+        # service의 core.subjects는 이 원문을 "과학"으로 묶어 저장하지만, 여기
+        # scoring 쪽 질의 파싱은 "과학"이 문자 그대로 등장할 때만 잡는다).
+        ("물리화학", []),
+        ("과학 좋아하는 아이", ["과학"]),
     ],
 )
 def test_extract_subjects(query, expected):

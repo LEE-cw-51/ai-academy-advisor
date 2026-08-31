@@ -10,7 +10,8 @@ SUBJECT_TAXONOMY: tuple[str, ...] = ("국어", "영어", "수학", "과학", "�
 _KEYWORD_TO_SUBJECT: tuple[tuple[str, str], ...] = (
     ("지구과학", "과학"),
     ("통합과학", "과학"),
-    ("국어", "국어"),
+    ("외국어", "기타"),
+    ("중국어", "기타"),
     ("독서", "국어"),
     ("논술", "국어"),
     ("영어", "영어"),
@@ -23,13 +24,18 @@ _KEYWORD_TO_SUBJECT: tuple[tuple[str, str], ...] = (
     ("생물", "과학"),
     ("코딩", "기타"),
     ("프로그래밍", "기타"),
-    ("중국어", "기타"),
     ("일본어", "기타"),
     ("예체능", "기타"),
     ("미술", "기타"),
     ("음악", "기타"),
     ("피아노", "기타"),
 )
+
+# "국어"는 위 튜플에서 뺐다 — "외국어"/"중국어"의 부분 문자열이라 그대로 두면
+# 외국어학원·중국어학원 텍스트에도 국어가 잘못 잡힌다. 두 케이스를 제외한
+# 뒤에만 별도로 검사한다 (extract_subjects_from_text 참고).
+_KOREAN_KEYWORD = "국어"
+_KOREAN_EXCLUDE = ("외국어", "중국어")
 
 
 def normalize_subjects(values: Sequence[str]) -> list[str]:
@@ -58,8 +64,10 @@ def normalize_subjects(values: Sequence[str]) -> list[str]:
 def extract_subjects_from_text(text: str) -> list[str]:
     """공개 텍스트(카테고리·제목·스니펫)에서 taxonomy 과목을 뽑는다."""
     found: list[str] = []
-    if "영수" in text:
+    if "영수" in text and "영수증" not in text:
         found.extend(["영어", "수학"])
+    if _KOREAN_KEYWORD in text and not any(x in text for x in _KOREAN_EXCLUDE):
+        found.append("국어")
     for keyword, subject in _KEYWORD_TO_SUBJECT:
         if keyword in text:
             found.append(subject)

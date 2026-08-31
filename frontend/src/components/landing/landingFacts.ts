@@ -113,14 +113,20 @@ export const SITUATIONS = [
   },
 ] as const;
 
-/** 메인 하단. 지금 확인 가능한 사실(410곳)과 준비 중인 것(맞춤 추천)을 한 덩어리로 구분해 말한다.
- *  가상 추천 카드는 예시 고지·배지·Disclaimer를 조건으로 다시 두었다.
+/** data/academies/*.json 중 주소에 "미사"가 포함된 건수.
+ *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다. GROUNDWORK_BODY·
+ *  GROUNDWORK_SOURCE_NOTE가 이 숫자를 보간하므로, 여기 값이 바뀌면 화면 문구도
+ *  같이 바뀐다 (하드코딩된 별도 문자열로 어긋나지 않게). */
+export const MISA_ACADEMY_COUNT = 410;
+
+/** 메인 하단. 지금 확인 가능한 사실(위 학원 수)과 준비 중인 것(맞춤 추천)을 한 덩어리로
+ *  구분해 말한다. 가상 추천 카드는 예시 고지·배지·Disclaimer를 조건으로 다시 두었다.
  *  결정 로그에 근거가 없는 약속(영수증 인증 리뷰 등)은 여기에 쓰지 않는다. */
 export const GROUNDWORK_HEADING = "학원콕이 쌓아가는 근거";
 export const GROUNDWORK_BODY =
-  "하남 미사 등록 학원 410곳을 바탕으로, 더 나은 상담과 선택을 돕는 자료를 먼저 만들고 있습니다. 등록 전 맞춤 추천은 정식 출시 후 제공됩니다.";
+  `하남 미사 등록 학원 ${MISA_ACADEMY_COUNT}곳을 바탕으로, 더 나은 상담과 선택을 돕는 자료를 먼저 만들고 있습니다. 등록 전 맞춤 추천은 정식 출시 후 제공됩니다.`;
 export const GROUNDWORK_SOURCE_NOTE =
-  "410곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소";
+  `${MISA_ACADEMY_COUNT}곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소`;
 
 /** `/checklists` — 학원을 알아보는 중 (당근 광고 A 착지).
  *  2026-08-19에 체크리스트 3종 허브에서 상담 랜딩으로 개편했다. */
@@ -158,6 +164,3 @@ export const META_DESCRIPTION =
 export const FOOTER_STATUS_COPY =
   "학원콕은 아직 정식 출시 전입니다. 지금은 상담 전 확인할 질문과 1분 학원 점검을 이용하실 수 있습니다. 등록 전 맞춤 추천은 정식 출시 후 제공될 예정입니다.";
 
-/** data/academies/*.json 중 주소에 "미사"가 포함된 건수.
- *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다. */
-export const MISA_ACADEMY_COUNT = 410;

@@ -17,6 +17,8 @@ import html
 import re
 from datetime import date, datetime
 
+import httpx
+
 from app.providers import naver_hub
 from app.providers.base import ReviewItem
 
@@ -61,11 +63,13 @@ class NaverReviewSource:
         client_secret: str,
         base_url: str,
         endpoints: tuple[str, ...] = ("blog", "cafearticle"),
+        client: httpx.Client | None = None,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._base_url = base_url.rstrip("/")
         self._endpoints = endpoints
+        self._client = client
 
     def search(self, query: str, limit: int = 10) -> list[ReviewItem]:
         items: list[ReviewItem] = []
@@ -82,6 +86,7 @@ class NaverReviewSource:
             query=query,
             display=limit,
             sort="date",
+            client=self._client,
         )
         source = _SOURCE_LABELS.get(endpoint, f"naver_{endpoint}")
         return [

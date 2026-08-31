@@ -9,6 +9,7 @@ import { TrackedLink } from "@/components/landing/TrackedLink";
 import {
   CONSULT_CHECK_CTA_LABEL,
   CONSULT_KAKAO_CTA_LABEL,
+  CONSULT_REASSURANCE,
 } from "@/components/landing/landingFacts";
 
 export const metadata: Metadata = {
@@ -23,11 +24,19 @@ export const metadata: Metadata = {
  *  네 번째 페이지 대신 다섯 번째 묶음으로 흡수했다. */
 export default function ChecklistsPage() {
   const groups = resolveConsultGroups();
+  // 광고가 "질문 12가지"라고 말하므로 번호는 묶음 안이 아니라 페이지 전체에서
+  // 이어져야 한다 — 각 묶음의 시작 번호를 앞선 묶음들의 항목 수 누적으로 구한다.
+  let runningCount = 0;
+  const startIndexes = groups.map((group) => {
+    const start = runningCount;
+    runningCount += group.items.length;
+    return start;
+  });
 
   return (
     <SiteChrome>
       <main className="flex-1">
-        <HeroSection />
+        <HeroSection logo={false} reassurance={false} />
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
           <nav className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {groups.map((group, index) => (
@@ -42,7 +51,12 @@ export default function ChecklistsPage() {
           </nav>
           <div className="mt-8 space-y-8 pb-4">
             {groups.map((group, index) => (
-              <ChecklistGroup key={group.heading} group={group} index={index} />
+              <ChecklistGroup
+                key={group.heading}
+                group={group}
+                index={index}
+                startIndex={startIndexes[index]}
+              />
             ))}
           </div>
           <div className="flex flex-col items-stretch gap-3 pb-10">
@@ -61,6 +75,7 @@ export default function ChecklistsPage() {
             >
               {CONSULT_KAKAO_CTA_LABEL}
             </KakaoChannelCta>
+            <p className="text-center text-xs text-ink-muted">{CONSULT_REASSURANCE}</p>
           </div>
         </div>
       </main>

@@ -10,16 +10,19 @@ from app.core.config import get_settings
 from app.providers.base import (
     EmbeddingProvider,
     LLMProvider,
+    LocalSearchProvider,
     ReviewSource,
     VectorStore,
 )
 from app.providers.groq import GroqLLMProvider
+from app.providers.naver_local import NaverLocalSearch
 from app.providers.naver_review import NaverReviewSource
 from app.providers.openai_embedding import OpenAIEmbeddingProvider
 from app.providers.pgvector_store import PgVectorStore
 from app.providers.stub import (
     StubEmbeddingProvider,
     StubLLMProvider,
+    StubLocalSearchProvider,
     StubReviewSource,
     StubVectorStore,
 )
@@ -89,4 +92,21 @@ def get_review_source() -> ReviewSource:
         )
     raise ValueError(
         f"지원하지 않는 review_source: {name!r} (현재 'stub'/'naver'만 구현됨)"
+    )
+
+
+@lru_cache
+def get_local_search_provider() -> LocalSearchProvider:
+    settings = get_settings()
+    name = settings.local_search_provider
+    if name == "stub":
+        return StubLocalSearchProvider()
+    if name == "naver":
+        return NaverLocalSearch(
+            client_id=settings.naver_client_id,
+            client_secret=settings.naver_client_secret,
+            base_url=settings.naver_base_url,
+        )
+    raise ValueError(
+        f"지원하지 않는 local_search_provider: {name!r} (현재 'stub'/'naver'만 구현됨)"
     )

@@ -83,3 +83,23 @@ class ReviewSource(Protocol):
         호출부(`review_ingest_service`)의 이름 사후필터 책임이다.
         """
         ...
+
+
+@dataclass(frozen=True)
+class LocalPlace:
+    """지역 검색 결과 1건 (학원 매칭·정본 보강용)."""
+
+    title: str
+    link: str
+    category: str
+    address: str
+    road_address: str
+
+
+@runtime_checkable
+class LocalSearchProvider(Protocol):
+    """지역(장소) 검색소. 학원명 등의 질의로 후보 장소를 가져온다."""
+
+    def search(self, query: str, limit: int = 5) -> list[LocalPlace]:
+        """`query`와 관련된 장소를 최대 `limit`건 반환한다. 정확도는 보장하지 않는다."""
+        ...

@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import math
 
-from app.providers.base import Hit, ReviewItem
+from app.providers.base import Hit, LocalPlace, ReviewItem
 
 
 class StubEmbeddingProvider:
@@ -110,6 +110,31 @@ class StubReviewSource:
                 url=f"https://example.invalid/stub/{digest[:8]}-{i}",
                 source="stub",
                 published_at=None,
+            )
+            for i in range(count)
+        ]
+
+
+class StubLocalSearchProvider:
+    """질의 해시로 결정적 지역 검색 결과를 만든다.
+
+    실제 네이버 지역 검색을 흉내내지 않는다 — `enrich_academy_from_search` CLI를
+    API 키 없이 `--dry-run`으로 돌려볼 수 있게 하는 것이 유일한 목적이라, 항상
+    같은 학원명에 같은 (가짜) 후보를 낸다.
+    """
+
+    _ITEMS_PER_QUERY = 1
+
+    def search(self, query: str, limit: int = 5) -> list[LocalPlace]:
+        digest = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        count = min(self._ITEMS_PER_QUERY, limit)
+        return [
+            LocalPlace(
+                title=f"{query} (stub {i + 1})",
+                link=f"https://example.invalid/stub-local/{digest[:8]}-{i}",
+                category="학원>stub",
+                address="",
+                road_address="",
             )
             for i in range(count)
         ]

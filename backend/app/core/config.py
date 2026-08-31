@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     embedding_provider: str = "stub"
     vector_store: str = "stub"
     review_source: str = "stub"
+    local_search_provider: str = "stub"
 
     # provider별 세부 설정 (실제 어댑터를 붙이는 다음 단계에서 사용).
     llm_model: str = "gpt-4o-mini"
