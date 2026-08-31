@@ -38,9 +38,15 @@ def search(
     display: int,
     sort: str,
     timeout: float = 30.0,
+    client: httpx.Client | None = None,
 ) -> list[dict[str, Any]]:
-    """Search API GET. 성공 시 `items` 배열. HTTP 오류는 그대로 올린다."""
-    response = httpx.get(
+    """Search API GET. 성공 시 `items` 배열. HTTP 오류는 그대로 올린다.
+
+    `client`를 넘기면 그 커넥션을 재사용한다 (배치 호출용) — 없으면 매번
+    `httpx.get`으로 새 연결을 연다 (기존 단발 호출과 동일하게 동작).
+    """
+    getter = client.get if client is not None else httpx.get
+    response = getter(
         endpoint_url(base_url, endpoint),
         headers=auth_headers(client_id, client_secret),
         params={"query": query, "display": display, "sort": sort},

@@ -11,9 +11,8 @@ CHECKLISTS_DIR = REPO_ROOT / "frontend" / "src" / "components" / "checklists"
 LANDING_FACTS = LANDING / "landingFacts.ts"
 HERO = LANDING / "HeroSection.tsx"
 PAGE_HERO = LANDING / "PageHero.tsx"
-STICKY = LANDING / "StickyCtaBar.tsx"
-CHECK_CTA = LANDING / "CheckCtaLink.tsx"
 TRACKED_LINK = LANDING / "TrackedLink.tsx"
+KAKAO_LINK = LANDING / "KakaoChannelLink.tsx"
 SITUATION_SECTION = LANDING / "SituationSection.tsx"
 SITUATION_CARD = LANDING / "SituationCard.tsx"
 GROUNDWORK_SECTION = LANDING / "GroundworkSection.tsx"
@@ -27,6 +26,7 @@ KAKAO_MODAL = LANDING / "KakaoChannelModal.tsx"
 KAKAO_CTA = LANDING / "KakaoChannelCta.tsx"
 LANDING_FOOTER = LANDING / "LandingFooter.tsx"
 CHECKLIST_DATA = CHECKLISTS_DIR / "checklistsData.ts"
+CHECKLIST_GROUP = CHECKLISTS_DIR / "ChecklistGroup.tsx"
 CHECKLISTS_PAGE = (
     REPO_ROOT / "frontend" / "src" / "app" / "checklists" / "page.tsx"
 )
@@ -58,9 +58,8 @@ ALL_LANDING_FILES = [
     LANDING_FACTS,
     HERO,
     PAGE_HERO,
-    STICKY,
-    CHECK_CTA,
     TRACKED_LINK,
+    KAKAO_LINK,
     SITUATION_SECTION,
     SITUATION_CARD,
     GROUNDWORK_SECTION,
@@ -99,15 +98,28 @@ def test_misa_academy_count_matches_json_source():
     )
 
 
-def test_check_cta_does_not_latch_modified_clicks():
-    """CheckCtaLink는 이번 개편에서 손대지 않았다 — 여전히 파일로 남아 있고 동작도 같다."""
-    link = CHECK_CTA.read_text(encoding="utf-8")
-    modified_at = link.index("if (modified)")
-    latch_at = link.index("trackedRef.current = true")
-    assert "event.metaKey" in link
-    assert "event.ctrlKey" in link
-    assert modified_at < latch_at
-    assert "return;" in link[modified_at:latch_at]
+def test_groundwork_copy_interpolates_the_academy_count_not_a_literal():
+    """GROUNDWORK_BODY/SOURCE_NOTE가 리터럴 "410"을 박아두면 MISA_ACADEMY_COUNT가
+    바뀌어도 화면 문구가 따라가지 않는다 — 반드시 그 상수를 보간해야 한다."""
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    body = facts.split("GROUNDWORK_BODY =")[1].split(";")[0]
+    note = facts.split("GROUNDWORK_SOURCE_NOTE =")[1].split(";")[0]
+    assert "${MISA_ACADEMY_COUNT}" in body
+    assert "${MISA_ACADEMY_COUNT}" in note
+
+
+def test_tracked_link_and_kakao_link_do_not_latch_modified_clicks():
+    """수정 클릭(새 탭)에서 latch를 걸면, 같은 페이지에서 이어지는 일반 클릭이
+    계측되지 않는다 — TrackedLink/KakaoChannelLink 둘 다 수정 클릭을 감지해야 한다."""
+    for path in (TRACKED_LINK, KAKAO_LINK):
+        text = path.read_text(encoding="utf-8")
+        assert "metaKey" in text, f"{path.name} does not check metaKey"
+        assert "ctrlKey" in text, f"{path.name} does not check ctrlKey"
+        modified_at = text.index("modified")
+        latch_at = text.index("trackedRef.current = true")
+        assert modified_at < latch_at, (
+            f"{path.name}: modifier-click check must run before the latch is set"
+        )
 
 
 def test_hero_logo_uses_the_cropped_mark_not_the_padded_original():
@@ -384,6 +396,21 @@ def test_consult_group_refs_resolve_against_checklist_titles():
             f'"{item_title}" not found in checklist "{checklist_id}"'
         )
     assert "resolveConsultGroups" in text
+
+
+def test_checklist_items_are_numbered_continuously_across_the_whole_page():
+    """광고가 '질문 12가지'라고 말하므로 번호는 묶음 안이 아니라 페이지 전체에서
+    이어져야 한다 — page.tsx가 누적 오프셋을 계산해 ChecklistGroup에 넘기고,
+    ChecklistGroup이 실제로 그 번호를 항목 앞에 렌더하는지 확인한다."""
+    page = CHECKLISTS_PAGE.read_text(encoding="utf-8")
+    group = CHECKLIST_GROUP.read_text(encoding="utf-8")
+
+    assert "startIndex" in page, "page.tsx must compute a running offset per group"
+    assert "startIndex={startIndexes[index]}" in page or "startIndex={" in page
+    assert "startIndex" in group, "ChecklistGroup must accept the offset prop"
+    assert re.search(r"startIndex\s*\+\s*itemIndex\s*\+\s*1", group), (
+        "ChecklistGroup must render a page-wide item number, not a per-group one"
+    )
 
 
 def test_checklists_page_is_the_consult_landing_for_ad_a():

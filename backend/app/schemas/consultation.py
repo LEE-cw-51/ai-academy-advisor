@@ -31,7 +31,10 @@ class ConsultationRequest(BaseModel):
     @field_validator("style_tags")
     @classmethod
     def _trim_tags(cls, value: list[str]) -> list[str]:
-        return [item.strip() for item in value if item.strip()]
+        # 다른 텍스트 필드처럼 max_length를 리스트 타입에 직접 걸 수 없어 (per-item
+        # 제약이라) 여기서 잘라낸다 — 안 그러면 임의 길이 문자열이 그대로 LLM
+        # 프롬프트에 들어간다.
+        return [item.strip()[:20] for item in value if item.strip()]
 
 
 class ConsultationResponse(BaseModel):

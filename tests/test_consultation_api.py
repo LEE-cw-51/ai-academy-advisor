@@ -135,6 +135,13 @@ def test_too_few_questions_uses_fallback(monkeypatch):
     assert result.used_fallback is True
 
 
+def test_style_tags_are_truncated_not_passed_through_raw():
+    long_tag = "가" * 500
+    payload = {**_PAYLOAD, "style_tags": [long_tag, "  짧은태그  "]}
+    request = ConsultationRequest.model_validate(payload)
+    assert request.style_tags == ["가" * 20, "짧은태그"]
+
+
 def test_rejects_empty_concern(client):
     bad = {**_PAYLOAD, "concern": ""}
     assert client.post("/consultation/questions", json=bad).status_code == 422

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 from app.prompts.consultation import SYSTEM_PROMPT, build_user_message
@@ -15,6 +16,8 @@ from app.schemas.consultation import (
     ConsultationRequest,
     ConsultationResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 DISCLAIMER = "학원 평가가 아닌 상담 확인용 질문입니다."
 
@@ -148,6 +151,7 @@ def generate_questions(payload: ConsultationRequest) -> ConsultationResponse:
     try:
         llm = get_llm_provider()
     except Exception:
+        logger.warning("get_llm_provider() 실패 — fallback 질문으로 대체", exc_info=True)
         return ConsultationResponse(
             questions=fallback,
             disclaimer=DISCLAIMER,
@@ -182,7 +186,7 @@ def generate_questions(payload: ConsultationRequest) -> ConsultationResponse:
                 used_fallback=False,
             )
     except Exception:
-        pass
+        logger.warning("LLM 호출/파싱 실패 — fallback 질문으로 대체", exc_info=True)
     return ConsultationResponse(
         questions=fallback,
         disclaimer=DISCLAIMER,

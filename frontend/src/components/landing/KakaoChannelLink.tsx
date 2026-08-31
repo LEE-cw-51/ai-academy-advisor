@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, type MouseEvent, type ReactNode } from "react";
 import { trackEvent } from "@/lib/api";
 import { KAKAO_CHANNEL_URL } from "@/lib/contact";
 import type { ClickEventType } from "@/lib/types";
@@ -27,9 +27,18 @@ export function KakaoChannelLink({
 }: KakaoChannelLinkProps) {
   const trackedRef = useRef(false);
 
-  function handleClick() {
-    if (trackedRef.current) return;
-    trackedRef.current = true;
+  function handleClick(clickEvent: MouseEvent<HTMLAnchorElement>) {
+    // 수정 클릭(⌘/Ctrl 등, 새 탭)은 latch하지 않는다 — 그래야 같은 페이지에서
+    // 이어서 일반 클릭해도 계측이 빠지지 않는다.
+    const modified =
+      clickEvent.metaKey ||
+      clickEvent.ctrlKey ||
+      clickEvent.shiftKey ||
+      clickEvent.altKey;
+    if (!modified) {
+      if (trackedRef.current) return;
+      trackedRef.current = true;
+    }
     trackEvent({ event }).catch(() => {
       // 추적 실패가 사용자 흐름을 막지 않는다 (ChatPanel.handleTrack과 동일)
     });

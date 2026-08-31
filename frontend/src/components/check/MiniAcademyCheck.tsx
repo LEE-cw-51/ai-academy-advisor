@@ -86,7 +86,7 @@ export function MiniAcademyCheck() {
   if (phase === "intro") {
     return (
       <>
-        <HeroSection />
+        <HeroSection reassurance={false} />
         <div className="mx-auto w-full max-w-lg space-y-3 px-4 pb-8 sm:px-6">
           <Button
             fullWidth

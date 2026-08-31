@@ -41,10 +41,12 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 업
 
 ```bash
 cd backend
-uv run python -m app.cli.enrich_academy_from_search ../data/academies --dry-run --limit 8
+uv run python -m app.cli.enrich_academy_from_search ../data/academies --dry-run --limit 8   # stub, API 키 불필요
+uv run python -m app.cli.enrich_academy_from_search ../data/academies --limit 8             # 실제 NAVER API HUB 호출
 ```
 
-CSV는 `data/raw/naver/` (gitignore). Founder 확인 후 정본 JSON PR.
+`--dry-run`은 NAVER API를 전혀 호출하지 않고 stub 제공자로 파이프라인만 확인한다
+(자격증명 불필요). CSV는 `data/raw/naver/` (gitignore). Founder 확인 후 정본 JSON PR.
 
 - 파일에 없는 DB 행은 삭제하지 않고 리포트만 한다. 폐원 등으로 행을 지울 때는
   파일 삭제 후 DB에서 수동으로 삭제한다.

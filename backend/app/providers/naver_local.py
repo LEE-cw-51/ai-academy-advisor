@@ -2,28 +2,29 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import httpx
 
 from app.providers import naver_hub
+from app.providers.base import LocalPlace
 from app.providers.naver_review import clean_text
 
-
-@dataclass(frozen=True)
-class LocalPlace:
-    title: str
-    link: str
-    category: str
-    address: str
-    road_address: str
+__all__ = ["LocalPlace", "NaverLocalSearch"]
 
 
 class NaverLocalSearch:
     """학원 매칭·정본 보강용 지역 검색. 리뷰 수집과는 별도."""
 
-    def __init__(self, client_id: str, client_secret: str, base_url: str) -> None:
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        base_url: str,
+        client: httpx.Client | None = None,
+    ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._base_url = base_url.rstrip("/")
+        self._client = client
 
     def search(self, query: str, limit: int = 5) -> list[LocalPlace]:
         display = max(1, min(limit, naver_hub.LOCAL_DISPLAY_MAX))
@@ -35,6 +36,7 @@ class NaverLocalSearch:
             query=query,
             display=display,
             sort="random",
+            client=self._client,
         )
         places: list[LocalPlace] = []
         for row in rows:

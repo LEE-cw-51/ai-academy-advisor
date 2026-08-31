@@ -27,21 +27,11 @@ EVIDENCE_CAP = 4
 WEIGHT_FRESHNESS = 0.2
 FRESHNESS_DAYS = 180
 
-# 질문·이름에서 매칭할 과목 어휘 (긴 키워드 우선 불필요 — 단순 부분일치).
-_SUBJECT_VOCAB: tuple[str, ...] = (
-    "수학",
-    "영어",
-    "국어",
-    "과학",
-    "물리",
-    "화학",
-    "생물",
-    "지구과학",
-    "논술",
-    "코딩",
-    "중국어",
-    "일본어",
-)
+# 질문·이름에서 매칭할 과목 어휘. app.core.subjects.SUBJECT_TAXONOMY(5종)와
+# 반드시 같아야 한다 — academy.subjects 가 그 5종만 가질 수 있어서, 어휘가
+# 어긋나면 "물리" 같은 질의가 subjects=["과학"]인 학원을 매칭이 아니라
+# 충돌(감점)로 취급하게 된다.
+_SUBJECT_VOCAB: tuple[str, ...] = ("수학", "영어", "국어", "과학", "기타")
 
 _LEVEL_ATTR = {
     SchoolLevel.ELEMENTARY: "level_elementary",

@@ -3,7 +3,7 @@
 사용:
     cd backend
     uv run python -m app.cli.enrich_academy_from_search ../data/academies --dry-run --limit 8
-    uv run python -m app.cli.enrich_academy_from_search ../data/academies --from-raw ../data/raw/naver
+    uv run python -m app.cli.enrich_academy_from_search ../data/academies
 """
 
 from __future__ import annotations
@@ -13,10 +13,16 @@ import csv
 import sys
 from pathlib import Path
 
+import httpx
+
 from app.core.config import get_settings
+from app.providers.base import LocalSearchProvider, ReviewSource
 from app.providers.naver_local import NaverLocalSearch
 from app.providers.naver_review import NaverReviewSource
+from app.providers.stub import StubLocalSearchProvider, StubReviewSource
+from app.schemas.academy import AcademyRecord
 from app.services import academy_enrich_service
+from app.services.academy_enrich_service import EnrichReport
 
 _CSV_FIELDS = (
     "name",
@@ -27,9 +33,10 @@ _CSV_FIELDS = (
     "confidence",
     "evidence",
     "source_note",
+    "file_name",
+    "matched_local_title",
 )
 
-_DEFAULT_RAW = Path("../data/raw/naver")
 _DEFAULT_CSV = Path("../data/raw/naver/enrich-proposals.csv")
 
 
@@ -41,6 +48,26 @@ def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
+def _run(
+    records: list[tuple[Path, AcademyRecord]],
+    local: LocalSearchProvider,
+    blogs: ReviewSource,
+    report: EnrichReport,
+) -> None:
+    for path, academy in records:
+        try:
+            proposal = academy_enrich_service.enrich_one(path, academy, local, blogs)
+        except Exception as exc:  # noqa: BLE001 - 한 건 실패로 전체 배치를 잃지 않는다
+            report.errors.append(f"{academy.name} ({path.name}): {exc}")
+            print(f"ERROR\t{academy.name}\t{exc}", file=sys.stderr)
+            continue
+        report.proposals.append(proposal)
+        print(
+            f"{proposal.confidence}\t{academy.name}\t"
+            f"subjects={proposal.proposed_subjects or '-'}"
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="NAVER API HUB 지역·블로그 검색으로 과목·URL 제안을 CSV로 만든다. JSON은 수정하지 않는다."
@@ -49,7 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="API는 호출하되 data/raw 원본 파일은 쓰지 않는다. JSON은 어떤 플래그에서도 쓰지 않는다.",
+        help="라이브 NAVER API를 호출하지 않고 stub 제공자로 전체 파이프라인을 돌린다 "
+        "(자격증명 불필요, 항상 같은 결정적 가짜 결과). JSON은 어떤 플래그에서도 쓰지 않는다.",
     )
     parser.add_argument("--limit", type=int, default=None, help="처리할 학원 수 상한")
     parser.add_argument(
@@ -58,7 +86,6 @@ def main(argv: list[str] | None = None) -> int:
         default=_DEFAULT_CSV,
         help=f"CSV 경로 (기본: {_DEFAULT_CSV}, gitignored data/raw/)",
     )
-    parser.add_argument("--raw-dir", type=Path, default=_DEFAULT_RAW)
     parser.add_argument(
         "--from-raw",
         type=Path,
@@ -74,38 +101,46 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    settings = get_settings()
-    if not settings.naver_client_id or not settings.naver_client_secret:
-        print("ERROR: NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 이 필요합니다.", file=sys.stderr)
-        return 1
-
     records = academy_enrich_service.load_academy_records(args.directory)
     if args.limit is not None:
         records = records[: args.limit]
 
-    local = NaverLocalSearch(
-        settings.naver_client_id,
-        settings.naver_client_secret,
-        settings.naver_base_url,
-    )
-    blogs = NaverReviewSource(
-        settings.naver_client_id,
-        settings.naver_client_secret,
-        settings.naver_base_url,
-        endpoints=("blog",),
-    )
+    report = EnrichReport()
 
-    rows: list[dict[str, str]] = []
-    for path, academy in records:
-        proposal = academy_enrich_service.enrich_one(path, academy, local, blogs)
-        rows.append(proposal.as_csv_row())
-        print(
-            f"{proposal.confidence}\t{academy.name}\t"
-            f"subjects={proposal.proposed_subjects or '-'}"
-        )
+    if args.dry_run:
+        _run(records, StubLocalSearchProvider(), StubReviewSource(), report)
+    else:
+        settings = get_settings()
+        if not settings.naver_client_id or not settings.naver_client_secret:
+            print(
+                "ERROR: NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 이 필요합니다 "
+                "(자격증명 없이 시험해 보려면 --dry-run).",
+                file=sys.stderr,
+            )
+            return 1
+        with httpx.Client() as client:
+            local = NaverLocalSearch(
+                settings.naver_client_id,
+                settings.naver_client_secret,
+                settings.naver_base_url,
+                client=client,
+            )
+            blogs = NaverReviewSource(
+                settings.naver_client_id,
+                settings.naver_client_secret,
+                settings.naver_base_url,
+                endpoints=("blog",),
+                client=client,
+            )
+            _run(records, local, blogs, report)
 
+    rows = [proposal.as_csv_row() for proposal in report.proposals]
     _write_csv(args.output, rows)
     print(f"CSV {len(rows)}행 → {args.output}")
+    if report.errors:
+        print(f"실패 {len(report.errors)}건 (CSV에는 성공한 행만 담김):", file=sys.stderr)
+        for line in report.errors:
+            print(f"  - {line}", file=sys.stderr)
     print("JSON 정본은 수정하지 않았습니다.")
     return 0
 
