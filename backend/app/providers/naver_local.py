@@ -35,7 +35,7 @@ class NaverLocalSearch:
             endpoint="local",
             query=query,
             display=display,
-            sort="random",
+            sort="comment",
             client=self._client,
         )
         places: list[LocalPlace] = []
@@ -47,6 +47,7 @@ class NaverLocalSearch:
                     category=clean_text(str(row.get("category") or "")),
                     address=str(row.get("address") or "").strip(),
                     road_address=str(row.get("roadAddress") or "").strip(),
+                    telephone=str(row.get("telephone") or "").strip(),
                 )
             )
         return places

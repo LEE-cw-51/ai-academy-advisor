@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -25,6 +26,25 @@ _PLACE_HOST_MARKERS = (
     "pcmap.place.naver.com",
 )
 _CAFE_HOST_MARKERS = ("cafe.naver.com", "m.cafe.naver.com")
+_NON_HOMEPAGE_HOST_MARKERS = (
+    "instagram.com",
+    "pf.kakao.com",
+    "youtube.com",
+    "youtu.be",
+    "litt.ly",
+    "ok114.co.kr",
+)
+# 학부모 후기 글로 보이면 공식 블로그로 쓰지 않는다. 의심되면 null.
+_PARENT_REVIEW_MARKERS = (
+    "후기",
+    "리뷰",
+    "솔직",
+    "다녀본",
+    "다녀왔",
+    "우리아이",
+    "우리 아이",
+    "학부모",
+)
 
 
 @dataclass
@@ -35,6 +55,7 @@ class EnrichProposal:
     proposed_subjects: list[str]
     website_url: str
     blog_url: str
+    proposed_phone: str
     confidence: str
     evidence: str
     source_note: str
@@ -47,6 +68,7 @@ class EnrichProposal:
             "proposed_subjects": subjects_csv(self.proposed_subjects),
             "website_url": self.website_url,
             "blog_url": self.blog_url,
+            "proposed_phone": self.proposed_phone,
             "confidence": self.confidence,
             "evidence": self.evidence,
             "source_note": self.source_note,
@@ -96,11 +118,30 @@ def addresses_match(canonical: str | None, candidate: str) -> bool:
     return left in right or right in left
 
 
+def _name_stem(value: str) -> str:
+    stem = re.sub(r"(학원|교습소|교육원)$", "", value).strip().replace(" ", "")
+    return re.sub(r"[\(\)（）].*", "", stem)
+
+
 def names_match(academy_name: str, title: str) -> bool:
-    stem = re.sub(r"학원$", "", academy_name).strip().replace(" ", "")
+    """등록 학원명·네이버 장소명이 서로 stem을 포함하거나 충분히 겹치는지 본다."""
+    if not title:
+        return False
+    stem = _name_stem(academy_name)
     if len(stem) < 2:
         return False
-    return stem in title.replace(" ", "")
+    compact = title.replace(" ", "")
+    if stem in compact:
+        return True
+    place_stem = _name_stem(title)
+    if len(place_stem) >= 2 and place_stem in stem.replace(" ", ""):
+        return True
+    shared = 0
+    for left, right in zip(stem, place_stem):
+        if left != right:
+            break
+        shared += 1
+    return shared >= 4
 
 
 def is_homepage_url(url: str) -> bool:
@@ -112,6 +153,8 @@ def is_homepage_url(url: str) -> bool:
     if "blog.naver.com" in lowered:
         return False
     if any(marker in lowered for marker in _CAFE_HOST_MARKERS):
+        return False
+    if any(marker in lowered for marker in _NON_HOMEPAGE_HOST_MARKERS):
         return False
     host = urlparse(url).netloc.lower()
     if not host:
@@ -133,6 +176,24 @@ def _naver_blog_id(url: str) -> str:
     if parts and parts[0].lower() != "postview.nhn":
         return parts[0]
     return parse_qs(parsed.query).get("blogId", [""])[0]
+
+
+def _normalize_blog_token(value: str) -> str:
+    return value.lower().replace("_", "").replace("-", "")
+
+
+def blog_id_relates_to_names(
+    academy_name: str, place_title: str, blog_url: str
+) -> bool:
+    """블로그 id가 학원명·장소명과 관련 있는지 본다."""
+    blog_id = _normalize_blog_token(_naver_blog_id(blog_url))
+    if not blog_id:
+        return False
+    for raw in (_name_stem(academy_name), _name_stem(place_title)):
+        stem = _normalize_blog_token(raw)
+        if len(stem) >= 2 and (stem in blog_id or blog_id in stem):
+            return True
+    return False
 
 
 def is_official_blog_url(url: str) -> bool:
@@ -166,16 +227,33 @@ def pick_local(
     return None
 
 
-def pick_blog_url(academy: AcademyRecord, items: list[ReviewItem]) -> str:
-    stem = re.sub(r"학원$", "", academy.name).strip().replace(" ", "")
+def _looks_like_parent_review(item: ReviewItem) -> bool:
+    haystack = f"{item.title} {item.content}"
+    return any(marker in haystack for marker in _PARENT_REVIEW_MARKERS)
+
+
+def pick_blog_url(
+    academy: AcademyRecord,
+    items: list[ReviewItem],
+    *,
+    place_title: str = "",
+) -> str:
+    stem = _name_stem(academy.name)
     for item in items:
+        if _looks_like_parent_review(item):
+            continue
         haystack = f"{item.title} {item.content}".replace(" ", "")
         if stem and stem not in haystack:
             continue
         blog_id = _naver_blog_id(item.url)
         if not blog_id:
             continue
-        return f"https://blog.naver.com/{blog_id}"
+        home = f"https://blog.naver.com/{blog_id}"
+        if not is_official_blog_url(home):
+            continue
+        if not blog_id_relates_to_names(academy.name, place_title, home):
+            continue
+        return home
     return ""
 
 
@@ -190,22 +268,26 @@ def build_proposal(
     subjects: list[str] = []
     evidence_parts: list[str] = []
     website = ""
+    proposed_phone = ""
     matched_title = ""
 
     if local is not None:
         matched_title = local.title
-        subjects.extend(extract_subjects_from_text(f"{local.title} {local.category}"))
-        if is_homepage_url(local.link):
+        if local.category:
+            subjects.extend(extract_subjects_from_text(local.category))
+            evidence_parts.append(f"subjects_from=category; category={local.category}")
+        if is_homepage_url(local.link) and names_match(academy.name, local.title):
             website = local.link
+        if local.telephone:
+            proposed_phone = local.telephone
         evidence_parts.append(
             f"local title={local.title}; category={local.category}; "
             f"road={local.road_address or local.address}"
         )
 
-    blog_url = pick_blog_url(academy, blogs)
+    blog_url = pick_blog_url(academy, blogs, place_title=matched_title)
     blog_text = " ".join(f"{item.title} {item.content}" for item in blogs[:3])
     if blog_text:
-        subjects.extend(extract_subjects_from_text(blog_text))
         evidence_parts.append(f"blog snippets={clean_text(blog_text)[:180]}")
 
     # 중복 제거는 extract 쪽 normalize가 아니라 합친 뒤 다시.
@@ -214,15 +296,17 @@ def build_proposal(
     except ValueError:
         subjects = []
 
-    if matched_by_address and subjects:
+    has_payload = bool(subjects) or bool(website) or bool(blog_url)
+    if matched_by_address and has_payload:
         confidence = "high"
-    elif matched_by_address or (blog_url and subjects):
+    elif matched_by_address:
         confidence = "medium"
     else:
         confidence = "low"
         subjects = []
         website = ""
         blog_url = ""
+        proposed_phone = ""
 
     if confidence == "low":
         source_note = "검색 매칭 불충분 — 정본 미기입 권고"
@@ -236,6 +320,7 @@ def build_proposal(
         proposed_subjects=subjects,
         website_url=website,
         blog_url=blog_url,
+        proposed_phone=proposed_phone,
         confidence=confidence,
         evidence=" | ".join(evidence_parts),
         source_note=source_note,
@@ -254,6 +339,9 @@ def enrich_one(
     blogs: ReviewSource,
 ) -> EnrichProposal:
     query = search_query(academy.name)
-    places = local.search(query, limit=5)
-    posts = blogs.search(query, limit=5)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        places_future = executor.submit(local.search, query, 5)
+        posts_future = executor.submit(blogs.search, query, 5)
+        places = places_future.result()
+        posts = posts_future.result()
     return build_proposal(path, academy, places, posts)

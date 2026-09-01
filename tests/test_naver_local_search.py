@@ -20,6 +20,7 @@ def _local_payload(**overrides):
         "category": "학원>수학학원",
         "address": "경기 하남시 미사동 1",
         "roadAddress": "경기 하남시 미사강변대로 1",
+        "telephone": "031-123-4567",
     }
     row.update(overrides)
     return {"items": [row]}
@@ -61,7 +62,7 @@ def test_sends_expected_url_headers_and_params(monkeypatch):
         "X-NCP-APIGW-API-KEY-ID": "test-id",
         "X-NCP-APIGW-API-KEY": "test-secret",
     }
-    assert call["params"] == {"query": "가온수학", "display": 5, "sort": "random"}
+    assert call["params"] == {"query": "가온수학", "display": 5, "sort": "comment"}
 
 
 def test_parses_place_and_strips_tags(monkeypatch):
@@ -75,6 +76,7 @@ def test_parses_place_and_strips_tags(monkeypatch):
         category="학원>수학학원",
         address="경기 하남시 미사동 1",
         road_address="경기 하남시 미사강변대로 1",
+        telephone="031-123-4567",
     )
 
 

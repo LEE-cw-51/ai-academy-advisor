@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
@@ -46,13 +47,22 @@ def search(
     `httpx.get`으로 새 연결을 연다 (기존 단발 호출과 동일하게 동작).
     """
     getter = client.get if client is not None else httpx.get
-    response = getter(
-        endpoint_url(base_url, endpoint),
-        headers=auth_headers(client_id, client_secret),
-        params={"query": query, "display": display, "sort": sort},
-        timeout=timeout,
-    )
-    response.raise_for_status()
+    max_retries = 3
+    backoff_seconds = 2.0
+    response: httpx.Response | None = None
+    for attempt in range(max_retries + 1):
+        response = getter(
+            endpoint_url(base_url, endpoint),
+            headers=auth_headers(client_id, client_secret),
+            params={"query": query, "display": display, "sort": sort},
+            timeout=timeout,
+        )
+        if response.status_code == 429 and attempt < max_retries:
+            time.sleep(backoff_seconds)
+            continue
+        response.raise_for_status()
+        break
+    assert response is not None
     payload = response.json()
     items = payload.get("items") if isinstance(payload, dict) else None
     if not isinstance(items, list):

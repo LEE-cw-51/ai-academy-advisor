@@ -2,6 +2,27 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
+
+- **계기**: A3 `apply_enrich_csv` high 190건 반영 후 감사에서 URL 오탐 다수 확인 — Instagram·카카오채널이 `website_url`에 30건+, 등록명≠`matched_local_title`인데 URL 적용 15건+, 학부모 후기 블로그·타 학원 블로그 id(예: 수학의힘→royalsolar) 등.
+- **결정**:
+  - **롤백**: `rollback_enrich_urls` CLI로 A3 반영 파일 **81건** URL 정리. `website_url` **45건**·`blog_url` **34건** null 복원. 등록명≠네이버 장소명(이름 불일치) **24건**은 `subjects`도 null(잘못된 지역 검색 매칭). 나머지 **109건**은 `subjects` 유지. 롤백 후 잔존 URL: website 23·blog 63.
+  - **가드 (`academy_enrich_service`)**: `is_homepage_url` — instagram·pf.kakao·youtube·litt.ly·ok114 등 비홈페이지 거부. `website_url`은 장소명↔등록명 `names_match`(양방향 stem·4자 이상 공통 접두) 필요. `pick_blog_url` — 학부모 후기 제외 + 블로그 id가 학원/장소명과 관련 있을 때만.
+  - **가드 (`academy_apply_service`)**: CSV 반영 시 URL은 `matched_local_title` 이름 일치·`blog_id_relates_to_names` 통과 시만. 롤백은 비홈페이지·이름 불일치·약한 블로그(무관 id + 후기 마커/블로그 snippet 동 불일치) 기준.
+  - 재적용 전 `enrich-proposals.csv`를 **새 가드로 재생성**해야 한다(기존 CSV는 구 가드 출력).
+- **바꾸지 않은 것**: git JSON 정본 원칙, 쓰기 API 없음, `phone`·주소·좌표 불변, 두 추천 API 분리.
+
+## 2026-09-01 — A3 정본 JSON subjects·URL 보강
+
+- **계기**: NAVER API HUB 지역·블로그 검색으로 `subjects`·`website_url`·`blog_url` 제안 파이프라인(A3)을 코드·CLI·정본 반영까지 연결한다. 과목은 title·블로그 스니펫이 아니라 **지역 검색 `category`만** 근거로 삼아 오탐을 줄인다.
+- **결정**:
+  - `enrich_academy_from_search` → `data/raw/naver/enrich-proposals.csv` (411건). `build_proposal`은 `extract_subjects_from_text(local.category)`만, evidence에 `subjects_from=category`. `LocalPlace.telephone`·CSV `proposed_phone`은 제안용(정본 `phone` 미반영).
+  - 지역 검색 `sort=comment`, local·blog 병렬(`ThreadPoolExecutor`), HUB 429 3회·2s backoff.
+  - `apply_enrich_csv` — **high** 행만, null `subjects`/`website_url`/`blog_url`만 채움. `is_homepage_url`/`is_official_blog_url` 필터. `address`·좌표·`phone` 불변. `last_verified_at=2026-09-01`.
+  - `scoring.extract_subjects` → `core.subjects.extract_subjects_from_text` 위임(질의 "물리화학" → `과학`).
+- **A3 결과 (411건)**: confidence high 190 / medium 34 / low 187. high 190건 JSON 반영. 채움률: subjects 35.8%, website_url 16.5%, blog_url 23.6%, phone 67.9%(변경 없음).
+- **바꾸지 않은 것**: git JSON 정본 원칙, 쓰기 API 없음, 두 추천 API 분리, `score` 상대값.
+
 ## 2026-09-01 — 열린 PR 3건을 현행 main에 맞춰 통합
 
 - **계기**: #28(당근·카카오 카피), #31(상담 보조·리뷰·대기행렬 방향), #32(Cloud Agent 개발 환경)가 각각 열려 있었고, #31은 main의 2026-08-30 `decision-log` 항목과 충돌했다. #32는 GitHub 기준으로 파일 충돌이 없었으나 `.cursor/rules/`가 이미 main에 있어 최신 main 위에서 다시 붙이는 편이 안전했다.

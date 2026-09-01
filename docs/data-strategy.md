@@ -147,7 +147,10 @@ gg 소스 행은 상태 기준으로 걸러지지 않는다 (기본 포함).
 
 검색으로 `subjects`/`website_url`/`blog_url` **제안**을 만들 때는
 `uv run python -m app.cli.enrich_academy_from_search`가 CSV만 쓴다. JSON 정본은
-Founder 확인 후 PR한다. 플레이스 크롤링은 하지 않는다.
+`uv run python -m app.cli.apply_enrich_csv … --apply`로 **high** 신뢰 제안만 null
+필드에 반영한다(2026-09-01 A3: 411건 중 high 190건 반영 → subjects 35.8%,
+website_url 16.5%, blog_url 23.6%; phone·주소·좌표는 건드리지 않음). 플레이스
+크롤링은 하지 않는다.
 
 ## 리뷰·engagement 테이블 (DB 직접 쓰기)
 
