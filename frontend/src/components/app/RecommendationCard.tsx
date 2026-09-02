@@ -1,10 +1,22 @@
+import type { ReactNode } from "react";
 import { Badge, Button, Card } from "@/components/ui";
 import { naverDirectionsUrl } from "@/lib/maps";
 import type { AiRecommendationItem, ClickEventType } from "@/lib/types";
+import {
+  ASK_AT_CONSULTATION_HEADING,
+  ASK_AT_CONSULTATION_ITEMS,
+  CANDIDATE_BADGE,
+  CONFLICTS_HEADING,
+  REVIEW_EVIDENCE_HEADING,
+  UNCONFIRMED_HEADING,
+  UNCONFIRMED_VALUE,
+  VERIFIED_AT_LABEL,
+  WHY_CANDIDATE_HEADING,
+  conditionLabel,
+} from "./exploreCopy";
 
 interface RecommendationCardProps {
   item: AiRecommendationItem;
-  rank: number;
   selected?: boolean;
   onSelect?: () => void;
   onShowDetail?: () => void;
@@ -13,17 +25,24 @@ interface RecommendationCardProps {
 
 export function RecommendationCard({
   item,
-  rank,
   selected,
   onSelect,
   onShowDetail,
   onTrack,
 }: RecommendationCardProps) {
-  const { academy, reason, evidence_reviews } = item;
+  const {
+    academy,
+    reason,
+    evidence_reviews,
+    matched_conditions,
+    unknown_conditions,
+    conflicts,
+  } = item;
   const coords =
     academy.latitude != null && academy.longitude != null
       ? { lat: academy.latitude, lng: academy.longitude }
       : null;
+  const review = evidence_reviews[0];
 
   return (
     <Card
@@ -45,19 +64,60 @@ export function RecommendationCard({
       }}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Badge tone="rank">{rank}순위</Badge>
-        <Badge tone="brand">AI 추천</Badge>
+        <Badge tone="brand">{CANDIDATE_BADGE}</Badge>
         <h3 className="font-semibold text-ink">{academy.name}</h3>
       </div>
       {academy.address ? (
         <p className="text-xs text-ink-subtle">{academy.address}</p>
       ) : null}
-      <p className="mt-2 text-sm text-ink-muted">{reason}</p>
-      {evidence_reviews[0] ? (
-        <p className="mt-2 line-clamp-2 text-xs text-ink-subtle">
-          “{evidence_reviews[0].content}”
-        </p>
+      <p className="mt-1 text-xs text-ink-subtle">
+        {VERIFIED_AT_LABEL}: {academy.last_verified_at ?? UNCONFIRMED_VALUE}
+      </p>
+
+      <CardSection title={WHY_CANDIDATE_HEADING}>
+        <p className="text-sm text-ink-muted">{reason}</p>
+        {matched_conditions.length > 0 ? (
+          <p className="mt-1 text-xs text-ink-subtle">
+            확인된 조건: {matched_conditions.map(conditionLabel).join(", ")}
+          </p>
+        ) : null}
+      </CardSection>
+
+      {unknown_conditions.length > 0 ? (
+        <CardSection title={UNCONFIRMED_HEADING}>
+          <p className="text-xs text-ink-subtle">
+            {unknown_conditions.map(conditionLabel).join(", ")}
+          </p>
+        </CardSection>
       ) : null}
+
+      <CardSection title={ASK_AT_CONSULTATION_HEADING}>
+        <ul className="list-disc space-y-0.5 pl-4 text-xs text-ink-muted">
+          {ASK_AT_CONSULTATION_ITEMS.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </CardSection>
+
+      {conflicts.length > 0 ? (
+        <CardSection title={CONFLICTS_HEADING}>
+          <p className="text-xs text-ink-subtle">
+            {conflicts.map(conditionLabel).join(", ")}
+          </p>
+        </CardSection>
+      ) : null}
+
+      {review ? (
+        <CardSection title={REVIEW_EVIDENCE_HEADING}>
+          <p className="line-clamp-2 text-xs text-ink-subtle">
+            “{review.content}”
+          </p>
+          {review.source ? (
+            <p className="mt-0.5 text-xs text-ink-subtle">출처: {review.source}</p>
+          ) : null}
+        </CardSection>
+      ) : null}
+
       <div className="mt-3 flex flex-wrap gap-2">
         {academy.phone ? (
           <Button
@@ -90,7 +150,6 @@ export function RecommendationCard({
             onClick={(e) => {
               e.stopPropagation();
               onTrack?.("directions");
-              // 지도에서도 해당 학원으로 이동시켜 두고 네이버 길찾기를 새 탭으로 연다.
               onSelect?.();
               window.open(
                 naverDirectionsUrl(coords.lat, coords.lng, academy.name),
@@ -104,5 +163,20 @@ export function RecommendationCard({
         ) : null}
       </div>
     </Card>
+  );
+}
+
+function CardSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-2 rounded-btn bg-surface-muted px-3 py-2">
+      <p className="text-xs font-semibold text-ink-muted">{title}</p>
+      <div className="mt-1">{children}</div>
+    </div>
   );
 }

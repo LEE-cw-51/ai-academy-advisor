@@ -2,8 +2,10 @@
 
 ## 현재 상태
 도메인 테이블 `academies`가 정의되어 있다 (마이그레이션 `0001`).
-**정본 데이터는 `data/academies/*.json`이고 DB는 임포터로 재구성되는 파생 저장소다.**
-전략·필드 사전·수집 원칙은 `docs/data-strategy.md`, 파일 포맷은 `data/README.md` 참고.
+**운영 정본은 Supabase Postgres `academies` 테이블**이고 Founder는 Studio Table Editor로
+일상 수정한다. `data/academies/*.json`은 시드·백업 덤프이며 `import_academies`는
+컷오버·로컬 개발용이다. 전략·필드 사전·수집 원칙은 `docs/data-strategy.md`, 파일 포맷은
+`data/README.md` 참고.
 
 ## academies (학원)
 
@@ -40,6 +42,16 @@
 - `uq_academies_name_address` — 등록번호 없는 학원의 중복 방지 안전망
   (address가 NULL이면 DB 레벨에서는 중복이 허용되므로, 임포터의 파일 간 중복 검사가 원천 차단한다)
 - `ix_academies_name` — 이름 검색/정렬용
+- `ck_academies_subjects_taxonomy` — Postgres: `subjects`는 null이거나 taxonomy 5종만
+  (`app.core.studio_guards`, Alembic `0006`)
+- `ck_academies_website_not_social` — Postgres: `website_url` netloc이
+  instagram/pf.kakao/youtube/litt.ly/ok114 및 플레이스·카페·블로그 호스트와
+  정확히 일치하거나 해당 호스트의 서브도메인이면 거부 (`host = marker OR
+  host LIKE '%.marker'`). Python `website_url_has_rejected_host`와 같다.
+  CHECK에 없는 것: http(s) 스킴, 빈 netloc, `names_match`, 블로그 id 관련성.
+- UPDATE 트리거: `id` 변경 금지. `registration_number`는 이미 있는 값 변경 금지
+  (NULL→값 백필은 허용). `last_verified_at`이 비어 있으면 `CURRENT_DATE` — 단,
+  트랜잭션 GUC `app.skip_academy_stamp=1`(JSON 임포트)이면 스탬프하지 않음.
 
 ### subjects 컬럼
 SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된다
@@ -56,6 +68,22 @@ JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프�
 - 초기 마이그레이션 `0001_create_academies_table.py`는 수작성
   (autogenerate는 라이브 DB가 필요하므로)
 - `0002_add_tuition_monthly_fee.py` — 추천 API의 예산 조건을 위해 nullable 컬럼 추가
+- `0006_academy_studio_guards.py` — Postgres 전용: 기존 행 CHECK 사전 검사(위반 시
+  중단), 과목/URL CHECK(호스트 매칭), 신원 필드 불변, `last_verified_at` 스탬프
+  (임포트 GUC 우회), `academy_fact_revisions` 이력 (Supabase Studio 운영용)
+
+### academy_fact_revisions (Postgres, Studio 이력)
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | bigint PK | |
+| academy_id | integer (FK 없음) | 학원 행을 지워도 이력을 남긴다 |
+| old_row | jsonb | UPDATE 직전 행 전체 |
+| changed_at | timestamptz | |
+| db_role | text | DB role (`current_user`) |
+
+Studio에서 `academies` 행을 수정하면 AFTER UPDATE 트리거가 이전 스냅샷을 남긴다.
+롤백은 SQL로 스냅샷을 참고해 수동 복구한다. 스키마 변경은 Studio DDL이 아니라 Alembic만.
 
 ```bash
 cd backend
