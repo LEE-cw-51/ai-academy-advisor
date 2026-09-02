@@ -40,7 +40,9 @@ npm run dev
 ## Vercel 배포
 
 1. [Vercel](https://vercel.com)에서 이 GitHub 리포를 Import합니다.
-2. **Root Directory**: `frontend`
+2. **Root Directory**: 비워 둡니다(저장소 루트). 루트 `vercel.json`이
+   `frontend/package.json`을 Next.js로 빌드합니다. 폴더 선택 UI에서
+   `frontend`가 보이면 그걸 골라도 됩니다. `./frontend`는 쓰지 않습니다.
 3. Framework: **Next.js** (자동 감지)
 4. **Environment Variables** (Production):
 

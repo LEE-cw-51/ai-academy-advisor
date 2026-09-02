@@ -178,7 +178,8 @@ railway up backend --path-as-root -y --detach
 
 프론트는 [Vercel](https://vercel.com)에 배포합니다. 백엔드(Railway)·DB(Supabase)와 분리됩니다.
 
-1. GitHub 리포 Import → **Root Directory**: `frontend`
+1. GitHub 리포 Import → **Root Directory**는 비워 둡니다(루트 `vercel.json`이
+   `frontend`를 빌드). 폴더 선택에서 `frontend`가 보이면 그걸 골라도 됩니다.
 2. Environment Variables (Production):
    - `NEXT_PUBLIC_API_URL` = Railway API URL (예: `https://ai-academy-advisor-production.up.railway.app`)
    - `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` = (선택) 네이버 지도 키
