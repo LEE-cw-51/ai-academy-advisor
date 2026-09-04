@@ -1,0 +1,37 @@
+# 백엔드 pytest + 프론트 빌드. PR마다 돈다 — 머지됐다는 사실을 검증으로
+# 치지 않는다(AGENTS.md §8)의 자동화 버전. 배포 프리뷰(Vercel)와 별개다.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run pytest ../tests
+      # provider env는 tests/conftest.py가 stub으로 고정한다.
+      # pgvector 전용 경로는 PGVECTOR_TEST_DATABASE_URL 미설정 시 스킵(의도).
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build

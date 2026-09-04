@@ -8,6 +8,7 @@ LLM_PROVIDER 에서 동기 200회 순차 호출이 난다.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
@@ -22,6 +23,34 @@ from app.schemas.ai_recommendation import (
 from app.services.recommendation_pipeline import build_context
 from app.services.scoring import ScoredAcademy
 
+logger = logging.getLogger(__name__)
+
+
+def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
+    """LLM 실패 시 규칙 기반 이유. 채점 결과만 서술하고 품질을 단정하지 않는다.
+
+    벤더 장애·모델 폐기(2026-09-04 Groq llama-3.3 폐기로 전 요청 500)가
+    나도 탐색 응답 자체는 살아 있어야 한다.
+    """
+    if scored.matched:
+        head = (
+            f"입력하신 조건 중 {len(scored.matched)}개 항목이 "
+            "등록 정보와 맞아 확인해 볼 후보로 정리했습니다."
+        )
+    else:
+        head = (
+            "입력하신 조건과 직접 겹치는 등록 정보는 확인되지 않았지만, "
+            "조건과 관련해 확인해 볼 후보로 정리했습니다."
+        )
+    parts = [head]
+    if scored.unknown:
+        parts.append(
+            f"미확인 항목 {len(scored.unknown)}개는 상담에서 직접 확인해 주세요."
+        )
+    if "region" in relaxed:
+        parts.append("지역 조건이 완화되어 다른 지역의 후보가 포함될 수 있습니다.")
+    return " ".join(parts)
+
 
 def _build_reason(
     academy: AcademySummary,
@@ -30,8 +59,11 @@ def _build_reason(
     query: str,
     relaxed: Sequence[str] = (),
 ) -> str:
-    """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다."""
-    llm = get_llm_provider()
+    """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다.
+
+    LLM 준비/호출 실패는 항목별로 삼키고 `_fallback_reason`으로 대체한다 —
+    consultation_service의 used_fallback 패턴 준용 (응답 스키마는 그대로).
+    """
     facts = f"학원명: {academy.name}, 주소: {academy.address or '미상'}"
     evidence_snippets = [
         (e.content[:500] + "…") if len(e.content) > 500 else e.content
@@ -62,7 +94,14 @@ def _build_reason(
             ),
         },
     ]
-    return llm.chat(messages)
+    try:
+        llm = get_llm_provider()
+        return llm.chat(messages)
+    except Exception:
+        logger.warning(
+            "LLM 추천 이유 생성 실패 — 규칙 기반 fallback으로 대체", exc_info=True
+        )
+        return _fallback_reason(scored, relaxed)
 
 
 def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:

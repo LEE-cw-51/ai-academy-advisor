@@ -2,6 +2,32 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-04 — Groq 모델 폐기 장애: 모델 교체·추천 이유 fallback·CI 도입
+
+- **계기**: Groq가 `llama-3.3-70b-versatile`을 폐기(`model_not_found` 404)해
+  운영 `POST /recommendations/ai`가 **전 요청 500** — 배포된 `/app` 탐색 화면 전체가
+  죽었다. `_build_reason`이 LLM 예외를 그대로 던졌고, pytest를 돌리는 CI가 없어
+  로컬 테스트 실패도 머지를 막지 못하는 상태였다.
+- **결정**:
+  - **모델 교체**: Railway `LLM_MODEL=openai/gpt-oss-120b` (현 Groq 키로 확인된
+    가용 모델: `openai/gpt-oss-120b`·`gpt-oss-20b`·`qwen/qwen3.8-27b`). 벤더가
+    모델을 폐기할 수 있다는 전제로 운영한다.
+  - **추천 이유 fallback**: `_build_reason`은 provider 준비/호출 실패를 항목별로
+    삼키고 규칙 기반 문장(`_fallback_reason` — matched/unknown 개수 + relaxed 안내,
+    품질 단정 없음)으로 대체한다. `consultation_service`의 used_fallback 패턴 준용,
+    응답 스키마 불변. 회귀 테스트 2건 추가.
+  - **테스트 격리**: `tests/conftest.py`가 app import 전에
+    `LLM_PROVIDER`/`EMBEDDING_PROVIDER`/`VECTOR_STORE`/`REVIEW_SOURCE`를 stub으로,
+    `DATABASE_URL`을 sqlite로 고정 — 실제 키가 있는 `backend/.env`가 테스트에
+    누출돼 18건이 깨지던 문제 제거. AGENTS.md §8 검증 명령이 어느 기계서든 재현된다.
+  - **CI**: `.github/workflows/ci.yml` — PR·main push마다 backend pytest +
+    frontend `npm run build`.
+  - **Vercel 공개**: Production이 Deployment Protection(SSO) 뒤에 있어 외부 접근
+    불가 — Founder가 대시보드에서 해제한다(코드 밖 액션).
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, `reason: str` 계약,
+  provider 포트 구조(`app/providers/`), 기본값 stub.
+
+
 ## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
 
 - **계기**: A3 `apply_enrich_csv` high 190건 반영 후 감사에서 URL 오탐 다수 확인 — Instagram·카카오채널이 `website_url`에 30건+, 등록명≠`matched_local_title`인데 URL 적용 15건+, 학부모 후기 블로그·타 학원 블로그 id(예: 수학의힘→royalsolar) 등.
