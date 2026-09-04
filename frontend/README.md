@@ -20,10 +20,12 @@ cp .env.local.example .env.local
 
 | 변수 | 설명 |
 |------|------|
-| `NEXT_PUBLIC_API_URL` | 백엔드 base URL (trailing slash 없음) |
+| `BACKEND_ORIGIN` | (서버 전용, `NEXT_PUBLIC_` 아님) `next.config.ts`의 `rewrites()`가 `/api/backend/*`를 프록시할 실제 백엔드 URL. 기본 `http://localhost:8000` |
+| `NEXT_PUBLIC_API_URL` | 프록시를 우회해 백엔드를 직접 호출할 때만 설정 (기본은 `/api/backend` — same-origin) |
 | `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` | 네이버 지도 JS API 키 (없으면 지도 플레이스홀더) |
 
-백엔드 `CORS_ORIGINS`에 프론트 오리진(`http://localhost:3000` 등)이 포함돼 있어야 합니다.
+브라우저는 항상 같은 오리진(`/api/backend/*`)만 호출하고 Next.js 서버가 실제 백엔드로
+프록시하므로 **CORS 설정이 필요 없다**(2026-09-04, `docs/decision-log.md`).
 
 ## 실행
 

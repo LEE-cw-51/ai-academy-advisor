@@ -2,6 +2,43 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-04 — 백엔드 호스팅을 Railway에서 Vercel Python Function으로 이전
+
+- **계기**: Railway 무료 크레딧이 소진되면 최소 월 $5(Hobby) 고정비가 발생한다.
+  백엔드는 상태 없는 HTTP API(백그라운드 워커 없음, SSE 미구현, CLI·마이그레이션은
+  이미 로컬에서 Supabase에 직접 실행하는 패턴)라 "항상 켜진 서버"가 구조적으로
+  필요하지 않다 — 서버리스로 옮기기 좋은 형태다. 프론트는 이미 Vercel(Hobby, 무료)에
+  있으니 플랫폼을 하나로 합치면 관리 대상도 줄고 비용도 0에 가깝다.
+- **결정**:
+  - **백엔드 배포**: 프론트와 별도의 Vercel 프로젝트(Root Directory `backend`)로
+    배포한다. `backend/pyproject.toml`의 `[tool.vercel] entrypoint = "app.main:app"`가
+    `app/main.py`의 FastAPI 인스턴스 전체를 서버리스 함수 하나로 서빙한다(라우트별
+    함수 분리 없음). `backend/vercel.json`이 `maxDuration=30`과 `excludeFiles`
+    (alembic 버전·`*.db`)를 지정한다.
+  - **DB 커넥션**: 서버리스는 다수의 짧은 프로세스가 동시에 뜬다 — SQLAlchemy
+    앱 레벨 풀을 유지할 이유가 없고 오히려 Supabase 커넥션 수를 낭비한다.
+    `app/db/session.py`가 `NullPool` + Supabase Supavisor **transaction pooler
+    (포트 6543)** 로 전환됐다. psycopg3의 자동 서버사이드 prepared statement는
+    `prepare_threshold=None`으로 껐다 — transaction 모드 풀러는 문장 단위로 물리
+    커넥션을 재사용하므로, prepare된 문장이 다른 커넥션에서 재실행되며 깨질 수 있다
+    (Supabase 공식 권고). 세션 풀러(5432)는 로컬·alembic 등 오래 사는 프로세스에
+    그대로 쓴다.
+  - **CORS 제거**: `frontend/next.config.ts`의 `rewrites()`가 `/api/backend/*`를
+    서버 전용 env `BACKEND_ORIGIN`(백엔드 프로젝트 URL)으로 프록시한다. 브라우저는
+    항상 같은 오리진만 호출하므로 프로덕션에서 CORS 설정이 아예 필요 없어진다.
+    `frontend/src/lib/api.ts`의 기본 `NEXT_PUBLIC_API_URL`이 `/api/backend`로
+    바뀌었다(오버라이드하면 프록시 우회 가능). FastAPI `CORSMiddleware`는 로컬
+    직접 호출·과거 설정과의 호환을 위해 그대로 둔다(더 이상 load-bearing 아님).
+  - **검증**: 로컬에서 transaction pooler로 전체 pytest·academies/recommendations/ai
+    엔드포인트 스모크, Playwright로 프론트↔백엔드 프록시가 same-origin이고 CORS
+    콘솔 에러가 없음을 확인했다.
+  - **컷오버 절차**: 새 Vercel 프로젝트 배포·검증 → 기존 프론트 Vercel 프로젝트의
+    `NEXT_PUBLIC_API_URL`/`BACKEND_ORIGIN`을 새 백엔드로 전환 → Railway 서비스 중지.
+    Railway는 검증 기간 동안 병행 유지한다(무료 크레딧 소진 전).
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, provider 포트 구조, Supabase
+  운영 정본, `POST/PATCH /academies` 공개 쓰기 API 없음, 로컬 Docker Compose 흐름.
+
+
 ## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
 
 - **계기**: A3 `apply_enrich_csv` high 190건 반영 후 감사에서 URL 오탐 다수 확인 — Instagram·카카오채널이 `website_url`에 30건+, 등록명≠`matched_local_title`인데 URL 적용 15건+, 학부모 후기 블로그·타 학원 블로그 id(예: 수학의힘→royalsolar) 등.

@@ -95,25 +95,33 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 반
 [data/README.md](data/README.md), 데이터 전략은
 [docs/data-strategy.md](docs/data-strategy.md)를 참고하세요.
 
-## Railway 배포
+## 배포 (Vercel, 백엔드+프론트 분리 프로젝트)
 
-백엔드는 `railway.json`(`backend/Dockerfile` 기반 빌드) 설정으로 Railway에 배포할 수 있습니다.
+백엔드(FastAPI)와 프론트(Next.js)는 **각각 별도의 Vercel 프로젝트**로 배포한다
+(2026-09-04, Railway 고정비를 피하기 위한 이전 — `docs/decision-log.md`).
+백엔드는 `backend/pyproject.toml`의 `[tool.vercel] entrypoint = "app.main:app"`로
+`app/main.py`의 FastAPI 인스턴스 전체가 서버리스 함수 하나로 서빙된다.
 
-1. Railway에서 새 프로젝트를 만들고 이 GitHub 리포를 연동합니다.
-2. 프로젝트에 **Postgres 플러그인**을 추가합니다. `DATABASE_URL`은 자동으로 서비스에 주입됩니다.
-3. 서비스의 Variables에 `OPENAI_API_KEY`를 직접 설정합니다. 브라우저
-   프론트엔드(Vercel 등)에서 API를 호출하려면 `CORS_ORIGINS`도 함께 설정해야 합니다 —
-   반드시 JSON 배열 형식이어야 하며(예: `["https://your-app.vercel.app"]`), 설정하지
-   않으면 `http://localhost:3000` 기본값만 허용되어 배포된 프론트엔드의 요청이 CORS
-   오류로 막힙니다.
-4. `main` 브랜치에 push하면 `backend/Dockerfile`로 자동 빌드/배포되고, `/health`로 헬스체크됩니다.
-5. DB 마이그레이션은 배포 후 Railway CLI로 1회 실행합니다.
+1. **백엔드 프로젝트**: 이 GitHub 리포를 연동하고 Root Directory를 `backend`로 지정한다.
+   Variables에 `DATABASE_URL`(Supabase, 아래 참고)·`OPENAI_API_KEY`·`GROQ_API_KEY` 등을 설정한다.
+2. **DB 커넥션**: Vercel Functions는 서버리스라 `DATABASE_URL`은 Supabase Supavisor
+   **transaction pooler(포트 6543)** 를 쓴다. `backend/app/db/session.py`가 이 모드에 맞춰
+   `NullPool` + `psycopg` `prepare_threshold=None`으로 이미 구성돼 있다 — 세션 풀러(5432)로
+   바꾸면 동시 요청이 늘 때 커넥션이 금방 바닥난다.
+3. **프론트 프로젝트**: Root Directory `frontend`. `next.config.ts`의 `rewrites()`가
+   `/api/backend/*`를 서버 전용 env `BACKEND_ORIGIN`(백엔드 프로젝트의 프로덕션 URL)으로
+   프록시한다 — 브라우저는 항상 같은 오리진만 호출하므로 **CORS 설정이 아예 필요 없다**.
+   `NEXT_PUBLIC_API_URL`은 프록시를 우회해 백엔드를 직접 호출하고 싶을 때만 설정한다.
+4. `main` 브랜치에 push하면 두 프로젝트 모두 자동 배포된다.
+5. DB 마이그레이션은 로컬에서 Supabase 세션 풀러(5432)로 1회 실행한다.
 
 ```bash
-railway run --service backend uv run alembic upgrade head
+cd backend && uv run alembic upgrade head
 ```
 
-로컬 개발 흐름(`docker compose up --build`)은 이 설정과 무관하게 그대로 사용할 수 있습니다.
+로컬 개발 흐름(`docker compose up --build`, 또는 `uv run uvicorn app.main:app`)은 이
+설정과 무관하게 그대로 사용할 수 있다. `backend/Dockerfile`·`docker-compose.yml`은
+로컬 전용으로 유지한다.
 
 ## 프로젝트 구조
 

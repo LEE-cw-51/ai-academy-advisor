@@ -49,5 +49,9 @@ AI 구성요소(LLM·임베딩·벡터 스토어)는 벤더/모델 교체가 잦
 - 프롬프트 템플릿은 `prompts/` 디렉터리에서 관리하여 코드와 분리
 
 ## 배포
-- Docker Compose로 `backend` + `db(postgres)` 구성
+- 로컬: Docker Compose로 `backend` + `db(postgres)` 구성
+- 프로덕션: 백엔드는 Vercel Python Function(서버리스, `[tool.vercel] entrypoint`로
+  FastAPI 앱 전체를 하나의 함수로 서빙), 프론트는 별도 Vercel 프로젝트 — 2026-09-04,
+  Railway 이탈 (`docs/decision-log.md`). 서버리스라 DB는 `NullPool` +
+  Supabase transaction pooler(6543)를 쓴다 (`app/db/session.py`).
 - 환경변수는 `.env` 파일로 관리 (`.env.example` 참고)
