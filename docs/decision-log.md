@@ -2,6 +2,82 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-02 — Studio 가드 0006 사전 검사·호스트 CHECK·임포트 스탬프 우회
+
+- **계기**: 코드 리뷰에서 (1) 운영 DB에 `0006` CHECK를 올릴 때 기존 행 위반 시
+  마이그레이션 전체 실패, (2) URL 전체 `LIKE '%instagram.com%'` 오탐,
+  (3) `last_verified_at` 스탬프가 `--force` 임포트의 null 덮어쓰기와 충돌,
+  (4) Railway env 동기화 스크립트가 비밀값을 cmd에서 깨뜨리고 실패를 숨김.
+- **결정**:
+  - **사전 검사**: `0006`은 CHECK 추가 전 `academies_violation_select_sql()`로
+    위반 행을 조회한다. 1건 이상이면 `RuntimeError`(건수 + 샘플 20개) — 데이터는
+    마이그레이션이 고치지 않는다. Studio에서 수정 후 재실행.
+  - **호스트 CHECK**: `website_url` 거부는 netloc 호스트 매칭
+    (`host = marker OR host LIKE '%.marker'`). `notinstagram.com`·쿼리스트링
+    언급은 통과. Python `website_url_has_rejected_host`와 같은 규칙.
+  - **임포트 스탬프**: `app.skip_academy_stamp=1` GUC가 켜진 트랜잭션(임포트만)
+    에서는 스탬프 트리거가 `last_verified_at`을 채우지 않는다. Studio UPDATE는
+    빈 값을 오늘 날짜로 채우는 동작 유지.
+  - **Railway**: `sync-railway-env.ps1`은 `railway variables set --stdin
+    --service backend`로 값을 넘기고 실패 시 throw.
+  - **프론트**: `/app` 재검색 시 이전 후보·질문 초기화, 후보 실패 시 지도 선택
+    해제. 랜딩 `META_DESCRIPTION`·`FOOTER_STATUS_COPY`는 후보 정보 이용 가능과
+    중개·예약·결제 없음을 함께 말한다.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, 공개 쓰기 API 없음,
+  운영 `alembic upgrade`는 Founder가 위반 행 정리 후 실행.
+
+## 2026-09-02 — 공개 프론트 호스팅을 Netlify에서 Vercel로 전환
+
+- **계기**: Next.js 15 App Router 프론트를 Vercel에 두는 편이 빌드·호환성·운영이 단순하다.
+  백엔드는 이미 Railway + Supabase 컷오버가 끝났고, Netlify `academykok.netlify.app`는
+  API URL 미연결·호스팅 이중화만 남은 상태였다.
+- **결정**:
+  - **프론트**: Vercel **Hobby** 팀(`hobby-c52460f4`). Production URL:
+    `https://ai-academy-advisor.vercel.app`. Pro 팀(`chanwoo Lee's projects`)에 있던
+    동명 프로젝트는 삭제 후 Hobby로 이전했다.
+  - **백엔드·DB**: Railway FastAPI · Supabase Postgres 유지. `NEXT_PUBLIC_API_URL`은
+    Railway API를 가리킨다.
+  - **CORS**: Railway `CORS_ORIGINS`에 Vercel Production 오리진 + `http://localhost:3000`.
+    JSON 배열 문자열이며 URL 따옴표 누락 시 앱 기동 실패 전례가 있어 stdin 설정을 권장한다.
+  - **저장소**: `frontend/netlify.toml` 제거. 배포 안내는 [frontend/README.md](frontend/README.md)·
+    루트 [README.md](README.md) Vercel 절.
+  - **Netlify**: Vercel 검증 후 사이트 중지(Founder). 리다이렉트는 당장 두지 않는다.
+  - **마케팅 URL** ([docs/marketing-daangn-kakao.md](marketing-daangn-kakao.md)): 광고 재개 전
+    Vercel URL로 갱신. 당근 유료 광고 게이트(2026-08-21)는 그대로.
+  - **측정**: Netlify Analytics 의존 항목은 대체 수단(Vercel Web Analytics·UTM·`POST /events`)을
+    광고 재개 시점에 검토. 이번 변경만으로 Analytics를 켜지 않는다.
+- **바꾸지 않은 것**: Railway 백엔드 배포 방식(`backend --path-as-root`), Supabase 정본,
+  두 추천 API, `/`·`/check`·`/checklists`·`/app` 라우트.
+
+## 2026-09-01 — 학원 사실 운영 정본을 Supabase Postgres + Studio로 이전
+
+- **계기**: 411곳 학원 사실을 git JSON + PR + 임포트로 고치는 흐름은 일상 운영·사용자
+  신고 대응에 맞지 않는다. 공개 탐색 MVP를 열면 전화·URL·과목 등이 자주 바뀌는데
+  배포 없이 반영할 경로가 필요하다. A3 URL 롤백(같은 날)은 가드 없는 대량 기입
+  위험을 다시 보여 줬다.
+- **결정**:
+  - **운영 정본**: Supabase Postgres `academies` 테이블. Founder는 **Table Editor**로
+    수정한다. FastAPI·추천·LLM·공개 읽기 API는 그대로 둔다.
+  - **git JSON**: 시드 1회 + `export_academies` 백업 덤프. 매일의 정본이 아니다.
+  - **공개 쓰기 API 없음**: `POST/PATCH /academies`는 만들지 않는다. Studio는
+    대시보드 로그인(운영자)만 — 프론트에 service role·anon UPDATE 금지.
+  - **DB 가드 (마이그레이션 `0006`)**: 과목 taxonomy CHECK, 비홈페이지 URL CHECK
+    (`is_homepage_url`과 같은 호스트 목록; 스킴/netloc/`names_match`/블로그 id는 DB에
+    없음), `id` 변경 금지, `registration_number`는 기존 값 변경 금지(NULL 백필은 허용),
+    UPDATE 시 `last_verified_at` 자동 스탬프(비어 있을 때만, 사실 필드는 채우지 않음),
+    `academy_fact_revisions`(old_row JSON·시각·db_role, academies FK 없음).
+    SQL은 `app.core.studio_guards`가 Python과 공유한다. 스키마 변경은 Alembic만.
+  - **임포트 보호**: `import_academies`는 Supabase/Railway 등 운영 URL에서 기본
+    거부. 컷오버·재해복구만 `--force` 또는 `ALLOW_ACADEMY_IMPORT=1`.
+  - **컷오버 절차**: Supabase 프로젝트 + `vector` → 세션 연결(5432) →
+    `alembic upgrade head` → JSON 1회 `--force` import → Railway `DATABASE_URL` 전환.
+  - **Cursor Supabase MCP**: `.cursor/mcp.json`으로 `read_only=true`·`project_ref` 스코프
+    연결. 개발자 조회·검증용(`list_tables`, `execute_sql` SELECT 등). 스키마 정본은 Alembic
+    유지 — MCP `apply_migration`·대량 UPDATE는 쓰지 않음. OAuth 인증, PAT/비밀번호는 repo에
+    넣지 않음.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, engagement DB 직접 쓰기,
+  로그인·RLS를 첫 MVP 사용자 기능으로 도입하지 않음, FastAPI 제거 없음.
+
 ## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
 
 - **계기**: A3 `apply_enrich_csv` high 190건 반영 후 감사에서 URL 오탐 다수 확인 — Instagram·카카오채널이 `website_url`에 30건+, 등록명≠`matched_local_title`인데 URL 적용 15건+, 학부모 후기 블로그·타 학원 블로그 id(예: 수학의힘→royalsolar) 등.

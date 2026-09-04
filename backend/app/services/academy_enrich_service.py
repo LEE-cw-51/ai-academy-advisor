@@ -12,28 +12,13 @@ from urllib.parse import parse_qs, urlparse
 
 from pydantic import ValidationError
 
+from app.core.academy_url_guards import is_homepage_url
 from app.core.subjects import extract_subjects_from_text, normalize_subjects, subjects_csv
 from app.providers.base import LocalPlace, LocalSearchProvider, ReviewItem, ReviewSource
 from app.providers.naver_review import clean_text
 from app.schemas.academy import AcademyRecord
 
 _QUERY_REGION = "하남 미사"
-_PLACE_HOST_MARKERS = (
-    "map.naver.com",
-    "naver.me",
-    "search.naver.com",
-    "place.naver.com",
-    "pcmap.place.naver.com",
-)
-_CAFE_HOST_MARKERS = ("cafe.naver.com", "m.cafe.naver.com")
-_NON_HOMEPAGE_HOST_MARKERS = (
-    "instagram.com",
-    "pf.kakao.com",
-    "youtube.com",
-    "youtu.be",
-    "litt.ly",
-    "ok114.co.kr",
-)
 # 학부모 후기 글로 보이면 공식 블로그로 쓰지 않는다. 의심되면 null.
 _PARENT_REVIEW_MARKERS = (
     "후기",
@@ -142,24 +127,6 @@ def names_match(academy_name: str, title: str) -> bool:
             break
         shared += 1
     return shared >= 4
-
-
-def is_homepage_url(url: str) -> bool:
-    if not url:
-        return False
-    lowered = url.lower()
-    if any(marker in lowered for marker in _PLACE_HOST_MARKERS):
-        return False
-    if "blog.naver.com" in lowered:
-        return False
-    if any(marker in lowered for marker in _CAFE_HOST_MARKERS):
-        return False
-    if any(marker in lowered for marker in _NON_HOMEPAGE_HOST_MARKERS):
-        return False
-    host = urlparse(url).netloc.lower()
-    if not host:
-        return False
-    return url.startswith("http://") or url.startswith("https://")
 
 
 def _naver_blog_id(url: str) -> str:

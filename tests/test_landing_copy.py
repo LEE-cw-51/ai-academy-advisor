@@ -459,9 +459,15 @@ def test_home_metadata_reflects_the_two_situations():
     description = facts.split("META_DESCRIPTION =")[1][:300]
     assert "알아보는 중" in description
     assert "다니는 중" in description
-    assert "정식 출시 후" in description
+    assert "후보 정보" in description
+    assert "중개" in description
+    assert "예약" in description
+    assert "결제" in description
     # 푸터 고지는 메타로 대체되지 않고 그대로 남는다.
     assert "FOOTER_STATUS_COPY" in facts
+    footer = facts.split("FOOTER_STATUS_COPY =")[1][:300]
+    assert "정식 출시 전" in footer
+    assert "후보 정보" in footer
 
 
 def test_header_status_notice_sits_beside_the_logo():

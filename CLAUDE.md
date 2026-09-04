@@ -22,7 +22,7 @@
 - `POST /recommendations`(하드 필터)와 `POST /recommendations/ai`(소프트 랭킹)는
   **의도적으로 분리된 두 계약**이다. DRY를 이유로 통합하지 않는다
 - `score`는 응답 내 상대값 — 별점·퍼센트·신뢰도로 표시하거나 저장하지 않는다
-- 학원 사실은 `data/academies/*.json`이 정본이다. 쓰기 API를 만들지 않는다
+- 학원 사실 운영 정본은 Supabase Postgres `academies`(Studio 수정). git JSON은 시드·백업. 공개 쓰기 API 없음
 - 확인되지 않은 사실은 `null`. 휴리스틱으로 채우지 않는다
 - 벤더 SDK는 `app/providers/` 포트 뒤에서만 호출한다
 

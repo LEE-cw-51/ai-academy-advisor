@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Disclaimer } from "@/components/ui";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { KakaoChannelCta } from "./KakaoChannelCta";
-import { FOOTER_STATUS_COPY } from "./landingFacts";
+import { APP_EXPLORE_LINK_LABEL, FOOTER_STATUS_COPY } from "./landingFacts";
 
 export function LandingFooter() {
   return (
@@ -35,6 +35,10 @@ export function LandingFooter() {
         <p className="text-xs text-ink-muted">
           <Link href="/privacy" className="underline underline-offset-2">
             개인정보처리방침
+          </Link>
+          {" · "}
+          <Link href="/app" className="underline underline-offset-2">
+            {APP_EXPLORE_LINK_LABEL}
           </Link>
           {" · "}
           <KakaoChannelCta className="underline underline-offset-2">

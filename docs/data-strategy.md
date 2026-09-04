@@ -94,12 +94,23 @@ JSON 키(정본 파일)와 DB 컬럼은 1:1로 같다.
 4. 평가·의견은 쓰지 않는다. 한 줄 소개(`tagline`)도 사실 요약으로 유지한다.
 5. 실존 학원에 대해서는 검증된 사실만 기입한다. 개발용 가짜 데이터는 "(예시)"를 표기한다.
 
-## 운영: data-as-git
+## 운영: Supabase Postgres + Studio
 
-- 정본(source of truth)은 `data/academies/*.json` (학원당 1파일). git이 이력·리뷰·출처 추적을 제공한다.
-- DB는 파생 저장소: `uv run python -m app.cli.import_academies ../data/academies`로 재구성한다.
-- 수정 흐름: 파일 수정 → PR 리뷰 → 머지 → 임포트.
-- 쓰기 API는 만들지 않는다. (Phase 3 사용자 리뷰는 예외 — 그건 DB 직접 쓰기)
+- **운영 정본(source of truth)** 은 Supabase Postgres `academies` 테이블이다. Founder는
+  **Table Editor**로 전화·URL·과목·운영시간 등을 수정한다. 배포 없이 공개 API에 반영된다.
+- **git JSON** (`data/academies/*.json`)은 시드·재해복구 백업용이다. 공공데이터 변환·
+  enrich CSV 반영 파이프라인은 여전히 JSON 파일을 거칠 수 있으나, 운영 반영은 Studio 또는
+  컷오버용 `--force` import로 DB에 올린다.
+- **DB 가드** (Alembic `0006`): 과목 taxonomy, 비홈페이지 URL(호스트 목록은
+  `is_homepage_url`과 공유, 스킴·이름 일치는 CHECK에 없음), 신원 필드 불변(등록번호
+  NULL 백필은 허용), `last_verified_at` 스탬프, `academy_fact_revisions` 이력.
+  스키마 변경은 Alembic만.
+- **임포트**: `uv run python -m app.cli.import_academies ../data/academies`는 로컬 Docker
+  Postgres·SQLite에서만 기본 허용. Supabase/Railway URL은 `--force` 또는
+  `ALLOW_ACADEMY_IMPORT=1` 없이 거부한다(Studio 수정 덮어쓰기 방지).
+- **백업**: `uv run python -m app.cli.export_academies ../data/backups/YYYY-MM-DD`로
+  DB→JSON 덤프(정본 아님).
+- **공개 쓰기 API 없음**. (Phase 3 사용자 리뷰는 예외 — 그건 DB 직접 쓰기)
 
 ## 공공데이터 부트스트랩 (2-소스)
 
@@ -146,9 +157,10 @@ gg 소스 행은 상태 기준으로 걸러지지 않는다 (기본 포함).
 | 교습과정명 | `CRSE_CLASS_NM` | (필터 전용) | `subjects`에 자동 반영하지 않음 — 과목 매핑 오류 방지, `--course-keyword`로만 사용 |
 
 검색으로 `subjects`/`website_url`/`blog_url` **제안**을 만들 때는
-`uv run python -m app.cli.enrich_academy_from_search`가 CSV만 쓴다. JSON 정본은
+`uv run python -m app.cli.enrich_academy_from_search`가 CSV만 쓴다. JSON 시드는
 `uv run python -m app.cli.apply_enrich_csv … --apply`로 **high** 신뢰 제안만 null
-필드에 반영한다(2026-09-01 A3: 411건 중 high 190건 반영 → subjects 35.8%,
+필드에 반영한 뒤, 운영 DB에는 Studio 또는 `--force` import로 올린다(2026-09-01 A3:
+411건 중 high 190건 반영 → subjects 35.8%,
 website_url 16.5%, blog_url 23.6%; phone·주소·좌표는 건드리지 않음). 플레이스
 크롤링은 하지 않는다.
 

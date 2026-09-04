@@ -3,6 +3,8 @@ import type {
   AcademyListResponse,
   AiRecommendationResponse,
   ClickEventPayload,
+  ConsultationRequest,
+  ConsultationResponse,
   CreatedResponse,
   WaitlistPayload,
 } from "./types";
@@ -159,6 +161,16 @@ export function requestAiRecommendations(
   return request<AiRecommendationResponse>("/recommendations/ai", {
     method: "POST",
     body: JSON.stringify({ query, limit }),
+  });
+}
+
+/** POST /consultation/questions — 성공은 항상 200. used_fallback이어도 질문 본문을 그대로 쓴다. */
+export function requestConsultationQuestions(
+  payload: ConsultationRequest,
+): Promise<ConsultationResponse> {
+  return request<ConsultationResponse>("/consultation/questions", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

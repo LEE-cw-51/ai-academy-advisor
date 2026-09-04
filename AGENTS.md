@@ -85,8 +85,10 @@ AI 구성요소(LLM·임베딩·벡터)는 `app/providers/`의 Protocol 뒤에�
 대부분은 유연하게 가되, 아래는 **실제로 버그가 났거나 데이터 신뢰를 깨는 지점**이라
 바꾸려면 decision-log를 먼저 읽고 근거를 대자.
 
-**데이터** — `data/academies/*.json`이 학원 사실의 유일한 git 정본이고 DB는 파생물이다.
-수정은 JSON → `--dry-run` → PR → 머지 → 임포트 순서. 학원 사실용 쓰기 API는 만들지 않는다.
+**데이터** — 운영 정본은 Supabase Postgres `academies` 테이블이고 Founder는 Studio Table
+Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프이며 git 이력은 참고용이다.
+컷오버·재해복구만 `import_academies --force`(또는 `ALLOW_ACADEMY_IMPORT=1`)로 JSON→DB.
+학원 사실용 **공개** 쓰기 API는 만들지 않는다. 스키마 변경은 Alembic만.
 확인 안 된 값은 `null` (3상태: `true`=있음 / `false`=없음 / `null`=미확인).
 이름에 "수학"이 있다고 `subjects`를 추측해 채우지 않는다. 가능하면 `source_note`·`last_verified_at`을 남긴다.
 리뷰 원문·원시 수집 데이터는 커밋하지 않는다. → [docs/data-strategy.md](docs/data-strategy.md)
@@ -108,7 +110,8 @@ AI 구성요소(LLM·임베딩·벡터)는 `app/providers/`의 Protocol 뒤에�
 ```bash
 cd backend && uv sync && uv run pytest ../tests     # 백엔드
 cd frontend && npm ci && npm run build              # 프론트엔드
-cd backend && uv run python -m app.cli.import_academies ../data/academies --dry-run   # 데이터 변경 시
+cd backend && uv run python -m app.cli.import_academies ../data/academies --dry-run   # JSON 시드 검증
+cd backend && uv run python -m app.cli.export_academies ../data/backups/YYYY-MM-DD   # 운영 DB 백업 덤프
 ```
 
 머지됐다는 사실을 검증 완료로 치지 않는다. 데이터·추천·provider를 건드렸으면 회귀 테스트를 하나 남긴다.

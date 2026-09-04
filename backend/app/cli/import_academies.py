@@ -1,8 +1,11 @@
-"""정본 데이터(data/academies/*.json)를 DB로 임포트하는 CLI.
+"""JSON 시드(data/academies/*.json)를 DB로 임포트하는 CLI.
+
+운영 DB(Supabase)는 Studio가 정본이므로 기본적으로 거부한다.
+컷오버·재해복구 시에만 --force 또는 ALLOW_ACADEMY_IMPORT=1.
 
 사용:
     cd backend
-    uv run python -m app.cli.import_academies ../data/academies [--dry-run]
+    uv run python -m app.cli.import_academies ../data/academies [--dry-run] [--force]
 
 대상 DB는 DATABASE_URL 환경변수(.env)를 따른다.
 """
@@ -11,12 +14,14 @@ import argparse
 import sys
 from pathlib import Path
 
+from app.core.config import get_settings
+from app.core.import_guard import academy_import_allowed
 from app.services import academy_import_service
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="정본 학원 JSON 파일을 검증하고 DB로 업서트한다."
+        description="시드 JSON을 검증하고 DB로 업서트한다 (운영 URL은 --force 필요)."
     )
     parser.add_argument(
         "directory", type=Path, help="정본 JSON 디렉터리 (예: ../data/academies)"
@@ -25,6 +30,11 @@ def main(argv: list[str] | None = None) -> int:
         "--dry-run",
         action="store_true",
         help="검증만 수행하고 DB는 변경하지 않는다 (DB 접속 불필요)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="운영 DB에도 JSON을 덮어쓴다 (Studio 수정 소실 위험 — 컷오버·복구만)",
     )
     args = parser.parse_args(argv)
 
@@ -40,13 +50,19 @@ def main(argv: list[str] | None = None) -> int:
         print("dry-run 모드: DB 변경 없음")
         return 0
 
+    database_url = get_settings().database_url
+    allowed, reason = academy_import_allowed(database_url, force=args.force)
+    if not allowed:
+        print(f"ERROR: {reason}", file=sys.stderr)
+        return 1
+
     # DB 연결은 dry-run이 아닐 때만 만든다.
     from app.db.session import SessionLocal
 
     db = SessionLocal()
     try:
         report = academy_import_service.import_records(
-            db, [record for _, record in load.records]
+            db, [record for _, record in load.records], force=args.force
         )
     finally:
         db.close()
