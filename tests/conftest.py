@@ -1,7 +1,20 @@
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+
+# backend/.env(실제 키·provider 설정)가 테스트에 누출되지 않게 stub으로 고정한다.
+# os.environ이 .env 파일보다 우선하므로, app/config import 전에 걸어야 한다.
+# (AGENTS.md §8의 검증 명령이 실제 키가 있는 기계에서도 같은 결과를 내게 한다.)
+for _key, _value in {
+    "LLM_PROVIDER": "stub",
+    "EMBEDDING_PROVIDER": "stub",
+    "VECTOR_STORE": "stub",
+    "REVIEW_SOURCE": "stub",
+    "DATABASE_URL": "sqlite+pysqlite:///:memory:",
+}.items():
+    os.environ[_key] = _value
 
 import pytest
 from fastapi.testclient import TestClient
