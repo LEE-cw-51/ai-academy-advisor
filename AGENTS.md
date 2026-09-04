@@ -101,7 +101,10 @@ AI 구성요소(LLM·임베딩·벡터)는 `app/providers/`의 Protocol 뒤에�
 **`services/scoring.py`는 ORM/모델을 import하지 않는 순수 모듈**이고,
 **`recommendation_pipeline.py` 밖으로 ORM 객체나 열린 세션을 내보내지 않는다** (테스트로 강제됨).
 
-**목록·추천 응답의 좌표는 지도 표시에 필요하니 그대로 둔다.** 배포 프론트가 붙으면 `CORS_ORIGINS`는 JSON 배열로 설정한다.
+**목록·추천 응답의 좌표는 지도 표시에 필요하니 그대로 둔다.** 프로덕션은 프론트(Vercel)의
+`next.config.ts` rewrites가 백엔드로 same-origin 프록시하므로 `CORS_ORIGINS`가
+load-bearing이 아니다 — 로컬 직접 호출용으로만 JSON 배열 형식을 유지한다
+(2026-09-04, `docs/decision-log.md`).
 
 ## 8. 검증
 
