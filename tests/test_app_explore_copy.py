@@ -143,3 +143,23 @@ def test_consultation_form_maps_required_api_fields():
     assert "ASK_AT_CONSULTATION_HEADING" in modal
     assert "UNCONFIRMED_VALUE" in modal
     assert "trackEvent" in chat
+
+
+def test_app_shell_keyword_search_uses_existing_academies_q():
+    """검색창은 기존 GET /academies?q=만 쓴다 — 새 엔드포인트·별도 검색 API 금지."""
+    shell = APP_SHELL.read_text(encoding="utf-8")
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    api = API_TS.read_text(encoding="utf-8")
+
+    assert "SEARCH_PLACEHOLDER" in shell
+    assert "SEARCH_CLEAR_LABEL" in shell
+    assert "SEARCH_NO_RESULTS" in shell
+    assert "searchResultCount" in shell  # total 기반 "검색 결과 N개 학원"
+    assert "fetchAllAcademies" in shell
+
+    assert 'SEARCH_CLEAR_LABEL = "전체 보기"' in copy
+    assert "검색 결과 ${total}개 학원" in copy
+
+    # 검색 전용 신규 엔드포인트를 만들지 않았는지 — /academies만 사용.
+    assert "/academies" in api
+    assert "/search" not in api
