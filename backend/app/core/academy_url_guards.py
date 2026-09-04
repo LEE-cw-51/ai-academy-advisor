@@ -2,7 +2,8 @@
 
 호스트는 스킴 유무와 관계없이 뽑고, 포트는 제거한다. 거부는 `host == marker` 또는
 `host.endswith("." + marker)`뿐이라 `notinstagram.com`·쿼리스트링 언급은 통과한다.
-`is_homepage_url`은 추가로 http(s) 스킴과 비어 있지 않은 netloc을 요구한다.
+`is_homepage_url`은 추가로 http(s) 스킴과 점(.)이 포함된 netloc을 요구한다 —
+깨진 이중 스킴 URL(`https://https//…`)은 netloc이 "https"로 잡혀 여기서 걸린다.
 `names_match`·블로그 id 관련성은 여기에도 CHECK에도 없다.
 """
 
@@ -68,6 +69,9 @@ def is_homepage_url(url: str) -> bool:
     if website_url_has_rejected_host(url):
         return False
     host = urlparse(url).netloc.lower()
-    if not host:
+    if "." not in host:
+        # 깨진 이중 스킴("https://https//naver.me/…")은 netloc이 "https"로 잡힌다.
+        # 점 없는 호스트는 공개 홈페이지일 수 없으므로 거부한다. (DB CHECK에는
+        # 이 검증이 의도적으로 없다 — decision-log 2026-09-02)
         return False
     return url.startswith("http://") or url.startswith("https://")
