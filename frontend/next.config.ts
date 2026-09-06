@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 // 백엔드는 별도 Vercel Python Function 프로젝트로 배포된다(Railway 이탈,
 // docs/decision-log.md 2026-09-04). 브라우저는 항상 같은 오리진의
@@ -25,6 +26,10 @@ const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || "http://localhost:8000").r
 );
 
 const nextConfig: NextConfig = {
+  // 저장소 루트에 다른 lockfile(예: 상위 폴더의 package-lock.json)이 있을 때
+  // Next.js가 워크스페이스 루트를 잘못 추론하는 경고를 없앤다 — 빌드 동작은
+  // 바뀌지 않는다.
+  outputFileTracingRoot: path.join(__dirname, ".."),
   async rewrites() {
     return [
       {

@@ -21,7 +21,7 @@ alwaysApply: true
 - `POST /recommendations`(하드 필터)와 `/recommendations/ai`(소프트 랭킹)는 의도적으로 분리된
   두 계약 — DRY를 이유로 통합하지 않는다
 - `score`는 응답 내 상대값. 별점·퍼센트로 표시하거나 저장하지 않는다
-- 학원 사실 정본은 `data/academies/*.json`. 쓰기 API를 만들지 않는다. 확인 안 된 값은 `null`
+- 학원 사실 **운영 정본**은 Supabase Postgres `academies`(Studio Table Editor). git JSON(`data/academies/*.json`)은 시드·백업. **공개** 쓰기 API 없음. 확인 안 된 값은 `null`
 - 벤더 SDK 직접 호출 금지 — `app/providers/` 포트 뒤에서만
 - 비밀 값은 `.env` / 플랫폼 변수로만. 코드·문서·PR에 쓰지 않는다
 

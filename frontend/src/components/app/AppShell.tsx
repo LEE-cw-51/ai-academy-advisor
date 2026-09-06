@@ -7,6 +7,12 @@ import { fetchAllAcademies } from "@/lib/api";
 import type { AcademySummary, AiRecommendationItem } from "@/lib/types";
 import { ChatPanel } from "./ChatPanel";
 import { MapPanel } from "./MapPanel";
+import {
+  APP_BADGE,
+  APP_HEADER_NOTE,
+  APP_NO_BROKERAGE,
+  APP_TITLE,
+} from "./exploreCopy";
 
 export function AppShell() {
   const [listAcademies, setListAcademies] = useState<AcademySummary[]>([]);
@@ -52,12 +58,10 @@ export function AppShell() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <header className="border-b border-border bg-surface/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
-          <span className="text-lg font-black text-ink">학원콕</span>
-          {/* 배지는 모든 폭에서 보여야 한다 — 아래 설명 span은 sm 미만에서 숨겨지는데,
-              출시 전이라는 사실은 모바일에서도 가려지면 안 된다. */}
-          <Badge tone="warn">출시 준비 중</Badge>
+          <span className="text-lg font-black text-ink">{APP_TITLE}</span>
+          <Badge tone="brand">{APP_BADGE}</Badge>
           <span className="hidden text-sm text-ink-subtle sm:inline">
-            AI 추천 · 하남 미사
+            {APP_HEADER_NOTE}
           </span>
           <Link
             href="/privacy"
@@ -66,6 +70,9 @@ export function AppShell() {
             개인정보처리방침
           </Link>
         </div>
+        <p className="mx-auto max-w-6xl px-4 pb-2 text-xs text-ink-subtle sm:px-6">
+          {APP_NO_BROKERAGE}
+        </p>
       </header>
 
       {listError ? (

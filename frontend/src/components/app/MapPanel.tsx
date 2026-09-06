@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge, Card } from "@/components/ui";
 import type { AcademySummary } from "@/lib/types";
+import { MAP_HEADING } from "./exploreCopy";
 
 type NaverMapInstance = {
   setCenter: (latLng: unknown) => void;
@@ -194,7 +195,7 @@ export function MapPanel({ academies, selectedId, onSelect }: MapPanelProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-ink">지도 · 학원</h2>
+        <h2 className="text-lg font-bold text-ink">{MAP_HEADING}</h2>
         <Badge>{academies.length}곳</Badge>
       </div>
 

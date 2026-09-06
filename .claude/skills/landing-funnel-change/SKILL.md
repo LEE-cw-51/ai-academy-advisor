@@ -52,7 +52,7 @@ Use when a task does any of:
 | `/checklists` | `frontend/src/components/checklists/checklistsData.ts` |
 
 Never inline a new CTA label or reassurance line into `HeroSection.tsx` /
-`StickyCtaBar.tsx`. Export a constant and import it.
+`StickyKakaoBar.tsx`. Export a constant and import it.
 
 Two traps:
 
@@ -60,11 +60,13 @@ Two traps:
   on `/`, do not just delete that comment and share the constant. The two entry points
   will want to diverge (`1분 학원 점검` vs `1분 학원 점검 시작하기`). Add a separate
   constant for the new entry point and fix the doc comment on both.
-- **`CTA_REASSURANCE` describes the waitlist modal**, not a generic promise —
-  `"무료 · 이름·연락처 입력 없음 · 언제든 차단 가능"`. Reusing it under a button that
-  navigates to `/check` states something false. Every reassurance line must be true of
-  what *that* button actually does, verified against the implementation
-  (don't write `1분` unless the flow is).
+- **`CTA_REASSURANCE` describes the Kakao channel modal** (`KakaoChannelModal.tsx`,
+  opened by every `KakaoChannelCta`), not a generic promise —
+  `"무료 · 이름/연락처 입력 없음 · 언제든 차단 가능"`. There is no waitlist modal any
+  more (that was the pre-2026-08-19 `WaitlistModal`, folded into `KakaoChannelModal`).
+  Reusing this line under a button that does something else states something false.
+  Every reassurance line must be true of what *that* button actually does, verified
+  against the implementation (don't write `1분` unless the flow is).
 
 ## Rule 2 — There is no frontend test runner
 
@@ -104,6 +106,12 @@ makes a value legal; an unknown value returns 422.
 
 ### Existing names and what they actually mean
 
+The 2026-08-19 restructure (`/`·`/checklists`·`/check` situation-branch funnel) removed
+the old `home_stage_*` trio and replaced it with events named for the page-to-page
+*transition* they record. `home_check_clicked` is the one survivor from before that
+date — the "다니는 중" card kept the old name for metric continuity, so it does **not**
+follow the transition-naming pattern below; don't use it as a template for a new event.
+
 | Event | Fires where | Means |
 |---|---|---|
 | `kakao_channel` | `KakaoChannelLink` default | organic Kakao channel-add click |
@@ -112,11 +120,16 @@ makes a value legal; an unknown value returns 422.
 | `mini_check_completed` | last question answered | finished all 3 |
 | `mini_check_result_viewed` | result phase mount | saw the result |
 | `mini_check_home_clicked` | **`/check` result → `/`** (`학원콕 더 알아보기`) | check → home |
+| `home_check_clicked` | 홈 '다니는 중' 카드 → `/check` | home → check (legacy name, see above) |
+| `home_explore_selected` | 홈 '알아보는 중' 카드 → `/checklists` | home → explore |
+| `explore_check_clicked` | `/checklists` → `/check` | explore → check |
+| `check_explore_clicked` | `/check` 결과 → `/checklists` | check → explore |
 
-⚠️ **`mini_check_home_clicked` is check → home, not home → check.** The name reads
-backwards. A home→`/check` CTA needs its own new name (e.g. `home_check_clicked`);
-reusing this one merges two opposite funnel directions into a single counter and
-destroys both numbers retroactively.
+⚠️ **`mini_check_home_clicked` is check → home, not home → check** — the name reads
+backwards, and `home_check_clicked` (above) is the unrelated, already-existing event for
+the opposite direction. Before adding any new event, grep `backend/app/core/constants.py`
+`ClickEvent` first — the name you're about to propose may already exist under a
+non-obvious name.
 
 ⚠️ **Navigating to `/check` is not `mini_check_started`.** That event is the intro
 button only — it is the denominator for check completion rate.
@@ -129,29 +142,29 @@ Tracking must never block the user: every call site is
 
 ## Rule 4 — Accessibility invariants
 
-**`StickyCtaBar` has four state expressions that must stay in sync.** With
-`shown = visible && !suppressed`:
+There is no `StickyCtaBar` any more (that scroll-reveal, sentinel-driven bar was
+retired in the 2026-08-19 3-page restructure). What exists today:
 
-```
-inert={!shown}   aria-hidden={!shown}   tabIndex={shown ? undefined : -1}
-className={... shown ? "translate-y-0" : "pointer-events-none translate-y-full"}
-```
-
-`suppressed` is `waitlistOpen` from `LandingPage` — the bar hides while the modal is
-open so it cannot be tabbed to behind the overlay. If you convert the `<Button>` to a
-`next/link`, **`tabIndex={-1}` is still required** — an anchor is natively focusable and
-`inert` support cannot be assumed alone.
-
-**`ctaSentinelRef` must stay immediately after the Hero's primary CTA block.** The
-sticky bar reveals on `!entry.isIntersecting && boundingClientRect.top < 0` — i.e. the
-user scrolled *past* the CTA. Moving the sentinel silently changes when the bar appears.
+- **`StickyKakaoBar`** (rendered unconditionally by `SiteChrome`, shared across
+  `/`·`/check`·`/checklists`·`/privacy`) is a plain always-visible `fixed` bar — no
+  `shown`/`suppressed` state, no scroll sentinel, nothing to keep in sync. Don't
+  reintroduce reveal-on-scroll logic without a decision-log entry justifying it.
+- **`KakaoChannelCta`** owns its own `open` boolean and renders `KakaoChannelModal`
+  next to itself — every Kakao entry point (footer, `StickyKakaoBar`, `/check` result,
+  `GroundworkSection`) gets independent modal state; there is no longer a single
+  page-level `waitlistOpen` flag to thread through.
+- **`Modal`** (`@/components/ui/Modal.tsx`) is the one shared a11y implementation:
+  `role="dialog"`/`aria-modal`/`aria-labelledby`, a focus trap (Tab wraps inside the
+  panel, Escape closes, focus returns to the trigger on close), and a portal to
+  `document.body` so it isn't clipped by the sticky bar's `backdrop-filter`. Fix a11y
+  bugs here, once, rather than in each modal usage.
 
 **Navigation uses a real `href`**, not `onClick` + `router.push`. Middle-click,
 open-in-new-tab, and prefetch all depend on it.
 
 The component for this already exists: **`ButtonLink`** from `@/components/ui` — a
 `next/link` carrying `buttonClassName()`, so a link-CTA looks identical to a `Button`
-with no new styles and no `<button>` nested in an `<a>`. `MiniAcademyCheck.tsx:142`
+with no new styles and no `<button>` nested in an `<a>`. `MiniAcademyCheck.tsx:164`
 is the reference usage. Do not hand-roll a styled `<Link>`, and do not add an
 `as`/`asChild` prop to `Button`.
 
@@ -252,12 +265,12 @@ Both must run. `npm run build` catches TypeScript and route errors but **cannot*
 a wrong CTA destination or a mislabelled event — that is what the pytest copy tests are
 for, which is why step 7 is not optional.
 
-**Behaviour the copy tests still cannot see** — the sticky bar actually hiding while the
-modal is open, focus not landing behind the overlay, the CTA really navigating to
+**Behaviour the copy tests still cannot see** — the Kakao modal's focus trap and
+Escape-to-close, focus returning to the trigger on close, the CTA really navigating to
 `/check` — use the **`webapp-testing`** skill (installed in this repo) to drive
-`npm run dev` with an ad-hoc Playwright script. Run it whenever a change touches the
-sticky-bar `shown` state, the sentinel, or a CTA destination. Those scripts are
-throwaway verification: never add Playwright to `frontend/package.json`.
+`npm run dev` with an ad-hoc Playwright script. Run it whenever a change touches
+`Modal.tsx`, `KakaoChannelCta`, or a CTA destination. Those scripts are throwaway
+verification: never add Playwright to `frontend/package.json`.
 
 If `npm ci` fails on a lockfile mismatch: report the failing command, the error summary,
 and whether you verified another way. Do **not** bulk-update dependencies to get green.
@@ -269,10 +282,9 @@ Do not deploy, push, or commit unless explicitly asked.
 
 | Symptom | Cause |
 |---|---|
-| Two funnel directions in one counter | reused `mini_check_home_clicked` for home→check |
+| Two funnel directions in one counter | reused `mini_check_home_clicked` for home→check (that's `home_check_clicked`) |
 | `422` on a new event | added to `types.ts` but not to `ClickEvent` enum |
-| Sticky button tabbable while modal is open | converted Button→Link, dropped `tabIndex={-1}` |
-| Sticky bar appears at the wrong scroll point | sentinel moved away from the CTA |
+| Modal focus escapes to the page behind it | bypassed `Modal.tsx` with a hand-rolled overlay instead of reusing it |
 | Reassurance line promises something false | reused `CTA_REASSURANCE` under a new destination |
 | `test_mini_check_copy` fails after adding checklist items | added an `id` field to `ChecklistItem` |
 | `test_landing_copy` fails | `MISA_ACADEMY_COUNT` no longer matches `data/academies/*.json` |

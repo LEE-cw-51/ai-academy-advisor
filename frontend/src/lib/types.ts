@@ -62,6 +62,30 @@ export interface ReviewEvidence {
   rating: number | null;
 }
 
+export type ConsultationIntent = "counsel_only" | "find_new_academy";
+
+export interface ConsultationQuestion {
+  topic: string;
+  prompt: string;
+}
+
+export interface ConsultationRequest {
+  grade: string;
+  subject: string;
+  school?: string;
+  current_academy?: string;
+  style_tags?: string[];
+  concern: string;
+  intent?: ConsultationIntent;
+}
+
+export interface ConsultationResponse {
+  questions: ConsultationQuestion[];
+  disclaimer: string;
+  model: string;
+  used_fallback: boolean;
+}
+
 export interface AiRecommendationItem {
   academy: AcademySummary;
   reason: string;
