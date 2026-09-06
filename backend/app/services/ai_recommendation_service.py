@@ -9,6 +9,7 @@ LLM_PROVIDER 에서 동기 200회 순차 호출이 난다.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
@@ -24,6 +25,14 @@ from app.services.recommendation_pipeline import build_context
 from app.services.scoring import ScoredAcademy
 
 logger = logging.getLogger(__name__)
+
+# `backend/vercel.json`의 `maxDuration=30`(서버리스 함수 전체 예산) 대비 여유를 둔다.
+# embed 1회 + scoring/직렬화 오버헤드를 뺀 나머지를 `limit`(최대 10)개 LLM 호출이
+# 나눠 쓴다. 개별 호출 타임아웃(각 provider의 httpx timeout)만으로는 limit=10일 때
+# 합계가 maxDuration을 넘을 수 있어, 여기서 남은 예산을 직접 추적해 예산을 넘기면
+# 그 항목은 LLM을 아예 호출하지 않고 `_fallback_reason`으로 바로 넘어간다.
+_REASON_TIME_BUDGET_SECONDS = 20.0
+_MIN_REASON_CALL_SECONDS = 3.0
 
 
 def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
@@ -58,12 +67,21 @@ def _build_reason(
     evidence: list[ReviewEvidence],
     query: str,
     relaxed: Sequence[str] = (),
+    deadline: float | None = None,
 ) -> str:
     """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다.
 
     LLM 준비/호출 실패는 항목별로 삼키고 `_fallback_reason`으로 대체한다 —
     consultation_service의 used_fallback 패턴 준용 (응답 스키마는 그대로).
+
+    `deadline`(`time.monotonic()` 기준)이 임박했으면 LLM을 아예 호출하지 않고
+    바로 fallback으로 넘어간다 — `limit`(최대 10)개 항목이 순차 호출이라, 개별
+    provider 타임아웃만으로는 전체 합이 `maxDuration`을 넘을 수 있다.
     """
+    if deadline is not None and deadline - time.monotonic() < _MIN_REASON_CALL_SECONDS:
+        logger.info("LLM 추천 이유 시간 예산 소진 — fallback으로 대체")
+        return _fallback_reason(scored, relaxed)
+
     facts = f"학원명: {academy.name}, 주소: {academy.address or '미상'}"
     evidence_snippets = [
         (e.content[:500] + "…") if len(e.content) > 500 else e.content
@@ -106,6 +124,7 @@ def _build_reason(
 
 def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:
     ctx = build_context(db, query, limit=limit)
+    deadline = time.monotonic() + _REASON_TIME_BUDGET_SECONDS
 
     # ⚠️ limit truncate 후에만 LLM 호출 — 풀 전체를 돌리면 호출이 폭주한다.
     top = ctx.scored[:limit]
@@ -118,6 +137,7 @@ def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:
                 ctx.evidence_by_academy.get(s.academy_id, []),
                 query,
                 relaxed=ctx.relaxed,
+                deadline=deadline,
             ),
             score=s.score,
             evidence_reviews=ctx.evidence_by_academy.get(s.academy_id, []),

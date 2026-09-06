@@ -1,4 +1,5 @@
 from sqlalchemy import MetaData, create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -13,8 +14,12 @@ settings = get_settings()
 # 끈다 — Supabase transaction-mode pooler(Supavisor, 포트 6543)는 커넥션을
 # 문장 단위로 재사용하므로, prepare된 문장이 다른 물리 커넥션에서 재실행되며
 # 깨질 수 있다 (Supabase 공식 가이드).
+# 드라이버 이름(get_driver_name())으로 판단한다 — URL 스킴 접두어(startswith)로는
+# `postgresql+psycopg2://` 같은 non-psycopg3 드라이버도 걸려 psycopg2.connect()가
+# 모르는 kwarg로 TypeError를 낸다. 지금은 pyproject.toml이 psycopg[binary](psycopg3)
+# 만 의존하므로 재현되지 않지만, 다른 postgres 드라이버가 추가되는 순간 깨진다.
 connect_args = {}
-if settings.database_url.startswith("postgresql"):
+if make_url(settings.database_url).get_driver_name() == "psycopg":
     connect_args = {"prepare_threshold": None}
 
 engine = create_engine(

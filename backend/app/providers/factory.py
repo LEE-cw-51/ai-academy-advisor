@@ -6,6 +6,8 @@
 
 from functools import lru_cache
 
+from sqlalchemy.orm import Session, sessionmaker
+
 from app.core.config import get_settings
 from app.providers.base import (
     EmbeddingProvider,
@@ -66,7 +68,14 @@ def get_llm_provider() -> LLMProvider:
 
 
 @lru_cache
-def get_vector_store() -> VectorStore:
+def _cached_vector_store() -> VectorStore:
+    """`db` 없이 호출될 때만 쓰는 싱글턴 경로.
+
+    `StubVectorStore`는 in-memory `_items`를 들고 있어 `add()`(테스트 셋업)와
+    `search()`(요청 처리)가 반드시 같은 인스턴스를 봐야 한다 — 여기서 캐시가
+    깨지면 안 된다. `pgvector`+`db` 없음 경로(CLI 배치 등)도 기존처럼 프로세스
+    수명 동안 하나의 엔진-바운드 sessionmaker를 재사용한다.
+    """
     settings = get_settings()
     name = settings.vector_store
     if name == "stub":
@@ -76,6 +85,25 @@ def get_vector_store() -> VectorStore:
     raise ValueError(
         f"지원하지 않는 vector_store: {name!r} (현재 'stub'/'pgvector'만 구현됨)"
     )
+
+
+def get_vector_store(db: Session | None = None) -> VectorStore:
+    """`db`(요청 스코프 세션)가 주어지면 pgvector용 `PgVectorStore`가 그 커넥션을
+    공유한다 — 그 경우에만 캐시를 우회해 매번 새로 만든다.
+
+    `NullPool`(app/db/session.py, 2026-09-04 서버리스 이전) 아래서는 새
+    `sessionmaker(bind=engine)`을 만들 때마다 물리 커넥션이 하나 더 열린다 —
+    `db`를 넘기지 않으면 `PgVectorStore`가 자체 커넥션을 여는 옛 동작 그대로라
+    요청당 커넥션이 2개(요청 세션 + 벡터 검색) 든다. `search()`는 읽기 전용이라
+    `db.connection()`으로 얻은 라이브 커넥션에 얹힌 임시 `Session`을 열고 닫아도
+    바깥 요청 트랜잭션을 건드리지 않는다(SQLAlchemy의 "외부 트랜잭션 공유" 패턴).
+    이 경로를 캐시하지 않는 이유: `db`가 요청마다 다른 세션이라 메모이즈하면
+    닫힌 세션의 커넥션을 재사용하려는 버그가 난다 — 객체 생성 자체는 가볍다.
+    """
+    settings = get_settings()
+    if db is not None and settings.vector_store == "pgvector":
+        return PgVectorStore(session_factory=sessionmaker(bind=db.connection(), future=True))
+    return _cached_vector_store()
 
 
 @lru_cache

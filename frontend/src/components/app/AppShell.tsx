@@ -25,7 +25,7 @@ export function AppShell() {
       .catch(() => {
         if (cancelled) return;
         setListError(
-          "학원 목록을 불러오지 못했어요. API(NEXT_PUBLIC_API_URL)를 확인해 주세요.",
+          "학원 목록을 불러오지 못했어요. 백엔드 연결(BACKEND_ORIGIN)을 확인해 주세요.",
         );
       });
     return () => {
