@@ -31,6 +31,19 @@ export const NO_CANDIDATES =
   "조건에 맞는 후보 정보를 찾지 못했어요. 조건을 조금 바꿔 다시 검색해 보세요.";
 export const MAP_HEADING = "지도";
 
+// 키워드 검색 — 기존 GET /academies?q=(학원명·주소 부분 일치)를 그대로 쓴다.
+export const SEARCH_PLACEHOLDER = "학원명·주소로 검색 (예: 미사강변, 수학)";
+export const SEARCH_LABEL = "검색";
+export const SEARCH_CLEAR_LABEL = "전체 보기";
+export const SEARCH_NO_RESULTS =
+  "검색어와 일치하는 학원이 없어요. 다른 키워드로 검색해 보세요.";
+export const SEARCH_ERROR =
+  "검색하지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+export function searchResultCount(total: number): string {
+  return `검색 결과 ${total}개 학원`;
+}
+
 export const ASK_AT_CONSULTATION_ITEMS = [
   "반의 실제 인원과 질문 대응은 어떻게 되나요?",
   "오답은 누가, 어떻게 다루나요?",
