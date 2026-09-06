@@ -2,6 +2,55 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-07 — PR #37·#38·#39·#40 통합 및 문서 정합성 정리
+
+- **계기**: main 기준으로 열려 있던 4개 PR(#37 Studio 가드·/app 탐색 MVP·Vercel
+  프론트 컷오버, #38 Groq 모델 폐기 fallback·CI, #39 /app 키워드 검색, #40 백엔드
+  Railway→Vercel 이전)이 `docs/decision-log.md`·`README.md`·`docs/architecture.md`·
+  `frontend/README.md`·`.env.example`·`frontend/next.config.ts`에서 서로 충돌했고,
+  #37 문서 트리는 #40이 이미 걷어낸 Railway 운영 방식(`NEXT_PUBLIC_API_URL`이
+  Railway를 직접 가리킴, `CORS_ORIGINS`에 Vercel 오리진 등록, `scripts/*railway*`)을
+  정본처럼 서술하고 있었다. 하나의 PR로 합쳐 문서를 현재 상태(Vercel 프론트+백엔드,
+  same-origin 프록시, Railway 없음) 기준으로 다시 정렬한다.
+- **결정**:
+  - 병합 순서: #38 → #40(본 브랜치) → #37 → #39. 코드 충돌은 `frontend/next.config.ts`
+    한 곳뿐이었고(`outputFileTracingRoot` vs `rewrites()`) `rewrites()` 쪽을 채택했다
+    — same-origin 프록시가 CORS를 아예 없애는 #40 결정이 #37의 `outputFileTracingRoot`
+    단독 처리보다 상위 요구사항이기 때문. 나머지 충돌은 모두 문서.
+  - **Railway 문서·스크립트 제거**: README·`frontend/README.md`·`docs/architecture.md`의
+    `NEXT_PUBLIC_API_URL`=Railway URL·`CORS_ORIGINS`에 Vercel 오리진 등록 안내를
+    삭제하고 #40의 same-origin 프록시 절차로 교체했다. `scripts/sync-railway-env.ps1`·
+    `scripts/railway-supabase-cutover.ps1`은 대상 플랫폼이 없어져 삭제했다(Supabase
+    컷오버 자체는 #40 이전에 이미 끝난 별개 결정 — 학원 정본 이전이지 백엔드 호스팅이
+    아니다).
+  - **공개 URL 통일**: 프론트 프로덕션 URL을 `https://ai-academy-advisor-ten.vercel.app`
+    (실제 스모크 테스트를 거친 #40 값)로 통일 — #37의 `ai-academy-advisor.vercel.app`은
+    옛 프로젝트명이다.
+  - **루트 `vercel.json` 제거**: Root Directory를 `frontend`/`backend`로 나눈 2-프로젝트
+    구조(#40)에서는 저장소 루트의 `builds` 지정이 읽히지 않는다 — #37이 추가한
+    `vercel.json`(루트)을 삭제했다.
+  - **AI 추천 타임아웃 예산**: `POST /recommendations/ai`가 embedding 1회 + 항목당
+    LLM 호출(최대 `limit=10`)을 순차 실행하는데, `backend/vercel.json`의
+    `maxDuration=30`보다 provider 호출 타임아웃 합(embed 30s + 최대 10×30s)이 클 수
+    있었다. provider별 httpx 타임아웃을 줄이고, `_build_reason`에 남은 예산이 부족하면
+    LLM을 호출하지 않고 바로 `_fallback_reason`(#38)으로 넘어가는 예산 체크를 추가했다
+    — 항상 `maxDuration` 안에서 끝난다.
+  - **PgVectorStore 이중 커넥션**: `app/db/session.py`가 `NullPool`로 바뀐 뒤에도
+    `PgVectorStore`는 자체 `sessionmaker`로 별도 연결을 열어, AI 추천 요청 1건이
+    Supabase 물리 커넥션을 2개(요청 세션 + 벡터 검색) 쓰고 있었다. 요청의 DB
+    커넥션을 공유하도록 바꿔 커넥션 수 절감이라는 NullPool 전환 취지를 실제로
+    지킨다.
+  - **기타 문서 정확성**: `AppShell.tsx`의 목록 로드 실패 메시지가 이제는 무효한
+    `NEXT_PUBLIC_API_URL`을 안내하던 것을 `BACKEND_ORIGIN`/프록시 기준으로 수정.
+    `.env.example`의 "Railway 대시보드에서 설정" 문구를 Vercel 백엔드 프로젝트
+    기준으로 수정. `next.config.ts`는 프로덕션에서 `BACKEND_ORIGIN` 미설정 시
+    조용히 `localhost:8000`으로 폴백하는 대신 build를 실패시키고, trailing slash를
+    제거한다. `.claude/skills/landing-funnel-change/SKILL.md`(및 `.cursor/` 동일본)가
+    가리키던 삭제된 `StickyCtaBar`·존재하지 않는 이벤트 이름·틀린 줄 번호를 코드에
+    맞게 정정했다.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, 학원 JSON/Supabase 정본,
+  provider 포트 구조, 퍼널 라우트.
+
 ## 2026-09-07 — Vercel 컷오버 완료·Netlify 폐기·로컬 에이전트 정리
 
 세션 전체를 한 항목으로 남긴다. Railway→Vercel **코드**는 PR #40(2026-09-04 결정)에
@@ -87,6 +136,31 @@
 - **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, provider 포트 구조, Supabase
   운영 정본, `POST/PATCH /academies` 공개 쓰기 API 없음, 로컬 Docker Compose 흐름.
 
+## 2026-09-04 — Groq 모델 폐기 장애: 모델 교체·추천 이유 fallback·CI 도입
+
+- **계기**: Groq가 `llama-3.3-70b-versatile`을 폐기(`model_not_found` 404)해
+  운영 `POST /recommendations/ai`가 **전 요청 500** — 배포된 `/app` 탐색 화면 전체가
+  죽었다. `_build_reason`이 LLM 예외를 그대로 던졌고, pytest를 돌리는 CI가 없어
+  로컬 테스트 실패도 머지를 막지 못하는 상태였다.
+- **결정**:
+  - **모델 교체**: 백엔드 환경변수(당시 Railway, 2026-09-07 PR #40 통합 이후는
+    Vercel 백엔드 프로젝트) `LLM_MODEL=openai/gpt-oss-120b` (현 Groq 키로 확인된
+    가용 모델: `openai/gpt-oss-120b`·`gpt-oss-20b`·`qwen/qwen3.8-27b`). 벤더가
+    모델을 폐기할 수 있다는 전제로 운영한다.
+  - **추천 이유 fallback**: `_build_reason`은 provider 준비/호출 실패를 항목별로
+    삼키고 규칙 기반 문장(`_fallback_reason` — matched/unknown 개수 + relaxed 안내,
+    품질 단정 없음)으로 대체한다. `consultation_service`의 used_fallback 패턴 준용,
+    응답 스키마 불변. 회귀 테스트 2건 추가.
+  - **테스트 격리**: `tests/conftest.py`가 app import 전에
+    `LLM_PROVIDER`/`EMBEDDING_PROVIDER`/`VECTOR_STORE`/`REVIEW_SOURCE`를 stub으로,
+    `DATABASE_URL`을 sqlite로 고정 — 실제 키가 있는 `backend/.env`가 테스트에
+    누출돼 18건이 깨지던 문제 제거. AGENTS.md §8 검증 명령이 어느 기계서든 재현된다.
+  - **CI**: `.github/workflows/ci.yml` — PR·main push마다 backend pytest +
+    frontend `npm run build`.
+  - **Vercel 공개**: Production이 Deployment Protection(SSO) 뒤에 있어 외부 접근
+    불가 — Founder가 대시보드에서 해제한다(코드 밖 액션).
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, `reason: str` 계약,
+  provider 포트 구조(`app/providers/`), 기본값 stub.
 
 ## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
 

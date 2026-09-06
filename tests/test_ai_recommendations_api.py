@@ -254,3 +254,45 @@ def test_ai_recommend_empty_db_returns_200_with_empty_items(client, db_session):
     )
     assert response.status_code == 200
     assert response.json()["items"] == []
+
+
+class _ExplodingLLM:
+    """벤더 장애·모델 폐기 시뮬레이션 — chat이 항상 실패한다."""
+
+    def chat(self, messages):
+        raise RuntimeError("model_not_found")
+
+
+def test_ai_recommend_falls_back_when_llm_fails(client, db_session, monkeypatch):
+    """LLM이 죽어도 200 + 규칙 기반 reason (2026-09-04 Groq 모델 폐기 회귀)."""
+    seed_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: _ExplodingLLM(),
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items
+    for item in items:
+        assert item["reason"]
+        assert "확인해 볼 후보" in item["reason"]
+
+
+def test_ai_recommend_falls_back_when_provider_init_fails(
+    client, db_session, monkeypatch
+):
+    """get_llm_provider 자체가 죽어도(설정 오류 등) 항목별 fallback으로 200."""
+    seed_academies(db_session)
+
+    def _boom():
+        raise ValueError("bad provider config")
+
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider", _boom
+    )
+    response = client.post("/recommendations/ai", json={"query": "수학"})
+    assert response.status_code == 200
+    assert all(item["reason"] for item in response.json()["items"])
