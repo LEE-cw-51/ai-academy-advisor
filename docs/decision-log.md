@@ -2,6 +2,55 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-07 — Vercel 컷오버 완료·Netlify 폐기·로컬 에이전트 정리
+
+세션 전체를 한 항목으로 남긴다. Railway→Vercel **코드**는 PR #40(2026-09-04 결정)에
+이미 있었고, 이 세션은 **운영 컷오버·문서·gitignore**까지 마무리했다.
+
+- **계기**: Hobby 팀에서 백엔드 Vercel 프로젝트를 올리고, 공개 URL을 Netlify에서
+  떼어 Vercel 단일 정본으로 맞출 시점이었다. 당근 등 유료 광고는 Founder가 이미
+  내려 두어 `academykok.netlify.app`을 유지할 트래픽이 없다.
+
+- **Supabase MCP (로컬만)**: 프로젝트 `.cursor/mcp.json`에 `YOUR_PROJECT_REF`
+  placeholder가 있었다. 로컬에서 ref `xpdyuvydfrdinpobktlx`로 고쳤다.
+  `mcp.json`은 gitignore — 시크릿·로컬 설정을 커밋하지 않는다.
+
+- **gitignore**: `.cursor/*.log`·`mcp.json`·`settings.json`과 범용
+  `.cursor/skills/*`·`.claude/skills/*`를 무시한다. 프로젝트 전용
+  `landing-funnel-change`만 예외로 추적한다.
+
+- **Vercel 컷오버 ops (코드는 PR #40, 이 세션에서 운영 완료)**:
+  - 프론트 Vercel Authentication(SSO) 해제 — 공개 URL이 동작하도록.
+  - Hobby 백엔드 프로젝트 `ai-academy-advisor-backend` 생성 (Root Directory
+    `backend`, id `prj_5vXU0L26Vs8SeTYcBA0T5SqvF0fO`).
+  - 백엔드 Production+Preview에 `DATABASE_URL`(Supabase transaction pooler
+    6543) 설정.
+  - 프론트 Production에
+    `BACKEND_ORIGIN=https://ai-academy-advisor-backend.vercel.app` 설정.
+  - 프로덕션 `NEXT_PUBLIC_API_URL` 제거 — 클라이언트가 `/api/backend`
+    same-origin 프록시를 쓰게 함.
+  - 백엔드 프로젝트 SSO도 해제.
+  - 스모크: `/health` ok, `/academies` 411건, 프론트
+    `/api/backend/academies` 프록시 동작.
+  - 공개 프론트 `https://ai-academy-advisor-ten.vercel.app`, 백엔드
+    `https://ai-academy-advisor-backend.vercel.app`.
+  - CLI 재배포 함정: Root Directory=`frontend`인데 `frontend/`만 올리면
+    실패한다 — **저장소 루트**에서 배포한다.
+
+- **Netlify 폐기**:
+  - 공개 URL 정본은 위 Vercel 프론트. `frontend/netlify.toml` 저장소에서 삭제.
+  - README·architecture·마케팅 문서 URL을 Vercel로 교체. 과거 decision-log의
+    Netlify Analytics 언급은 당시 기록으로 유지.
+  - Founder가 대시보드에서 Netlify 사이트 `academykok`·Git 연동을 삭제한다
+    (저장소만으로는 불가). 카카오 웰컴 버튼 URL도 Vercel로 맞춤(코드 밖).
+  - 광고 재개 시 유입·UTM 분모는 Vercel Analytics(또는 동등 호스트 analytics).
+
+- **Railway**: 검증 창이 끝나면 Founder가 병행 중지를 선택한다(아직 남은 액션).
+
+- **바꾸지 않은 것**: 퍼널 라우트(`/`·`/check`·`/checklists`·`/app`), 추천 API
+  분리, 학원 JSON 정본, 2026-08-21 광고 게이트, NullPool 등 코드 변경은
+  PR #40 머지 전까지 main에 없음.
+
 ## 2026-09-04 — 백엔드 호스팅을 Railway에서 Vercel Python Function으로 이전
 
 - **계기**: Railway 무료 크레딧이 소진되면 최소 월 $5(Hobby) 고정비가 발생한다.
@@ -261,8 +310,8 @@
 
   | 버튼 | 연결 |
   | --- | --- |
-  | 체크리스트 보기 | `https://academykok.netlify.app/checklists` |
-  | 학원콕 알아보기 | `https://academykok.netlify.app/` |
+  | 체크리스트 보기 | `https://ai-academy-advisor-ten.vercel.app/checklists` |
+  | 학원콕 알아보기 | `https://ai-academy-advisor-ten.vercel.app/` |
 
   밤 20:55~익일 08:00 친구 추가는 다음날 오전 8시에 웰컴메시지를 받을 수 있으므로, 랜딩에는 “채널 추가 후 웰컴메시지로 보내드려요”라고 적는다.
 

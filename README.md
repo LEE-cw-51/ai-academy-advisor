@@ -99,6 +99,9 @@ uv run python -m app.cli.import_academies ../data/academies             # DB 반
 
 백엔드(FastAPI)와 프론트(Next.js)는 **각각 별도의 Vercel 프로젝트**로 배포한다
 (2026-09-04, Railway 고정비를 피하기 위한 이전 — `docs/decision-log.md`).
+공개 프론트 정본은 Vercel이며 Netlify(`academykok.netlify.app`)는 쓰지 않는다
+(2026-09-07). 프로덕션 프론트 `https://ai-academy-advisor-ten.vercel.app`,
+백엔드 `https://ai-academy-advisor-backend.vercel.app`.
 백엔드는 `backend/pyproject.toml`의 `[tool.vercel] entrypoint = "app.main:app"`로
 `app/main.py`의 FastAPI 인스턴스 전체가 서버리스 함수 하나로 서빙된다.
 

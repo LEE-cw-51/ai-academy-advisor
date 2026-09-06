@@ -46,7 +46,7 @@
 | 광고 제목 | **여름방학 끝, 내신 대비 전 지금 학원을 1분 점검해 보세요** |
 | 본문 | 방학 동안 배운 내용이 학교 내신 준비로 이어질 수 있을까요? 수업 수준, 오답 관리, 내신·서술형 대비 계획을 차분히 확인해 보세요. 학원콕이 상담 때 물어볼 질문도 함께 정리해 드립니다. |
 | CTA | **1분 학원 점검하기** |
-| 연결 화면 | `https://academykok.netlify.app/check` |
+| 연결 화면 | `https://ai-academy-advisor-ten.vercel.app/check` |
 | 권장 이미지 | 아이가 책상에서 학습하고, 보호자가 옆에서 학습 계획을 함께 살피는 자연스러운 장면. 이미지 내 문구는 넣지 않거나 `1분 학원 점검` 한 줄로 제한한다. |
 
 ### 테스트용 변주 B~E
@@ -69,7 +69,7 @@
 | 광고 제목 | **내신 대비 시작 전 학원을 옮긴다면, 이 질문부터 확인하세요** |
 | 본문 | 새 학원이 학교별 내신 범위, 서술형, 오답·보강을 어떻게 준비하는지 확인하셨나요? 다음 상담에서 꼭 물어볼 질문을 한 번에 정리했습니다. |
 | CTA | **상담 전 질문 보기** |
-| 연결 화면 | `https://academykok.netlify.app/checklists` |
+| 연결 화면 | `https://ai-academy-advisor-ten.vercel.app/checklists` |
 | 권장 이미지 | 상담 노트를 펼쳐 둔 책상, 아이와 보호자가 함께 수업 시간표를 확인하는 장면처럼 ‘비교 기준을 준비하는’ 실제 생활 장면. 이미지에 긴 체크리스트를 넣지 않는다. |
 
 ### 테스트용 변주 B~E
@@ -247,14 +247,14 @@
 > ③ 수업 분위기와 시간표가 아이의 생활 리듬에 맞는지
 >
 > 학원콕의 **1분 학원 점검**도 여기에서 바로 해보실 수 있습니다.
-> `https://academykok.netlify.app/check`
+> `https://ai-academy-advisor-ten.vercel.app/check`
 
 ### 학원 이전 준비를 선택한 경우
 
 > 학원을 옮기기 전에는 현재 아쉬운 점을 한 문장으로 정리해 보세요. 예를 들어 `수업이 너무 빠른 것 같아요`, `오답 피드백이 부족해요`, `담당 강사와 상담하기 어려워요`처럼요.
 >
 > 다음 학원 상담에서는 그 문제를 **어떤 방식으로 확인하고, 누가 언제 피드백하며, 이해 부족 시 어떻게 보완하는지**를 구체적으로 물어보세요. 전체 질문은 아래에서 확인하실 수 있습니다.
-> `https://academykok.netlify.app/checklists`
+> `https://ai-academy-advisor-ten.vercel.app/checklists`
 
 ## 11. 상담 운영 메모
 
@@ -272,8 +272,8 @@
 
 ## References
 
-[1]: https://academykok.netlify.app/ "학원콕 공개 랜딩 — 하남 미사 학원 선택 가이드"
-[2]: https://academykok.netlify.app/checklists "학원콕 상담 전 질문 — 공개 랜딩"
+[1]: https://ai-academy-advisor-ten.vercel.app/ "학원콕 공개 랜딩 — 하남 미사 학원 선택 가이드"
+[2]: https://ai-academy-advisor-ten.vercel.app/checklists "학원콕 상담 전 질문 — 공개 랜딩"
 [3]: https://www.daangn.com/wv/faqs/468 "당근 광고 심사 기준 안내"
 [4]: https://cs.kr.karrotmarket.com/wv/faqs/12596 "당근 네이티브 광고 소재 제작 가이드"
-[5]: https://academykok.netlify.app/check "학원콕 1분 학원 점검 — 공개 랜딩"
+[5]: https://ai-academy-advisor-ten.vercel.app/check "학원콕 1분 학원 점검 — 공개 랜딩"

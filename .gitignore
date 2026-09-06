@@ -48,3 +48,15 @@ docs/design/academy-kok-landing.html
 
 # OS
 .DS_Store
+
+# Cursor / Claude 로컬 (rules·Cloud Agent 스크립트는 추적)
+.cursor/*.log
+.cursor/mcp.json
+.cursor/settings.json
+
+# 범용 스킬은 무시. 프로젝트 전용 스킬만 예외로 추적한다.
+.cursor/skills/*
+!.cursor/skills/landing-funnel-change/
+.claude/skills/*
+!.claude/skills/landing-funnel-change/
+.vercel
