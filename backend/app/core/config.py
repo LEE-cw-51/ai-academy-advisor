@@ -1,7 +1,12 @@
 from functools import lru_cache
+import os
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.import_guard import is_local_database_url
+
+_VERCEL_DEPLOY_ENVS = frozenset({"preview", "production"})
 
 
 class Settings(BaseSettings):
@@ -21,6 +26,9 @@ class Settings(BaseSettings):
     naver_client_secret: str = ""
     naver_base_url: str = "https://naverapihub.apigw.ntruss.com"
 
+    # 운영 DB JSON 임포트 허용 (기본 거부). 컷오버·재해복구만 True / ALLOW_ACADEMY_IMPORT=1.
+    allow_academy_import: bool = False
+
     @field_validator("database_url")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
@@ -38,6 +46,24 @@ class Settings(BaseSettings):
         if "openapi.naver.com" in stripped:
             return "https://naverapihub.apigw.ntruss.com"
         return stripped
+
+    @model_validator(mode="after")
+    def reject_local_database_on_vercel(self) -> "Settings":
+        """Preview/Production에서는 localhost 기본값·loopback DATABASE_URL을 거부한다."""
+        vercel_env = os.environ.get("VERCEL_ENV", "").strip().lower()
+        if vercel_env not in _VERCEL_DEPLOY_ENVS:
+            return self
+        if "DATABASE_URL" not in os.environ:
+            raise ValueError(
+                "VERCEL_ENV가 preview/production일 때 DATABASE_URL 환경변수가 필요합니다. "
+                "localhost 기본값은 사용할 수 없습니다."
+            )
+        if is_local_database_url(self.database_url):
+            raise ValueError(
+                "VERCEL_ENV가 preview/production일 때 DATABASE_URL에 "
+                "localhost/loopback을 쓸 수 없습니다. Supabase pooler URL을 설정하세요."
+            )
+        return self
 
     # 브라우저 프론트엔드(Next.js)의 오리진. env로 줄 때는 JSON 배열 형식이어야 한다
     # (pydantic-settings가 list[str]을 JSON으로 파싱하므로 콤마 나열은 기동 실패).

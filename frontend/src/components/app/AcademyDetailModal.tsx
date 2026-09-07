@@ -5,6 +5,11 @@ import { Badge, Button, Modal } from "@/components/ui";
 import { fetchAcademyDetail } from "@/lib/api";
 import { naverDirectionsUrl } from "@/lib/maps";
 import type { AcademyDetail, ClickEventType } from "@/lib/types";
+import {
+  ASK_AT_CONSULTATION_HEADING,
+  ASK_AT_CONSULTATION_ITEMS,
+  UNCONFIRMED_VALUE,
+} from "./exploreCopy";
 
 interface AcademyDetailModalProps {
   academyId: number | null;
@@ -118,7 +123,11 @@ export function AcademyDetailModal({
           <dl className="space-y-1.5">
             <DetailRow label="주소" value={detail.address} />
             <DetailRow label="전화" value={detail.phone} />
-            <DetailRow label="운영 시간" value={detail.operating_hours} />
+            <DetailRow
+              label="운영 시간"
+              value={detail.operating_hours}
+              showEmpty
+            />
             <DetailRow
               label="월 수강료"
               value={
@@ -126,6 +135,7 @@ export function AcademyDetailModal({
                   ? `${detail.tuition_monthly_fee.toLocaleString("ko-KR")}원`
                   : null
               }
+              showEmpty
             />
             <DetailRow
               label="강사 수"
@@ -142,9 +152,24 @@ export function AcademyDetailModal({
                     ? "운행"
                     : "미운행"
               }
+              showEmpty
             />
-            <DetailRow label="정보 확인일" value={detail.last_verified_at} />
+            <DetailRow
+              label="정보 확인일"
+              value={detail.last_verified_at}
+              showEmpty
+            />
           </dl>
+          <div className="rounded-btn bg-surface-muted px-3 py-2">
+            <p className="text-xs font-semibold text-ink-muted">
+              {ASK_AT_CONSULTATION_HEADING}
+            </p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-ink-muted">
+              {ASK_AT_CONSULTATION_ITEMS.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
 
           {links.length ? (
             <div className="flex flex-wrap gap-3 pt-1">
@@ -175,15 +200,17 @@ export function AcademyDetailModal({
 function DetailRow({
   label,
   value,
+  showEmpty = false,
 }: {
   label: string;
   value: string | null;
+  showEmpty?: boolean;
 }) {
-  if (!value) return null;
+  if (!value && !showEmpty) return null;
   return (
     <div className="flex gap-3">
       <dt className="w-20 shrink-0 text-ink-subtle">{label}</dt>
-      <dd className="min-w-0 flex-1 text-ink">{value}</dd>
+      <dd className="min-w-0 flex-1 text-ink">{value ?? UNCONFIRMED_VALUE}</dd>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import pytest
 from app.core.config import get_settings
 from app.providers.base import EmbeddingProvider, Hit, LLMProvider, VectorStore
 from app.providers.factory import (
+    _cached_vector_store,
     get_embedding_provider,
     get_llm_provider,
     get_vector_store,
@@ -214,10 +215,35 @@ def test_factory_returns_openai_embedding_provider_when_configured(monkeypatch):
 def test_factory_returns_pgvector_store_when_configured(monkeypatch):
     monkeypatch.setenv("VECTOR_STORE", "pgvector")
     get_settings.cache_clear()
-    get_vector_store.cache_clear()
+    _cached_vector_store.cache_clear()
     try:
         store = get_vector_store()
         assert isinstance(store, PgVectorStore)
     finally:
         get_settings.cache_clear()
-        get_vector_store.cache_clear()
+        _cached_vector_store.cache_clear()
+
+
+def test_factory_get_vector_store_with_db_bypasses_cache_for_pgvector(monkeypatch):
+    """`db`가 주어지면 pgvector 경로는 매번 새 인스턴스를 만든다(커넥션 공유 목적) —
+    `_cached_vector_store` 싱글턴을 오염시키지 않는다."""
+    monkeypatch.setenv("VECTOR_STORE", "pgvector")
+    get_settings.cache_clear()
+    _cached_vector_store.cache_clear()
+
+    class _FakeConnection:
+        pass
+
+    class _FakeSession:
+        def connection(self):
+            return _FakeConnection()
+
+    try:
+        first = get_vector_store(db=_FakeSession())
+        second = get_vector_store(db=_FakeSession())
+        assert isinstance(first, PgVectorStore)
+        assert isinstance(second, PgVectorStore)
+        assert first is not second
+    finally:
+        get_settings.cache_clear()
+        _cached_vector_store.cache_clear()

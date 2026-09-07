@@ -85,3 +85,20 @@ class Academy(Base):
         onupdate=func.now(),
         nullable=False,
     )
+
+
+class AcademyFactRevision(Base):
+    """Studio UPDATE 직전 행 스냅샷. 스키마·트리거는 Alembic `0006` (Postgres).
+
+    academies FK를 두지 않는다 — 학원 행을 지워도 이력으로 되돌릴 수 있게.
+    """
+
+    __tablename__ = "academy_fact_revisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    academy_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    old_row: Mapped[dict] = mapped_column(SubjectsJSON, nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    db_role: Mapped[str] = mapped_column(String(64), nullable=False)

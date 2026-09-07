@@ -2,6 +2,275 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-07 — PR #40 리뷰 픽스: deadline · RLS · Preview 가드 · export · Netlify 문서
+
+- **계기**: PR #40 코드 리뷰. AI 추천이 `build_context` 이후에야 20s reason 예산을
+  열어 embed(최대 ~10s)+LLM 창이 Vercel `maxDuration=30`을 넘길 수 있었고,
+  `academy_fact_revisions`가 Data API에 노출될 수 있었으며, Preview가
+  `BACKEND_ORIGIN`/`DATABASE_URL` 없이 localhost로 조용히 폴백할 수 있었고,
+  `ALLOW_ACADEMY_IMPORT`가 Settings/dotenv와 어긋났으며, export 재실행 시 stale
+  JSON이 남고, 마케팅/README에 Netlify 잔여가 있었다.
+- **결정**:
+  - **요청 전역 deadline**: `recommend()`가 `build_context` **이전**에
+    `deadline = monotonic()+28`을 연다. `_MIN_REASON_CALL_SECONDS=8`(Groq httpx
+    timeout과 동일) — 잔여가 부족하면 LLM을 시작하지 않고 `_fallback_reason`.
+    “항상 maxDuration 안”은 이 전역 예산이 있어야 성립한다.
+  - **`0007` RLS+REVOKE**: `academy_fact_revisions`에 정책 없는 RLS +
+    `REVOKE ALL FROM anon, authenticated`. 감사 테이블 Data API 잠금이며 MVP
+    로그인/`academies` 전체 RLS가 아니다.
+  - **Preview/Production 가드**: `next.config.ts`는 `VERCEL_ENV`가
+    `production`|`preview`이면 `BACKEND_ORIGIN` 필수. Settings는 같은 환경에서
+    `DATABASE_URL` env 필수 + loopback 거부. CI·로컬은 `VERCEL_ENV` 없음 → 기존
+    기본값 유지.
+  - **`ALLOW_ACADEMY_IMPORT`**: Settings `allow_academy_import` + dotenv; import
+    guard는 Settings(또는 kwarg)를 쓴다.
+  - **export stale 정리**: 성공한 쓰기 집합 밖의 대상 디렉터리 `*.json` 삭제.
+  - **Netlify 문서**: 마케팅·README·architecture를 Vercel Production
+    (`ai-academy-advisor-ten.vercel.app`)·Preview 체크 정본으로 맞춤. Founder가
+    Netlify `academykok` Git 연동을 끊어야 PR `netlify/.../deploy-preview` 체크가
+    사라진다(코드로 불가).
+- **바꾸지 않은 것**: provider httpx 타임아웃 상수, embedding/벡터 500 폴백
+  (다음 세션), `academies` RLS, same-origin 프록시, 두 추천 API 분리, 과거
+  decision-log의 Netlify Analytics 당시 기록.
+
+## 2026-09-07 — PR #37·#38·#39·#40 통합 및 문서 정합성 정리
+
+- **계기**: main 기준으로 열려 있던 4개 PR(#37 Studio 가드·/app 탐색 MVP·Vercel
+  프론트 컷오버, #38 Groq 모델 폐기 fallback·CI, #39 /app 키워드 검색, #40 백엔드
+  Railway→Vercel 이전)이 `docs/decision-log.md`·`README.md`·`docs/architecture.md`·
+  `frontend/README.md`·`.env.example`·`frontend/next.config.ts`에서 서로 충돌했고,
+  #37 문서 트리는 #40이 이미 걷어낸 Railway 운영 방식(`NEXT_PUBLIC_API_URL`이
+  Railway를 직접 가리킴, `CORS_ORIGINS`에 Vercel 오리진 등록, `scripts/*railway*`)을
+  정본처럼 서술하고 있었다. 하나의 PR로 합쳐 문서를 현재 상태(Vercel 프론트+백엔드,
+  same-origin 프록시, Railway 없음) 기준으로 다시 정렬한다.
+- **결정**:
+  - 병합 순서: #38 → #40(본 브랜치) → #37 → #39. 코드 충돌은 `frontend/next.config.ts`
+    한 곳뿐이었고(`outputFileTracingRoot` vs `rewrites()`) `rewrites()` 쪽을 채택했다
+    — same-origin 프록시가 CORS를 아예 없애는 #40 결정이 #37의 `outputFileTracingRoot`
+    단독 처리보다 상위 요구사항이기 때문. 나머지 충돌은 모두 문서.
+  - **Railway 문서·스크립트 제거**: README·`frontend/README.md`·`docs/architecture.md`의
+    `NEXT_PUBLIC_API_URL`=Railway URL·`CORS_ORIGINS`에 Vercel 오리진 등록 안내를
+    삭제하고 #40의 same-origin 프록시 절차로 교체했다. `scripts/sync-railway-env.ps1`·
+    `scripts/railway-supabase-cutover.ps1`은 대상 플랫폼이 없어져 삭제했다(Supabase
+    컷오버 자체는 #40 이전에 이미 끝난 별개 결정 — 학원 정본 이전이지 백엔드 호스팅이
+    아니다).
+  - **공개 URL 통일**: 프론트 프로덕션 URL을 `https://ai-academy-advisor-ten.vercel.app`
+    (실제 스모크 테스트를 거친 #40 값)로 통일 — #37의 `ai-academy-advisor.vercel.app`은
+    옛 프로젝트명이다.
+  - **루트 `vercel.json` 제거**: Root Directory를 `frontend`/`backend`로 나눈 2-프로젝트
+    구조(#40)에서는 저장소 루트의 `builds` 지정이 읽히지 않는다 — #37이 추가한
+    `vercel.json`(루트)을 삭제했다.
+  - **AI 추천 타임아웃 예산**: `POST /recommendations/ai`가 embedding 1회 + 항목당
+    LLM 호출(최대 `limit=10`)을 순차 실행하는데, `backend/vercel.json`의
+    `maxDuration=30`보다 provider 호출 타임아웃 합(embed 30s + 최대 10×30s)이 클 수
+    있었다. provider별 httpx 타임아웃을 줄이고, `_build_reason`에 남은 예산이 부족하면
+    LLM을 호출하지 않고 바로 `_fallback_reason`(#38)으로 넘어가는 예산 체크를 추가했다.
+    이후 리뷰 픽스에서 예산을 `build_context` **이전** 요청 전역 28s deadline으로
+    옮기고 MIN을 Groq timeout(8s)에 맞춰, embed+LLM이 겹쳐도 `maxDuration` 안에
+    끝나게 했다(같은 날 “PR #40 리뷰 픽스” 항목).
+  - **PgVectorStore 이중 커넥션**: `app/db/session.py`가 `NullPool`로 바뀐 뒤에도
+    `PgVectorStore`는 자체 `sessionmaker`로 별도 연결을 열어, AI 추천 요청 1건이
+    Supabase 물리 커넥션을 2개(요청 세션 + 벡터 검색) 쓰고 있었다. 요청의 DB
+    커넥션을 공유하도록 바꿔 커넥션 수 절감이라는 NullPool 전환 취지를 실제로
+    지킨다.
+  - **기타 문서 정확성**: `AppShell.tsx`의 목록 로드 실패 메시지가 이제는 무효한
+    `NEXT_PUBLIC_API_URL`을 안내하던 것을 `BACKEND_ORIGIN`/프록시 기준으로 수정.
+    `.env.example`의 "Railway 대시보드에서 설정" 문구를 Vercel 백엔드 프로젝트
+    기준으로 수정. `next.config.ts`는 프로덕션에서 `BACKEND_ORIGIN` 미설정 시
+    조용히 `localhost:8000`으로 폴백하는 대신 build를 실패시키고, trailing slash를
+    제거한다. `.claude/skills/landing-funnel-change/SKILL.md`(및 `.cursor/` 동일본)가
+    가리키던 삭제된 `StickyCtaBar`·존재하지 않는 이벤트 이름·틀린 줄 번호를 코드에
+    맞게 정정했다.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, 학원 JSON/Supabase 정본,
+  provider 포트 구조, 퍼널 라우트.
+
+## 2026-09-07 — Vercel 컷오버 완료·Netlify 폐기·로컬 에이전트 정리
+
+세션 전체를 한 항목으로 남긴다. Railway→Vercel **코드**는 PR #40(2026-09-04 결정)에
+이미 있었고, 이 세션은 **운영 컷오버·문서·gitignore**까지 마무리했다.
+
+- **계기**: Hobby 팀에서 백엔드 Vercel 프로젝트를 올리고, 공개 URL을 Netlify에서
+  떼어 Vercel 단일 정본으로 맞출 시점이었다. 당근 등 유료 광고는 Founder가 이미
+  내려 두어 `academykok.netlify.app`을 유지할 트래픽이 없다.
+
+- **Supabase MCP (로컬만)**: 프로젝트 `.cursor/mcp.json`에 `YOUR_PROJECT_REF`
+  placeholder가 있었다. 로컬에서 ref `xpdyuvydfrdinpobktlx`로 고쳤다.
+  `mcp.json`은 gitignore — 시크릿·로컬 설정을 커밋하지 않는다.
+
+- **gitignore**: `.cursor/*.log`·`mcp.json`·`settings.json`과 범용
+  `.cursor/skills/*`·`.claude/skills/*`를 무시한다. 프로젝트 전용
+  `landing-funnel-change`만 예외로 추적한다.
+
+- **Vercel 컷오버 ops (코드는 PR #40, 이 세션에서 운영 완료)**:
+  - 프론트 Vercel Authentication(SSO) 해제 — 공개 URL이 동작하도록.
+  - Hobby 백엔드 프로젝트 `ai-academy-advisor-backend` 생성 (Root Directory
+    `backend`, id `prj_5vXU0L26Vs8SeTYcBA0T5SqvF0fO`).
+  - 백엔드 Production+Preview에 `DATABASE_URL`(Supabase transaction pooler
+    6543) 설정.
+  - 프론트 Production에
+    `BACKEND_ORIGIN=https://ai-academy-advisor-backend.vercel.app` 설정.
+  - 프로덕션 `NEXT_PUBLIC_API_URL` 제거 — 클라이언트가 `/api/backend`
+    same-origin 프록시를 쓰게 함.
+  - 백엔드 프로젝트 SSO도 해제.
+  - 스모크: `/health` ok, `/academies` 411건, 프론트
+    `/api/backend/academies` 프록시 동작.
+  - 공개 프론트 `https://ai-academy-advisor-ten.vercel.app`, 백엔드
+    `https://ai-academy-advisor-backend.vercel.app`.
+  - CLI 재배포 함정: Root Directory=`frontend`인데 `frontend/`만 올리면
+    실패한다 — **저장소 루트**에서 배포한다.
+
+- **Netlify 폐기**:
+  - 공개 URL 정본은 위 Vercel 프론트. `frontend/netlify.toml` 저장소에서 삭제.
+  - README·architecture·마케팅 문서 URL을 Vercel로 교체. 과거 decision-log의
+    Netlify Analytics 언급은 당시 기록으로 유지.
+  - Founder가 대시보드에서 Netlify 사이트 `academykok`·Git 연동을 삭제한다
+    (저장소만으로는 불가). 카카오 웰컴 버튼 URL도 Vercel로 맞춤(코드 밖).
+  - 광고 재개 시 유입·UTM 분모는 Vercel Analytics(또는 동등 호스트 analytics).
+
+- **Railway**: 검증 창이 끝나면 Founder가 병행 중지를 선택한다(아직 남은 액션).
+
+- **바꾸지 않은 것**: 퍼널 라우트(`/`·`/check`·`/checklists`·`/app`), 추천 API
+  분리, 학원 JSON 정본, 2026-08-21 광고 게이트, NullPool 등 코드 변경은
+  PR #40 머지 전까지 main에 없음.
+
+## 2026-09-04 — 백엔드 호스팅을 Railway에서 Vercel Python Function으로 이전
+
+- **계기**: Railway 무료 크레딧이 소진되면 최소 월 $5(Hobby) 고정비가 발생한다.
+  백엔드는 상태 없는 HTTP API(백그라운드 워커 없음, SSE 미구현, CLI·마이그레이션은
+  이미 로컬에서 Supabase에 직접 실행하는 패턴)라 "항상 켜진 서버"가 구조적으로
+  필요하지 않다 — 서버리스로 옮기기 좋은 형태다. 프론트는 이미 Vercel(Hobby, 무료)에
+  있으니 플랫폼을 하나로 합치면 관리 대상도 줄고 비용도 0에 가깝다.
+- **결정**:
+  - **백엔드 배포**: 프론트와 별도의 Vercel 프로젝트(Root Directory `backend`)로
+    배포한다. `backend/pyproject.toml`의 `[tool.vercel] entrypoint = "app.main:app"`가
+    `app/main.py`의 FastAPI 인스턴스 전체를 서버리스 함수 하나로 서빙한다(라우트별
+    함수 분리 없음). `backend/vercel.json`이 `maxDuration=30`과 `excludeFiles`
+    (alembic 버전·`*.db`)를 지정한다.
+  - **DB 커넥션**: 서버리스는 다수의 짧은 프로세스가 동시에 뜬다 — SQLAlchemy
+    앱 레벨 풀을 유지할 이유가 없고 오히려 Supabase 커넥션 수를 낭비한다.
+    `app/db/session.py`가 `NullPool` + Supabase Supavisor **transaction pooler
+    (포트 6543)** 로 전환됐다. psycopg3의 자동 서버사이드 prepared statement는
+    `prepare_threshold=None`으로 껐다 — transaction 모드 풀러는 문장 단위로 물리
+    커넥션을 재사용하므로, prepare된 문장이 다른 커넥션에서 재실행되며 깨질 수 있다
+    (Supabase 공식 권고). 세션 풀러(5432)는 로컬·alembic 등 오래 사는 프로세스에
+    그대로 쓴다.
+  - **CORS 제거**: `frontend/next.config.ts`의 `rewrites()`가 `/api/backend/*`를
+    서버 전용 env `BACKEND_ORIGIN`(백엔드 프로젝트 URL)으로 프록시한다. 브라우저는
+    항상 같은 오리진만 호출하므로 프로덕션에서 CORS 설정이 아예 필요 없어진다.
+    `frontend/src/lib/api.ts`의 기본 `NEXT_PUBLIC_API_URL`이 `/api/backend`로
+    바뀌었다(오버라이드하면 프록시 우회 가능). FastAPI `CORSMiddleware`는 로컬
+    직접 호출·과거 설정과의 호환을 위해 그대로 둔다(더 이상 load-bearing 아님).
+  - **검증**: 로컬에서 transaction pooler로 전체 pytest·academies/recommendations/ai
+    엔드포인트 스모크, Playwright로 프론트↔백엔드 프록시가 same-origin이고 CORS
+    콘솔 에러가 없음을 확인했다.
+  - **컷오버 절차**: 새 Vercel 프로젝트 배포·검증 → 기존 프론트 Vercel 프로젝트의
+    `NEXT_PUBLIC_API_URL`/`BACKEND_ORIGIN`을 새 백엔드로 전환 → Railway 서비스 중지.
+    Railway는 검증 기간 동안 병행 유지한다(무료 크레딧 소진 전).
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, provider 포트 구조, Supabase
+  운영 정본, `POST/PATCH /academies` 공개 쓰기 API 없음, 로컬 Docker Compose 흐름.
+
+## 2026-09-04 — Groq 모델 폐기 장애: 모델 교체·추천 이유 fallback·CI 도입
+
+- **계기**: Groq가 `llama-3.3-70b-versatile`을 폐기(`model_not_found` 404)해
+  운영 `POST /recommendations/ai`가 **전 요청 500** — 배포된 `/app` 탐색 화면 전체가
+  죽었다. `_build_reason`이 LLM 예외를 그대로 던졌고, pytest를 돌리는 CI가 없어
+  로컬 테스트 실패도 머지를 막지 못하는 상태였다.
+- **결정**:
+  - **모델 교체**: 백엔드 환경변수(당시 Railway, 2026-09-07 PR #40 통합 이후는
+    Vercel 백엔드 프로젝트) `LLM_MODEL=openai/gpt-oss-120b` (현 Groq 키로 확인된
+    가용 모델: `openai/gpt-oss-120b`·`gpt-oss-20b`·`qwen/qwen3.8-27b`). 벤더가
+    모델을 폐기할 수 있다는 전제로 운영한다.
+  - **추천 이유 fallback**: `_build_reason`은 provider 준비/호출 실패를 항목별로
+    삼키고 규칙 기반 문장(`_fallback_reason` — matched/unknown 개수 + relaxed 안내,
+    품질 단정 없음)으로 대체한다. `consultation_service`의 used_fallback 패턴 준용,
+    응답 스키마 불변. 회귀 테스트 2건 추가.
+  - **테스트 격리**: `tests/conftest.py`가 app import 전에
+    `LLM_PROVIDER`/`EMBEDDING_PROVIDER`/`VECTOR_STORE`/`REVIEW_SOURCE`를 stub으로,
+    `DATABASE_URL`을 sqlite로 고정 — 실제 키가 있는 `backend/.env`가 테스트에
+    누출돼 18건이 깨지던 문제 제거. AGENTS.md §8 검증 명령이 어느 기계서든 재현된다.
+  - **CI**: `.github/workflows/ci.yml` — PR·main push마다 backend pytest +
+    frontend `npm run build`.
+  - **Vercel 공개**: Production이 Deployment Protection(SSO) 뒤에 있어 외부 접근
+    불가 — Founder가 대시보드에서 해제한다(코드 밖 액션).
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, `reason: str` 계약,
+  provider 포트 구조(`app/providers/`), 기본값 stub.
+
+## 2026-09-02 — Studio 가드 0006 사전 검사·호스트 CHECK·임포트 스탬프 우회
+
+- **계기**: 코드 리뷰에서 (1) 운영 DB에 `0006` CHECK를 올릴 때 기존 행 위반 시
+  마이그레이션 전체 실패, (2) URL 전체 `LIKE '%instagram.com%'` 오탐,
+  (3) `last_verified_at` 스탬프가 `--force` 임포트의 null 덮어쓰기와 충돌,
+  (4) Railway env 동기화 스크립트가 비밀값을 cmd에서 깨뜨리고 실패를 숨김.
+- **결정**:
+  - **사전 검사**: `0006`은 CHECK 추가 전 `academies_violation_select_sql()`로
+    위반 행을 조회한다. 1건 이상이면 `RuntimeError`(건수 + 샘플 20개) — 데이터는
+    마이그레이션이 고치지 않는다. Studio에서 수정 후 재실행.
+  - **호스트 CHECK**: `website_url` 거부는 netloc 호스트 매칭
+    (`host = marker OR host LIKE '%.marker'`). `notinstagram.com`·쿼리스트링
+    언급은 통과. Python `website_url_has_rejected_host`와 같은 규칙.
+  - **임포트 스탬프**: `app.skip_academy_stamp=1` GUC가 켜진 트랜잭션(임포트만)
+    에서는 스탬프 트리거가 `last_verified_at`을 채우지 않는다. Studio UPDATE는
+    빈 값을 오늘 날짜로 채우는 동작 유지.
+  - **Railway**: `sync-railway-env.ps1`은 `railway variables set --stdin
+    --service backend`로 값을 넘기고 실패 시 throw.
+  - **프론트**: `/app` 재검색 시 이전 후보·질문 초기화, 후보 실패 시 지도 선택
+    해제. 랜딩 `META_DESCRIPTION`·`FOOTER_STATUS_COPY`는 후보 정보 이용 가능과
+    중개·예약·결제 없음을 함께 말한다.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, 공개 쓰기 API 없음,
+  운영 `alembic upgrade`는 Founder가 위반 행 정리 후 실행.
+
+## 2026-09-02 — 공개 프론트 호스팅을 Netlify에서 Vercel로 전환
+
+- **계기**: Next.js 15 App Router 프론트를 Vercel에 두는 편이 빌드·호환성·운영이 단순하다.
+  백엔드는 이미 Railway + Supabase 컷오버가 끝났고, Netlify `academykok.netlify.app`는
+  API URL 미연결·호스팅 이중화만 남은 상태였다.
+- **결정**:
+  - **프론트**: Vercel **Hobby** 팀(`hobby-c52460f4`). Production URL:
+    `https://ai-academy-advisor.vercel.app`. Pro 팀(`chanwoo Lee's projects`)에 있던
+    동명 프로젝트는 삭제 후 Hobby로 이전했다.
+  - **백엔드·DB**: Railway FastAPI · Supabase Postgres 유지. `NEXT_PUBLIC_API_URL`은
+    Railway API를 가리킨다.
+  - **CORS**: Railway `CORS_ORIGINS`에 Vercel Production 오리진 + `http://localhost:3000`.
+    JSON 배열 문자열이며 URL 따옴표 누락 시 앱 기동 실패 전례가 있어 stdin 설정을 권장한다.
+  - **저장소**: `frontend/netlify.toml` 제거. 배포 안내는 [frontend/README.md](frontend/README.md)·
+    루트 [README.md](README.md) Vercel 절.
+  - **Netlify**: Vercel 검증 후 사이트 중지(Founder). 리다이렉트는 당장 두지 않는다.
+  - **마케팅 URL** ([docs/marketing-daangn-kakao.md](marketing-daangn-kakao.md)): 광고 재개 전
+    Vercel URL로 갱신. 당근 유료 광고 게이트(2026-08-21)는 그대로.
+  - **측정**: Netlify Analytics 의존 항목은 대체 수단(Vercel Web Analytics·UTM·`POST /events`)을
+    광고 재개 시점에 검토. 이번 변경만으로 Analytics를 켜지 않는다.
+- **바꾸지 않은 것**: Railway 백엔드 배포 방식(`backend --path-as-root`), Supabase 정본,
+  두 추천 API, `/`·`/check`·`/checklists`·`/app` 라우트.
+
+## 2026-09-01 — 학원 사실 운영 정본을 Supabase Postgres + Studio로 이전
+
+- **계기**: 411곳 학원 사실을 git JSON + PR + 임포트로 고치는 흐름은 일상 운영·사용자
+  신고 대응에 맞지 않는다. 공개 탐색 MVP를 열면 전화·URL·과목 등이 자주 바뀌는데
+  배포 없이 반영할 경로가 필요하다. A3 URL 롤백(같은 날)은 가드 없는 대량 기입
+  위험을 다시 보여 줬다.
+- **결정**:
+  - **운영 정본**: Supabase Postgres `academies` 테이블. Founder는 **Table Editor**로
+    수정한다. FastAPI·추천·LLM·공개 읽기 API는 그대로 둔다.
+  - **git JSON**: 시드 1회 + `export_academies` 백업 덤프. 매일의 정본이 아니다.
+  - **공개 쓰기 API 없음**: `POST/PATCH /academies`는 만들지 않는다. Studio는
+    대시보드 로그인(운영자)만 — 프론트에 service role·anon UPDATE 금지.
+  - **DB 가드 (마이그레이션 `0006`)**: 과목 taxonomy CHECK, 비홈페이지 URL CHECK
+    (`is_homepage_url`과 같은 호스트 목록; 스킴/netloc/`names_match`/블로그 id는 DB에
+    없음), `id` 변경 금지, `registration_number`는 기존 값 변경 금지(NULL 백필은 허용),
+    UPDATE 시 `last_verified_at` 자동 스탬프(비어 있을 때만, 사실 필드는 채우지 않음),
+    `academy_fact_revisions`(old_row JSON·시각·db_role, academies FK 없음).
+    SQL은 `app.core.studio_guards`가 Python과 공유한다. 스키마 변경은 Alembic만.
+  - **임포트 보호**: `import_academies`는 Supabase/Railway 등 운영 URL에서 기본
+    거부. 컷오버·재해복구만 `--force` 또는 `ALLOW_ACADEMY_IMPORT=1`.
+  - **컷오버 절차**: Supabase 프로젝트 + `vector` → 세션 연결(5432) →
+    `alembic upgrade head` → JSON 1회 `--force` import → Railway `DATABASE_URL` 전환.
+  - **Cursor Supabase MCP**: `.cursor/mcp.json`으로 `read_only=true`·`project_ref` 스코프
+    연결. 개발자 조회·검증용(`list_tables`, `execute_sql` SELECT 등). 스키마 정본은 Alembic
+    유지 — MCP `apply_migration`·대량 UPDATE는 쓰지 않음. OAuth 인증, PAT/비밀번호는 repo에
+    넣지 않음.
+- **바꾸지 않은 것**: 두 추천 API 분리, `score` 상대값, engagement DB 직접 쓰기,
+  로그인·RLS를 첫 MVP 사용자 기능으로 도입하지 않음, FastAPI 제거 없음.
+
 ## 2026-09-01 — A3 URL 롤백 및 enrich/apply 가드 강화
 
 - **계기**: A3 `apply_enrich_csv` high 190건 반영 후 감사에서 URL 오탐 다수 확인 — Instagram·카카오채널이 `website_url`에 30건+, 등록명≠`matched_local_title`인데 URL 적용 15건+, 학부모 후기 블로그·타 학원 블로그 id(예: 수학의힘→royalsolar) 등.
@@ -224,8 +493,8 @@
 
   | 버튼 | 연결 |
   | --- | --- |
-  | 체크리스트 보기 | `https://academykok.netlify.app/checklists` |
-  | 학원콕 알아보기 | `https://academykok.netlify.app/` |
+  | 체크리스트 보기 | `https://ai-academy-advisor-ten.vercel.app/checklists` |
+  | 학원콕 알아보기 | `https://ai-academy-advisor-ten.vercel.app/` |
 
   밤 20:55~익일 08:00 친구 추가는 다음날 오전 8시에 웰컴메시지를 받을 수 있으므로, 랜딩에는 “채널 추가 후 웰컴메시지로 보내드려요”라고 적는다.
 

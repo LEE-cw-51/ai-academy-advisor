@@ -8,6 +8,8 @@ LLM_PROVIDER 에서 동기 200회 순차 호출이 난다.
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
@@ -22,6 +24,41 @@ from app.schemas.ai_recommendation import (
 from app.services.recommendation_pipeline import build_context
 from app.services.scoring import ScoredAcademy
 
+logger = logging.getLogger(__name__)
+
+# `backend/vercel.json`의 `maxDuration=30`(서버리스 함수 전체 예산) 대비 여유를 둔다.
+# 요청 시작 시점부터 추적한다 — `build_context`(embed 최대 ~10s) 뒤에야 예산을
+# 열면 embed+LLM 창이 겹쳐 하드캡을 넘을 수 있다. 남은 시간이 Groq httpx
+# timeout(8.0)보다 짧으면 LLM을 시작하지 않고 `_fallback_reason`으로 넘어간다.
+_REQUEST_DEADLINE_SECONDS = 28.0
+_MIN_REASON_CALL_SECONDS = 8.0
+
+
+def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
+    """LLM 실패 시 규칙 기반 이유. 채점 결과만 서술하고 품질을 단정하지 않는다.
+
+    벤더 장애·모델 폐기(2026-09-04 Groq llama-3.3 폐기로 전 요청 500)가
+    나도 탐색 응답 자체는 살아 있어야 한다.
+    """
+    if scored.matched:
+        head = (
+            f"입력하신 조건 중 {len(scored.matched)}개 항목이 "
+            "등록 정보와 맞아 확인해 볼 후보로 정리했습니다."
+        )
+    else:
+        head = (
+            "입력하신 조건과 직접 겹치는 등록 정보는 확인되지 않았지만, "
+            "조건과 관련해 확인해 볼 후보로 정리했습니다."
+        )
+    parts = [head]
+    if scored.unknown:
+        parts.append(
+            f"미확인 항목 {len(scored.unknown)}개는 상담에서 직접 확인해 주세요."
+        )
+    if "region" in relaxed:
+        parts.append("지역 조건이 완화되어 다른 지역의 후보가 포함될 수 있습니다.")
+    return " ".join(parts)
+
 
 def _build_reason(
     academy: AcademySummary,
@@ -29,9 +66,21 @@ def _build_reason(
     evidence: list[ReviewEvidence],
     query: str,
     relaxed: Sequence[str] = (),
+    deadline: float | None = None,
 ) -> str:
-    """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다."""
-    llm = get_llm_provider()
+    """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다.
+
+    LLM 준비/호출 실패는 항목별로 삼키고 `_fallback_reason`으로 대체한다 —
+    consultation_service의 used_fallback 패턴 준용 (응답 스키마는 그대로).
+
+    `deadline`(`time.monotonic()` 기준)이 임박했으면 LLM을 아예 호출하지 않고
+    바로 fallback으로 넘어간다 — `limit`(최대 10)개 항목이 순차 호출이라, 개별
+    provider 타임아웃만으로는 전체 합이 `maxDuration`을 넘을 수 있다.
+    """
+    if deadline is not None and deadline - time.monotonic() < _MIN_REASON_CALL_SECONDS:
+        logger.info("LLM 추천 이유 시간 예산 소진 — fallback으로 대체")
+        return _fallback_reason(scored, relaxed)
+
     facts = f"학원명: {academy.name}, 주소: {academy.address or '미상'}"
     evidence_snippets = [
         (e.content[:500] + "…") if len(e.content) > 500 else e.content
@@ -62,10 +111,20 @@ def _build_reason(
             ),
         },
     ]
-    return llm.chat(messages)
+    try:
+        llm = get_llm_provider()
+        return llm.chat(messages)
+    except Exception:
+        logger.warning(
+            "LLM 추천 이유 생성 실패 — 규칙 기반 fallback으로 대체", exc_info=True
+        )
+        return _fallback_reason(scored, relaxed)
 
 
 def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:
+    # embed/DB/랭킹보다 먼저 요청 전역 deadline을 연다 — build_context 이후에
+    # 예산을 열면 embed(최대 ~10s)와 LLM 창이 겹쳐 maxDuration을 넘길 수 있다.
+    deadline = time.monotonic() + _REQUEST_DEADLINE_SECONDS
     ctx = build_context(db, query, limit=limit)
 
     # ⚠️ limit truncate 후에만 LLM 호출 — 풀 전체를 돌리면 호출이 폭주한다.
@@ -79,6 +138,7 @@ def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:
                 ctx.evidence_by_academy.get(s.academy_id, []),
                 query,
                 relaxed=ctx.relaxed,
+                deadline=deadline,
             ),
             score=s.score,
             evidence_reviews=ctx.evidence_by_academy.get(s.academy_id, []),

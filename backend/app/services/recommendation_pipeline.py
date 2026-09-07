@@ -105,7 +105,7 @@ def _evidence_for(
     Hit.score 는 id 로 lookup 한다. get_reviews_by_ids 가 없는 id 를 조용히
     버리므로 위치 zip 은 어긋날 수 있다.
     """
-    hits = get_vector_store().search(query_embedding, top_k=_EVIDENCE_TOP_K)
+    hits = get_vector_store(db).search(query_embedding, top_k=_EVIDENCE_TOP_K)
     similarity_by_id = {int(h.id): h.score for h in hits if h.id.isdigit()}
     reviews = engagement_repository.get_reviews_by_ids(
         db, list(similarity_by_id)

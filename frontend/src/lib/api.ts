@@ -3,12 +3,17 @@ import type {
   AcademyListResponse,
   AiRecommendationResponse,
   ClickEventPayload,
+  ConsultationRequest,
+  ConsultationResponse,
   CreatedResponse,
   WaitlistPayload,
 } from "./types";
 import { ApiError } from "./types";
 
-const DEFAULT_API_URL = "http://localhost:8000";
+// next.config.ts의 rewrites()가 /api/backend/*를 실제 백엔드로 프록시한다
+// (같은 오리진 — CORS 불필요). NEXT_PUBLIC_API_URL을 지정하면 프록시를
+// 우회해 백엔드를 직접 호출할 수 있다(예: 로컬에서 프론트 없이 API만 테스트).
+const DEFAULT_API_URL = "/api/backend";
 
 export function getApiBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_URL;
@@ -159,6 +164,16 @@ export function requestAiRecommendations(
   return request<AiRecommendationResponse>("/recommendations/ai", {
     method: "POST",
     body: JSON.stringify({ query, limit }),
+  });
+}
+
+/** POST /consultation/questions — 성공은 항상 200. used_fallback이어도 질문 본문을 그대로 쓴다. */
+export function requestConsultationQuestions(
+  payload: ConsultationRequest,
+): Promise<ConsultationResponse> {
+  return request<ConsultationResponse>("/consultation/questions", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

@@ -1,8 +1,8 @@
 # 데이터 디렉터리
 
-이 저장소의 **정본(source of truth)은 `data/academies/`의 JSON 파일**이다.
-DB는 임포터가 재구성하는 파생 저장소이며, 학원 데이터의 추가·수정은 항상
-파일 수정 → PR 리뷰 → 임포트 순서로 진행한다. (쓰기 API는 의도적으로 없음)
+이 디렉터리의 JSON은 **시드·재해복구 덤프**이다. 일상 운영 정본은 Supabase
+Postgres `academies` 테이블이며 Founder는 Studio Table Editor로 수정한다.
+공개 학원 쓰기 API는 없다. (`docs/data-strategy.md`)
 
 ## 파일 구조
 
@@ -33,10 +33,13 @@ DB는 임포터가 재구성하는 파생 저장소이며, 학원 데이터의 �
 ```bash
 cd backend
 uv run python -m app.cli.import_academies ../data/academies --dry-run   # 검증만 (DB 불필요)
-uv run python -m app.cli.import_academies ../data/academies             # DB 업서트
+uv run python -m app.cli.import_academies ../data/academies             # 로컬 Docker/SQLite
+uv run python -m app.cli.import_academies ../data/academies --force     # 운영 DB 컷오버·복구만
+uv run python -m app.cli.export_academies ../data/backups/YYYY-MM-DD    # DB→JSON 백업 (정본 아님)
 ```
 
 - 임포트는 **sync 의미론**: 파일 내용으로 전 필드를 덮어쓴다 (`null` 포함).
+- 운영(Supabase/Railway) URL은 `--force` 또는 `ALLOW_ACADEMY_IMPORT=1` 없이 거부한다.
 - 검색 제안(과목·홈페이지·블로그 URL)은 JSON을 건드리지 않는다.
 
 ```bash

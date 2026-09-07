@@ -1,6 +1,7 @@
-"""정본 데이터 파일(data/academies/*.json) → DB 임포트 로직.
+"""JSON 시드(data/academies/*.json) → DB 임포트 로직.
 
-정본은 git의 JSON 파일이고 DB는 파생 저장소다. 임포트는 sync 의미론을 따른다:
+운영 DB(Supabase)의 `academies` 테이블이 일상 정본이다. git JSON은 시드·백업용이며
+로컬/컷오버 시에만 import_academies로 DB에 반영한다. 임포트는 sync 의미론:
 매치된 행은 파일 내용으로 전 필드를 덮어쓴다 (null 포함).
 """
 
@@ -9,11 +10,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import ValidationError
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.import_guard import academy_import_allowed
 from app.models.academy import Academy
 from app.repositories import academy_repository
 from app.schemas.academy import AcademyRecord
+
+
+class ImportRefusedError(RuntimeError):
+    """운영 DB에 --force 없이 임포트하려 할 때."""
+
 
 _RECORD_FIELDS = tuple(AcademyRecord.model_fields.keys())
 
@@ -82,11 +90,21 @@ def load_records(directory: Path) -> LoadResult:
     return result
 
 
-def import_records(db: Session, records: list[AcademyRecord]) -> ImportReport:
+def import_records(
+    db: Session, records: list[AcademyRecord], *, force: bool = False
+) -> ImportReport:
     """검증된 레코드를 단일 트랜잭션으로 업서트한다."""
+    bind = db.get_bind()
+    database_url = bind.url.render_as_string(hide_password=True)
+    allowed, reason = academy_import_allowed(database_url, force=force)
+    if not allowed:
+        raise ImportRefusedError(reason)
+
     report = ImportReport()
     touched_ids: set[int] = set()
     try:
+        if bind.dialect.name == "postgresql":
+            db.execute(text("SELECT set_config('app.skip_academy_stamp', '1', true)"))
         for record in records:
             existing = _find_existing(db, record, report)
             if existing is None:
