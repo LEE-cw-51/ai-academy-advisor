@@ -33,6 +33,17 @@ logger = logging.getLogger(__name__)
 _REQUEST_DEADLINE_SECONDS = 28.0
 _MIN_REASON_CALL_SECONDS = 8.0
 
+_REASON_SYSTEM_PROMPT = (
+    "학부모의 질문에 맞춰 학원을 추천하는 이유를 근거 리뷰에 기반해 설명한다. "
+    "확인된 사실만 근거로 삼고 미확인 항목은 단정하지 마라. "
+    "근거 리뷰는 검색 결과 스니펫(발췌)이지 리뷰 전문이 아니다 — "
+    "잘린 문장에서 단정적인 결론을 끌어내지 마라. "
+    "relaxed에 포함된 조건(특히 region)은 사용자가 원한 조건이 완화됐다는 "
+    "뜻이므로, 그 지역에 있다고 쓰지 마라. "
+    "전화번호나 URL을 지어내지 마라. 연락처는 화면에 표시된 등록 학원 사실만 "
+    "쓰며, 이유 문장에 전화·웹사이트를 넣지 마라."
+)
+
 
 def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
     """LLM 실패 시 규칙 기반 이유. 채점 결과만 서술하고 품질을 단정하지 않는다.
@@ -94,14 +105,7 @@ def _build_reason(
     messages = [
         {
             "role": "system",
-            "content": (
-                "학부모의 질문에 맞춰 학원을 추천하는 이유를 근거 리뷰에 기반해 설명한다. "
-                "확인된 사실만 근거로 삼고 미확인 항목은 단정하지 마라. "
-                "근거 리뷰는 검색 결과 스니펫(발췌)이지 리뷰 전문이 아니다 — "
-                "잘린 문장에서 단정적인 결론을 끌어내지 마라. "
-                "relaxed에 포함된 조건(특히 region)은 사용자가 원한 조건이 완화됐다는 "
-                "뜻이므로, 그 지역에 있다고 쓰지 마라."
-            ),
+            "content": _REASON_SYSTEM_PROMPT,
         },
         {
             "role": "user",

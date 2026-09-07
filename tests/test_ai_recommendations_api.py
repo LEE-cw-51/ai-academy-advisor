@@ -353,3 +353,15 @@ def test_ai_recommend_skips_llm_when_request_budget_exhausted(
     for item in items:
         assert "확인해 볼 후보" in item["reason"]
         assert "LLM reason that should not appear" not in item["reason"]
+
+
+def test_reason_system_prompt_forbids_invented_contact():
+    """연락처는 등록 사실·UI만 — 이유 문장에 전화/URL을 지어내지 않는다."""
+    from app.services.ai_recommendation_service import _REASON_SYSTEM_PROMPT
+
+    assert "전화번호" in _REASON_SYSTEM_PROMPT
+    assert "URL" in _REASON_SYSTEM_PROMPT
+    assert "지어내" in _REASON_SYSTEM_PROMPT
+    assert "이유 문장" in _REASON_SYSTEM_PROMPT
+    assert "전화" in _REASON_SYSTEM_PROMPT
+    assert "웹사이트" in _REASON_SYSTEM_PROMPT

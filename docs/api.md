@@ -32,7 +32,7 @@
 | `class_type` | `small_group` \| `group` \| `one_on_one` | 수업 형태 (소수정예/그룹/1:1) |
 | `curriculum` | `seonhaeng` \| `naesin` \| `suneung` | 커리큘럼 (선행/내신/수능) |
 | `shuttle` | `true` \| `false` | 차량운행. `false`는 "확인된 미운행"만 (미확인 제외) |
-| `q` | 문자열 | 학원명·주소 부분 일치 검색 |
+| `q` | 문자열 | 학원명·주소·전화 부분 일치 검색 (`website_url`/`blog_url`은 검색 키 아님) |
 | `limit` | 1–100 (기본 20) | 페이지 크기 |
 | `offset` | ≥0 (기본 0) | 페이지 시작 |
 

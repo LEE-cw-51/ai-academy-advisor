@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
-import { fetchAllAcademies } from "@/lib/api";
-import type { AcademySummary, AiRecommendationItem } from "@/lib/types";
+import { fetchAllAcademies, trackEvent } from "@/lib/api";
+import type {
+  AcademySummary,
+  AiRecommendationItem,
+  ClickEventType,
+} from "@/lib/types";
+import { AcademyDetailModal } from "./AcademyDetailModal";
 import { ChatPanel } from "./ChatPanel";
 import { MapPanel } from "./MapPanel";
 import {
@@ -32,6 +37,7 @@ export function AppShell() {
   const [activeQuery, setActiveQuery] = useState("");
   const [searchTotal, setSearchTotal] = useState<number | null>(null);
   const [searching, setSearching] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   // 초기 로드와 키워드 검색이 같은 경로를 쓴다 — GET /academies(?q=).
   // 최신 응답이 이긴다(늦게 온 이전 요청이 덮어써도 다음 검색으로 복구 가능한 MVP 동작).
@@ -75,6 +81,21 @@ export function AppShell() {
   const onSelect = useCallback((id: number | null) => {
     setSelectedId(id);
   }, []);
+
+  const onOpenDetail = useCallback((id: number) => {
+    setSelectedId(id);
+    setDetailId(id);
+  }, []);
+
+  const closeDetail = useCallback(() => setDetailId(null), []);
+
+  async function handleTrack(academyId: number, event: ClickEventType) {
+    try {
+      await trackEvent({ academy_id: academyId, event });
+    } catch {
+      // tracking should not block UX
+    }
+  }
 
   const onSearchSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -122,6 +143,7 @@ export function AppShell() {
             onResults={onResults}
             onSelectAcademy={onSelect}
             selectedAcademyId={selectedId}
+            onOpenDetail={onOpenDetail}
           />
         </section>
         <section className="min-h-[420px] rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5">
@@ -162,9 +184,16 @@ export function AppShell() {
             academies={mapAcademies}
             selectedId={selectedId}
             onSelect={onSelect}
+            onOpenDetail={onOpenDetail}
           />
         </section>
       </div>
+
+      <AcademyDetailModal
+        academyId={detailId}
+        onClose={closeDetail}
+        onTrack={(academyId, event) => void handleTrack(academyId, event)}
+      />
     </div>
   );
 }

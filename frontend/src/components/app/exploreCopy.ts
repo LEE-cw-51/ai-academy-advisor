@@ -31,8 +31,8 @@ export const NO_CANDIDATES =
   "조건에 맞는 후보 정보를 찾지 못했어요. 조건을 조금 바꿔 다시 검색해 보세요.";
 export const MAP_HEADING = "지도";
 
-// 키워드 검색 — 기존 GET /academies?q=(학원명·주소 부분 일치)를 그대로 쓴다.
-export const SEARCH_PLACEHOLDER = "학원명·주소로 검색 (예: 미사강변, 수학)";
+// 키워드 검색 — 기존 GET /academies?q=(학원명·주소·전화 부분 일치)를 그대로 쓴다.
+export const SEARCH_PLACEHOLDER = "학원명·주소·전화로 검색 (예: 미사강변, 수학)";
 export const SEARCH_LABEL = "검색";
 export const SEARCH_CLEAR_LABEL = "전체 보기";
 export const SEARCH_NO_RESULTS =
