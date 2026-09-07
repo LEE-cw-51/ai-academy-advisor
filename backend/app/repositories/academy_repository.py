@@ -39,7 +39,11 @@ def _apply_filters(stmt: Select, params: AcademyListParams) -> Select:
     if params.q is not None:
         pattern = f"%{params.q}%"
         stmt = stmt.where(
-            or_(Academy.name.ilike(pattern), Academy.address.ilike(pattern))
+            or_(
+                Academy.name.ilike(pattern),
+                Academy.address.ilike(pattern),
+                Academy.phone.ilike(pattern),
+            )
         )
     return stmt
 
@@ -134,7 +138,11 @@ def list_candidates(
     if params.q is not None:
         pattern = f"%{params.q}%"
         stmt = stmt.where(
-            or_(Academy.name.ilike(pattern), Academy.address.ilike(pattern))
+            or_(
+                Academy.name.ilike(pattern),
+                Academy.address.ilike(pattern),
+                Academy.phone.ilike(pattern),
+            )
         )
 
     order_clauses: list = []

@@ -49,6 +49,7 @@ interface MapPanelProps {
   academies: AcademySummary[];
   selectedId: number | null;
   onSelect: (id: number) => void;
+  onOpenDetail: (id: number) => void;
 }
 
 const SCRIPT_TIMEOUT_MS = 10_000;
@@ -93,7 +94,12 @@ function loadNaverScript(clientId: string): Promise<void> {
   });
 }
 
-export function MapPanel({ academies, selectedId, onSelect }: MapPanelProps) {
+export function MapPanel({
+  academies,
+  selectedId,
+  onSelect,
+  onOpenDetail,
+}: MapPanelProps) {
   const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.trim() ?? "";
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<NaverMapInstance | null>(null);
@@ -235,11 +241,14 @@ export function MapPanel({ academies, selectedId, onSelect }: MapPanelProps) {
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => onSelect(a.id)}
+                onClick={() => onOpenDetail(a.id)}
               >
                 <p className="font-medium text-ink">{a.name}</p>
                 {a.address ? (
                   <p className="mt-0.5 text-xs text-ink-subtle">{a.address}</p>
+                ) : null}
+                {a.phone ? (
+                  <p className="mt-0.5 text-xs text-ink-subtle">{a.phone}</p>
                 ) : null}
               </Card>
             </li>

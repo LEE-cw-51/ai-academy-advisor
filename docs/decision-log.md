@@ -2,6 +2,37 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-07 — 객관 정보 우선 검색 1단계
+
+- **계기**: 공개 탐색 MVP에서 사용자가 학원명·주소·전화 같은 **확인된 사실**로 찾고,
+  화면에 보이는 연락처도 DB 컬럼만 쓰도록 맞출 필요가 있었다. 임베딩/벡터 실패 시
+  500 경로와 UI 지도 카드·상세 모달은 범위가 커서 단계를 나눈다.
+- **결정 (1단계 — 완료)**:
+  - 검색·표시의 1단계는 `academies` 테이블의 구조화 사실 컬럼만 사용한다.
+  - `GET /academies`·추천 경로의 `q`는 학원명·주소·**전화** ILIKE 부분 일치.
+    `website_url`/`blog_url`은 검색 키가 아니다.
+  - AI reason 프롬프트는 전화·URL을 **지어내지 않는다** — DB에 있는 값만 근거로 쓴다.
+  - `POST /recommendations`(하드 필터)와 `POST /recommendations/ai`(소프트 랭킹)는
+    계속 분리된 두 계약이다.
+- **다음 세션 (2단계)**: embedding/벡터 실패 시 폴백(검색 파이프라인이 500으로
+  끝나지 않게). 프론트 지도 카드·상세 모달의 사실 우선 표시는 진행 중일 수 있으며
+  API/결정 문서는 1단계 기준으로 먼저 맞춘다.
+- **바꾸지 않은 것**: 벡터/임베딩 파이프라인 본문, 두 추천 API 통합, website/blog를
+  `q`에 넣는 것.
+
+## 2026-09-07 — 호스팅 컷오버 ops 완료 (Netlify·Railway·0007·Preview)
+
+- **계기**: Vercel 단일 호스트 전환 후 Founder 대시보드 잔여 액션과 Alembic
+  `0007` 적용이 문서에 “남은 일”로만 남아 있었다.
+- **결정 / 완료**:
+  - Netlify `academykok` Git 연동 해제(사이트 폐기).
+  - Railway 백엔드 서비스 중지 — 공개 트래픽은 Vercel만.
+  - 프론트 Vercel Preview에 `BACKEND_ORIGIN`(프로덕션 백엔드 URL) 설정·재배포.
+  - Supabase에 `alembic upgrade` → `0007`(감사 테이블 RLS+REVOKE) 적용. 로컬
+    `.env`는 Session(5432), Vercel backend는 Transaction(6543) 유지.
+- **다음 세션**: `recommendation_pipeline` 임베딩/벡터 실패 시 500 경로
+  (검색 파이프라인 점검과 함께).
+
 ## 2026-09-07 — PR #40 리뷰 픽스: deadline · RLS · Preview 가드 · export · Netlify 문서
 
 - **계기**: PR #40 코드 리뷰. AI 추천이 `build_context` 이후에야 20s reason 예산을
@@ -28,7 +59,7 @@
   - **Netlify 문서**: 마케팅·README·architecture를 Vercel Production
     (`ai-academy-advisor-ten.vercel.app`)·Preview 체크 정본으로 맞춤. Founder가
     Netlify `academykok` Git 연동을 끊어야 PR `netlify/.../deploy-preview` 체크가
-    사라진다(코드로 불가).
+    사라진다(코드로 불가) → 같은 날 ops 항목에서 연동 해제 완료.
 - **바꾸지 않은 것**: provider httpx 타임아웃 상수, embedding/벡터 500 폴백
   (다음 세션), `academies` RLS, same-origin 프록시, 두 추천 API 분리, 과거
   decision-log의 Netlify Analytics 당시 기록.
@@ -125,9 +156,11 @@
     Netlify Analytics 언급은 당시 기록으로 유지.
   - Founder가 대시보드에서 Netlify 사이트 `academykok`·Git 연동을 삭제한다
     (저장소만으로는 불가). 카카오 웰컴 버튼 URL도 Vercel로 맞춤(코드 밖).
+    → **2026-09-07 완료**(같은 날 “호스팅 컷오버 ops 완료” 항목).
   - 광고 재개 시 유입·UTM 분모는 Vercel Analytics(또는 동등 호스트 analytics).
 
-- **Railway**: 검증 창이 끝나면 Founder가 병행 중지를 선택한다(아직 남은 액션).
+- **Railway**: 검증 창이 끝나면 Founder가 병행 중지를 선택한다.
+  → **2026-09-07 완료**(같은 날 “호스팅 컷오버 ops 완료” 항목).
 
 - **바꾸지 않은 것**: 퍼널 라우트(`/`·`/check`·`/checklists`·`/app`), 추천 API
   분리, 학원 JSON 정본, 2026-08-21 광고 게이트, NullPool 등 코드 변경은

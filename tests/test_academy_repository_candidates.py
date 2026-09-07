@@ -65,6 +65,31 @@ def test_q_is_hard_filter(db_session):
     assert names == ["가온수학"]
 
 
+def test_q_matches_name_address_and_phone(db_session):
+    _seed(
+        db_session,
+        [
+            Academy(name="가온수학", address="미사대로 1", phone="031-555-0101"),
+            Academy(name="나래영어", address="망월동 2", phone="031-555-0202"),
+            Academy(name="다온과학", address="덕풍동 3", phone=None),
+        ],
+    )
+    by_name = academy_repository.list_candidates(
+        db_session, RecommendationRequest(q="나래", limit=20)
+    )
+    assert [r.name for r in by_name] == ["나래영어"]
+
+    by_address = academy_repository.list_candidates(
+        db_session, RecommendationRequest(q="망월", limit=20)
+    )
+    assert [r.name for r in by_address] == ["나래영어"]
+
+    by_phone = academy_repository.list_candidates(
+        db_session, RecommendationRequest(q="555-0101", limit=20)
+    )
+    assert [r.name for r in by_phone] == ["가온수학"]
+
+
 def test_pool_limit_respected(db_session):
     _seed(
         db_session,

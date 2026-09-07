@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge, Chip } from "@/components/ui";
 import {
   requestAiRecommendations,
@@ -14,7 +14,6 @@ import type {
   ConsultationQuestion,
 } from "@/lib/types";
 import { ApiError } from "@/lib/types";
-import { AcademyDetailModal } from "./AcademyDetailModal";
 import {
   CANDIDATES_ERROR,
   CANDIDATES_HEADING,
@@ -47,6 +46,7 @@ interface ChatPanelProps {
   onResults: (items: AiRecommendationItem[]) => void;
   onSelectAcademy: (id: number | null) => void;
   selectedAcademyId: number | null;
+  onOpenDetail: (id: number) => void;
 }
 
 function buildQuery(parts: {
@@ -71,6 +71,7 @@ export function ChatPanel({
   onResults,
   onSelectAcademy,
   selectedAcademyId,
+  onOpenDetail,
 }: ChatPanelProps) {
   const [grade, setGrade] = useState<string | null>("중2");
   const [school, setSchool] = useState("");
@@ -86,7 +87,6 @@ export function ChatPanel({
   const [questions, setQuestions] = useState<ConsultationQuestion[]>([]);
   const [questionsDisclaimer, setQuestionsDisclaimer] = useState("");
   const [relaxed, setRelaxed] = useState<string[]>([]);
-  const [detailId, setDetailId] = useState<number | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const query = useMemo(
@@ -180,8 +180,6 @@ export function ChatPanel({
       // tracking should not block UX
     }
   }
-
-  const closeDetail = useCallback(() => setDetailId(null), []);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
@@ -355,10 +353,7 @@ export function ChatPanel({
                 item={item}
                 selected={selectedAcademyId === item.academy.id}
                 onSelect={() => onSelectAcademy(item.academy.id)}
-                onShowDetail={() => {
-                  onSelectAcademy(item.academy.id);
-                  setDetailId(item.academy.id);
-                }}
+                onShowDetail={() => onOpenDetail(item.academy.id)}
                 onTrack={(event) => void handleTrack(item.academy.id, event)}
               />
             ))}
@@ -373,12 +368,6 @@ export function ChatPanel({
           <p className="text-sm text-ink-subtle">{EMPTY_RESULTS}</p>
         ) : null}
       </div>
-
-      <AcademyDetailModal
-        academyId={detailId}
-        onClose={closeDetail}
-        onTrack={(academyId, event) => void handleTrack(academyId, event)}
-      />
     </div>
   );
 }

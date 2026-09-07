@@ -157,9 +157,43 @@ def test_app_shell_keyword_search_uses_existing_academies_q():
     assert "searchResultCount" in shell  # total 기반 "검색 결과 N개 학원"
     assert "fetchAllAcademies" in shell
 
+    assert 'SEARCH_PLACEHOLDER = "학원명·주소·전화로 검색 (예: 미사강변, 수학)"' in copy
     assert 'SEARCH_CLEAR_LABEL = "전체 보기"' in copy
     assert "검색 결과 ${total}개 학원" in copy
 
     # 검색 전용 신규 엔드포인트를 만들지 않았는지 — /academies만 사용.
     assert "/academies" in api
     assert "/search" not in api
+
+
+def test_map_list_card_shows_phone_and_opens_canonical_detail():
+    """지도 목록은 정본 전화만 보여주고, 카드 클릭은 GET /academies/{id} 상세 모달을 연다."""
+    map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
+    shell = APP_SHELL.read_text(encoding="utf-8")
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    modal = DETAIL_MODAL.read_text(encoding="utf-8")
+    types = TYPES_TS.read_text(encoding="utf-8")
+    api = API_TS.read_text(encoding="utf-8")
+
+    assert "a.phone" in map_panel
+    assert "onOpenDetail" in map_panel
+    # 마커는 하이라이트만, 목록 카드가 상세를 연다.
+    assert "onClick={() => onOpenDetail(a.id)}" in map_panel
+    assert "website_url" not in map_panel
+    assert "blog_url" not in map_panel
+
+    assert "AcademyDetailModal" in shell
+    assert "onOpenDetail" in shell
+    assert "AcademyDetailModal" not in chat
+
+    assert "fetchAcademyDetail" in modal
+    assert "UNCONFIRMED_VALUE" in modal
+    assert "`/academies/${academyId}`" in api
+
+    summary, _, rest = types.partition("export interface AcademySummary")
+    summary_block, _, detail_block = rest.partition("export interface AcademyDetail")
+    assert "phone" in summary_block
+    assert "website_url" not in summary_block
+    assert "blog_url" not in summary_block
+    assert "website_url" in detail_block
+    assert "blog_url" in detail_block

@@ -102,12 +102,14 @@ def test_filters_combine_with_and(client, db_session):
     assert names(response) == ["나래수학(예시)"]
 
 
-def test_q_matches_name_and_address(client, db_session):
+def test_q_matches_name_address_and_phone(client, db_session):
     seed_academies(db_session)
     by_name = client.get("/academies", params={"q": "나래"})
     assert names(by_name) == ["나래수학(예시)"]
     by_address = client.get("/academies", params={"q": "망월"})
     assert names(by_address) == ["다온수학(예시)"]
+    by_phone = client.get("/academies", params={"q": "000-0101"})
+    assert names(by_phone) == ["가온수학(예시)"]
 
 
 def test_pagination_limit_offset_total(client, db_session):
