@@ -138,7 +138,8 @@ POST /recommendations
 `docs/decision-log.md`). LLM은 여전히 config로 별도 선택(`LLM_PROVIDER=groq` 등).
 실제 provider로 전환한 뒤에도 `Review.embedding`을 채우는 백필 CLI
 (`uv run python -m app.cli.ingest_review_embeddings`)를 먼저 실행하지 않았다면
-`evidence_reviews`가 빈 배열일 수 있다.
+`evidence_reviews`가 빈 배열일 수 있다. 임베딩 또는 벡터 검색이 실패해도 items는
+학원 사실 후보로 200 반환되며 `evidence_reviews`만 빈 배열이다.
 
 | 필드 | 값 | 의미 |
 |---|---|---|

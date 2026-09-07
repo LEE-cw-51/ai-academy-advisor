@@ -2,6 +2,20 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-08 — 객관 정보 검색 2단계
+
+- **계기**: 1단계는 학원 사실(`q` 전화 ILIKE, 지도/상세 DB 컬럼, AI 연락처 날조 금지)을
+  우선했다. 그러나 `build_context` 5단계(임베딩+벡터)는 예외를 안 잡아, OpenAI 임베딩
+  장애나 pgvector 오류가 나면 학원 사실 후보가 있어도 `POST /recommendations/ai`가
+  500이었다. LLM 이유 생성은 이미 `_fallback_reason`으로 200을 유지한다.
+- **결정**: RAG(임베딩 + 벡터 검색)만 폴백한다. 실패 시 warning(`exc_info=True`) 후
+  `evidence_by_academy` / `similarity` / `evidence_counts`를 빈 값으로 두고 학원 사실만으로
+  `scoring.rank`를 이어간다. 응답 스키마는 그대로 — `evidence_reviews: []`. 새 필드
+  (`used_fallback`)는 넣지 않는다. 빈 배열이 이미 그 신호다. 후보 풀·채점·SearchHistory
+  실패는 계속 500.
+- **바꾸지 않은 것**: 1단계 프론트(지도 카드·상세 모달), 두 추천 API 통합,
+  website/blog를 `q`에 넣는 것, 벡터 엔진 교체.
+
 ## 2026-09-07 — 객관 정보 우선 검색 1단계
 
 - **계기**: 공개 탐색 MVP에서 사용자가 학원명·주소·전화 같은 **확인된 사실**로 찾고,

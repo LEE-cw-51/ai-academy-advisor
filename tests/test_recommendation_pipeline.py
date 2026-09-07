@@ -69,6 +69,34 @@ def test_scoring_uses_original_request_after_region_relax(db_session):
     assert all("region" in s.conflicts for s in ctx.scored)
 
 
+class _ExplodingVectorStore:
+    """pgvector 장애 시뮬레이션 — search가 항상 실패한다."""
+
+    def search(self, query_embedding, top_k=5):
+        raise RuntimeError("pgvector unavailable")
+
+
+def test_build_context_keeps_candidates_when_vector_search_fails(
+    db_session, monkeypatch
+):
+    """벡터 검색이 죽어도 학원 사실 후보는 남고 근거만 비운다."""
+    _seed(
+        db_session,
+        [Academy(name="가온수학", address="경기도 하남시 미사대로 1")],
+    )
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline.get_vector_store",
+        lambda db=None: _ExplodingVectorStore(),
+    )
+    ctx = build_context(db_session, "미사 수학학원", limit=3)
+    assert ctx.scored
+    assert ctx.academies_by_id
+    assert ctx.evidence_by_academy == {}
+    rows = db_session.query(SearchHistory).all()
+    assert len(rows) == 1
+    assert rows[0].query == "미사 수학학원"
+
+
 def test_prev_filters_overridden_by_new_query(db_session):
     _seed(
         db_session,

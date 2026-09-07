@@ -6,6 +6,7 @@ P2(POST /chat SSE)는 세션이 닫힌 뒤 스트리밍하므로 이 전제가 �
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from app.schemas.academy import AcademySummary, RecommendationRequest
 from app.schemas.ai_recommendation import ReviewEvidence
 from app.services import intent, scoring
 from app.services.scoring import ScoredAcademy
+
+logger = logging.getLogger(__name__)
 
 _EVIDENCE_TOP_K = 5
 
@@ -113,6 +116,42 @@ def _evidence_for(
     return [(r, similarity_by_id[r.id]) for r in reviews]
 
 
+def _load_review_evidence(
+    db: Session, query: str
+) -> tuple[
+    dict[int, list[ReviewEvidence]],
+    dict[int, float],
+    dict[int, int],
+]:
+    """임베딩 + 벡터 검색으로 학원별 근거·유사도·건수를 모은다.
+
+    이 단계만 폴백한다. 임베딩/벡터 장애가 학원 사실 후보를 500으로 죽이지 않게
+    빈 dict 세 개를 돌려주고 채점은 사실만으로 이어간다. 후보 풀·SearchHistory는
+    여기서 감싸지 않는다.
+    """
+    try:
+        query_embedding = get_embedding_provider().embed([query])[0]
+        evidence_by_academy: dict[int, list[ReviewEvidence]] = {}
+        similarity_by_academy: dict[int, float] = {}
+        evidence_counts: dict[int, int] = {}
+        for review, sim in _evidence_for(db, query_embedding):
+            evidence_by_academy.setdefault(review.academy_id, []).append(
+                ReviewEvidence.model_validate(review)
+            )
+            evidence_counts[review.academy_id] = evidence_counts.get(
+                review.academy_id, 0
+            ) + 1
+            prev = similarity_by_academy.get(review.academy_id)
+            if prev is None or sim > prev:
+                similarity_by_academy[review.academy_id] = sim
+        return evidence_by_academy, similarity_by_academy, evidence_counts
+    except Exception:
+        logger.warning(
+            "RAG 근거 검색 실패 — 학원 사실만으로 채점 계속", exc_info=True
+        )
+        return {}, {}, {}
+
+
 def build_context(
     db: Session,
     query: str,
@@ -134,21 +173,10 @@ def build_context(
     candidates, relaxed = _candidate_pool(db, req, subjects, pool_limit)
     academies_by_id = {a.id: a for a in candidates}
 
-    # 5. RAG 근거 + 학원별 최고 유사도
-    query_embedding = get_embedding_provider().embed([query])[0]
-    evidence_by_academy: dict[int, list[ReviewEvidence]] = {}
-    similarity_by_academy: dict[int, float] = {}
-    evidence_counts: dict[int, int] = {}
-    for review, sim in _evidence_for(db, query_embedding):
-        evidence_by_academy.setdefault(review.academy_id, []).append(
-            ReviewEvidence.model_validate(review)
-        )
-        evidence_counts[review.academy_id] = evidence_counts.get(
-            review.academy_id, 0
-        ) + 1
-        prev = similarity_by_academy.get(review.academy_id)
-        if prev is None or sim > prev:
-            similarity_by_academy[review.academy_id] = sim
+    # 5. RAG 근거 + 학원별 최고 유사도 (실패 시 빈 근거로 사실 채점만 이어감)
+    evidence_by_academy, similarity_by_academy, evidence_counts = (
+        _load_review_evidence(db, query)
+    )
 
     # 6. 원본 req 로 채점 (완화해도 conflicts 에 region 등이 남는다)
     scored = scoring.rank(
