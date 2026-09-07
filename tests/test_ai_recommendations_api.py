@@ -296,3 +296,60 @@ def test_ai_recommend_falls_back_when_provider_init_fails(
     response = client.post("/recommendations/ai", json={"query": "수학"})
     assert response.status_code == 200
     assert all(item["reason"] for item in response.json()["items"])
+
+
+class _TrackingLLM:
+    """chat 호출 여부를 기록한다."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def chat(self, messages):
+        self.calls += 1
+        return "LLM reason that should not appear"
+
+
+def test_ai_recommend_skips_llm_when_request_budget_exhausted(
+    client, db_session, monkeypatch
+):
+    """요청 전역 deadline 잔여 < MIN_REASON(8s)이면 LLM을 시작하지 않고 fallback."""
+    import app.services.ai_recommendation_service as svc
+
+    seed_academies(db_session)
+    llm = _TrackingLLM()
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: llm,
+    )
+    # deadline = monotonic() + (-100) → _build_reason 시점에 잔여가 이미 MIN 미만
+    monkeypatch.setattr(svc, "_REQUEST_DEADLINE_SECONDS", -100.0)
+
+    order: list[str] = []
+    real_build = svc.build_context
+
+    def tracked_build(*args, **kwargs):
+        order.append("build_context")
+        return real_build(*args, **kwargs)
+
+    real_monotonic = svc.time.monotonic
+
+    def tracked_monotonic() -> float:
+        # recommend()의 첫 monotonic은 deadline 개설 — build_context보다 앞서야 한다.
+        if "deadline" not in order:
+            order.append("deadline")
+        return real_monotonic()
+
+    monkeypatch.setattr(svc, "build_context", tracked_build)
+    monkeypatch.setattr(svc.time, "monotonic", tracked_monotonic)
+
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    assert order[:2] == ["deadline", "build_context"]
+    items = response.json()["items"]
+    assert items
+    assert llm.calls == 0
+    for item in items:
+        assert "확인해 볼 후보" in item["reason"]
+        assert "LLM reason that should not appear" not in item["reason"]

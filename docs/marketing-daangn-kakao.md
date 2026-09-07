@@ -10,9 +10,11 @@
 
 > **현재 공개 범위:** 학원콕은 정식 출시 전의 소개용 랜딩이다. 지금 제공하는 것은 상담 전 확인 질문과 1분 학원 점검이며, 등록 전 맞춤 추천은 정식 출시 후 제공 예정이다. 아래 문구는 실제 학원 추천·상담 연결·성적 향상을 현재형으로 약속하지 않는다. [1] [2]
 
-> **공개 URL (2026-09-02):** 프론트 호스팅은 Netlify에서 **Vercel**로 옮겼다. 아래 표·링크의
-> `academykok.netlify.app`는 **광고 재개 전** Vercel Production URL로 바꿀 것이다. 당근 광고
-> 게이트가 열리기 전까지는 문서 내 URL을 그대로 두어도 집행하지 않는다.
+> **공개 URL (2026-09-07):** 프론트 정본은 **Vercel** Production
+> `https://ai-academy-advisor-ten.vercel.app`이다. 아래 표·링크도 이 URL을 쓴다.
+> 옛 Netlify(`academykok.netlify.app`)는 쓰지 않는다 — Founder가 Netlify Git 연동을
+> 끊어야 PR의 `netlify/.../deploy-preview` 체크가 사라진다. 당근 광고 게이트가
+> 열리기 전까지는 문서 내 URL을 집행에 쓰지 않는다.
 
 ## 1. 메시지 전략
 

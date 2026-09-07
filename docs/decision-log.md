@@ -2,6 +2,37 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-07 — PR #40 리뷰 픽스: deadline · RLS · Preview 가드 · export · Netlify 문서
+
+- **계기**: PR #40 코드 리뷰. AI 추천이 `build_context` 이후에야 20s reason 예산을
+  열어 embed(최대 ~10s)+LLM 창이 Vercel `maxDuration=30`을 넘길 수 있었고,
+  `academy_fact_revisions`가 Data API에 노출될 수 있었으며, Preview가
+  `BACKEND_ORIGIN`/`DATABASE_URL` 없이 localhost로 조용히 폴백할 수 있었고,
+  `ALLOW_ACADEMY_IMPORT`가 Settings/dotenv와 어긋났으며, export 재실행 시 stale
+  JSON이 남고, 마케팅/README에 Netlify 잔여가 있었다.
+- **결정**:
+  - **요청 전역 deadline**: `recommend()`가 `build_context` **이전**에
+    `deadline = monotonic()+28`을 연다. `_MIN_REASON_CALL_SECONDS=8`(Groq httpx
+    timeout과 동일) — 잔여가 부족하면 LLM을 시작하지 않고 `_fallback_reason`.
+    “항상 maxDuration 안”은 이 전역 예산이 있어야 성립한다.
+  - **`0007` RLS+REVOKE**: `academy_fact_revisions`에 정책 없는 RLS +
+    `REVOKE ALL FROM anon, authenticated`. 감사 테이블 Data API 잠금이며 MVP
+    로그인/`academies` 전체 RLS가 아니다.
+  - **Preview/Production 가드**: `next.config.ts`는 `VERCEL_ENV`가
+    `production`|`preview`이면 `BACKEND_ORIGIN` 필수. Settings는 같은 환경에서
+    `DATABASE_URL` env 필수 + loopback 거부. CI·로컬은 `VERCEL_ENV` 없음 → 기존
+    기본값 유지.
+  - **`ALLOW_ACADEMY_IMPORT`**: Settings `allow_academy_import` + dotenv; import
+    guard는 Settings(또는 kwarg)를 쓴다.
+  - **export stale 정리**: 성공한 쓰기 집합 밖의 대상 디렉터리 `*.json` 삭제.
+  - **Netlify 문서**: 마케팅·README·architecture를 Vercel Production
+    (`ai-academy-advisor-ten.vercel.app`)·Preview 체크 정본으로 맞춤. Founder가
+    Netlify `academykok` Git 연동을 끊어야 PR `netlify/.../deploy-preview` 체크가
+    사라진다(코드로 불가).
+- **바꾸지 않은 것**: provider httpx 타임아웃 상수, embedding/벡터 500 폴백
+  (다음 세션), `academies` RLS, same-origin 프록시, 두 추천 API 분리, 과거
+  decision-log의 Netlify Analytics 당시 기록.
+
 ## 2026-09-07 — PR #37·#38·#39·#40 통합 및 문서 정합성 정리
 
 - **계기**: main 기준으로 열려 있던 4개 PR(#37 Studio 가드·/app 탐색 MVP·Vercel
@@ -33,8 +64,10 @@
     LLM 호출(최대 `limit=10`)을 순차 실행하는데, `backend/vercel.json`의
     `maxDuration=30`보다 provider 호출 타임아웃 합(embed 30s + 최대 10×30s)이 클 수
     있었다. provider별 httpx 타임아웃을 줄이고, `_build_reason`에 남은 예산이 부족하면
-    LLM을 호출하지 않고 바로 `_fallback_reason`(#38)으로 넘어가는 예산 체크를 추가했다
-    — 항상 `maxDuration` 안에서 끝난다.
+    LLM을 호출하지 않고 바로 `_fallback_reason`(#38)으로 넘어가는 예산 체크를 추가했다.
+    이후 리뷰 픽스에서 예산을 `build_context` **이전** 요청 전역 28s deadline으로
+    옮기고 MIN을 Groq timeout(8s)에 맞춰, embed+LLM이 겹쳐도 `maxDuration` 안에
+    끝나게 했다(같은 날 “PR #40 리뷰 픽스” 항목).
   - **PgVectorStore 이중 커넥션**: `app/db/session.py`가 `NullPool`로 바뀐 뒤에도
     `PgVectorStore`는 자체 `sessionmaker`로 별도 연결을 열어, AI 추천 요청 1건이
     Supabase 물리 커넥션을 2개(요청 세션 + 벡터 검색) 쓰고 있었다. 요청의 DB

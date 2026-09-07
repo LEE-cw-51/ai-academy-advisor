@@ -26,6 +26,13 @@ MIGRATION_PATH = (
     / "versions"
     / "0006_academy_studio_guards.py"
 )
+MIGRATION_0007_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "0007_academy_fact_revisions_rls.py"
+)
 
 
 def test_subjects_check_allows_null_and_taxonomy():
@@ -101,6 +108,17 @@ def test_migration_0006_imports_studio_guards():
     add_at = source.index("ADD CONSTRAINT ck_academies_subjects_taxonomy")
     assert source.index("academies_violation_select_sql") < add_at
     assert source.index("RuntimeError") < add_at
+
+
+def test_migration_0007_locks_fact_revisions_from_data_api():
+    """감사 테이블 Data API 잠금 — 정책 없는 RLS + anon/authenticated REVOKE."""
+    source = MIGRATION_0007_PATH.read_text(encoding="utf-8")
+    assert "academy_fact_revisions" in source
+    assert "ROW LEVEL SECURITY" in source
+    assert "REVOKE" in source
+    assert "anon" in source
+    assert "authenticated" in source
+    assert 'down_revision = "0006"' in source
 
 
 def test_revision_model_roundtrip_sqlite(db_session):

@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.core.config import get_settings
 from app.core.import_guard import (
     academy_import_allowed,
     is_local_database_url,
@@ -51,9 +52,38 @@ def test_force_allows_operational(monkeypatch):
 def test_allow_env_allows_operational(monkeypatch):
     url = "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
     monkeypatch.setenv("ALLOW_ACADEMY_IMPORT", "1")
-    allowed, _ = academy_import_allowed(url)
-    assert allowed
+    get_settings.cache_clear()
+    try:
+        allowed, _ = academy_import_allowed(url)
+        assert allowed
+    finally:
+        monkeypatch.delenv("ALLOW_ACADEMY_IMPORT", raising=False)
+        get_settings.cache_clear()
+
+
+def test_allow_academy_import_via_dotenv(tmp_path, monkeypatch):
+    """ALLOW_ACADEMY_IMPORT는 Settings(.env)로 읽힌다 — os.environ 직접 조회가 아니다."""
     monkeypatch.delenv("ALLOW_ACADEMY_IMPORT", raising=False)
+    (tmp_path / ".env").write_text("ALLOW_ACADEMY_IMPORT=1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    get_settings.cache_clear()
+    try:
+        assert get_settings().allow_academy_import is True
+        url = "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
+        allowed, _ = academy_import_allowed(url)
+        assert allowed
+    finally:
+        get_settings.cache_clear()
+
+
+def test_allow_academy_import_kwarg_overrides_settings(monkeypatch):
+    monkeypatch.delenv("ALLOW_ACADEMY_IMPORT", raising=False)
+    get_settings.cache_clear()
+    url = "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
+    allowed, _ = academy_import_allowed(url, allow_academy_import=True)
+    assert allowed
+    blocked, _ = academy_import_allowed(url, allow_academy_import=False)
+    assert not blocked
 
 
 def test_cli_refuses_operational_without_force(tmp_path, monkeypatch, capsys):

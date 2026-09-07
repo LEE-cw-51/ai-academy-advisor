@@ -41,9 +41,14 @@ def _file_name_for(row) -> str:
 
 
 def export_records(db: Session, directory: Path) -> ExportReport:
-    """DB academies 행을 JSON 파일로 덤프한다."""
+    """DB academies 행을 JSON 파일로 덤프한다.
+
+    같은 경로를 재export할 때 DB에 없는 orphan `*.json`을 남기지 않도록,
+    이번 실행에서 성공적으로 쓴 파일 집합 밖의 `*.json`은 삭제한다.
+    """
     report = ExportReport()
     directory.mkdir(parents=True, exist_ok=True)
+    written_names: set[str] = set()
 
     for row in academy_repository.list_all(db):
         try:
@@ -54,8 +59,13 @@ def export_records(db: Session, directory: Path) -> ExportReport:
                 json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
                 encoding="utf-8",
             )
+            written_names.add(path.name)
             report.written += 1
         except Exception as exc:  # noqa: BLE001 — 행 단위 실패를 모아 리포트
             report.errors.append(f"id={row.id} name={row.name}: {exc}")
             report.skipped += 1
+
+    for stale in directory.glob("*.json"):
+        if stale.name not in written_names:
+            stale.unlink()
     return report

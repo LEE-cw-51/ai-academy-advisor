@@ -71,6 +71,9 @@ JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프�
 - `0006_academy_studio_guards.py` — Postgres 전용: 기존 행 CHECK 사전 검사(위반 시
   중단), 과목/URL CHECK(호스트 매칭), 신원 필드 불변, `last_verified_at` 스탬프
   (임포트 GUC 우회), `academy_fact_revisions` 이력 (Supabase Studio 운영용)
+- `0007_academy_fact_revisions_rls.py` — `academy_fact_revisions`에 정책 없는 RLS
+  ENABLE + `REVOKE ALL … FROM anon, authenticated` (Data API 잠금). Studio·
+  service_role은 계속 접근. `academies` 전체 RLS·MVP 로그인은 범위 밖.
 
 ### academy_fact_revisions (Postgres, Studio 이력)
 
@@ -84,6 +87,7 @@ JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프�
 
 Studio에서 `academies` 행을 수정하면 AFTER UPDATE 트리거가 이전 스냅샷을 남긴다.
 롤백은 SQL로 스냅샷을 참고해 수동 복구한다. 스키마 변경은 Studio DDL이 아니라 Alembic만.
+감사 테이블 Data API 잠금(`0007`)은 MVP 사용자 로그인/RLS 도입이 아니다.
 
 ```bash
 cd backend

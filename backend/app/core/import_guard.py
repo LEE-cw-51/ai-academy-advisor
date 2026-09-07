@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from urllib.parse import urlparse
 
 _LOCAL_HOSTS = frozenset(
@@ -39,10 +38,16 @@ def academy_import_allowed(
     database_url: str,
     *,
     force: bool = False,
+    allow_academy_import: bool | None = None,
 ) -> tuple[bool, str]:
     if force:
         return True, ""
-    if os.environ.get("ALLOW_ACADEMY_IMPORT", "").strip() == "1":
+    if allow_academy_import is None:
+        # 순환 import 방지: Settings가 is_local_database_url을 쓰므로 지연 로드.
+        from app.core.config import get_settings
+
+        allow_academy_import = get_settings().allow_academy_import
+    if allow_academy_import:
         return True, ""
     if is_operational_database_url(database_url):
         return (

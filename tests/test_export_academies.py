@@ -62,3 +62,26 @@ def test_export_roundtrip_reimports(tmp_path, db_session):
     assert record.registration_number == "R-roundtrip"
     assert record.phone == "031-111-2222"
     assert record.subjects == ["수학"]
+
+
+def test_export_deletes_stale_json(tmp_path, db_session):
+    """재export 시 DB에 없는 orphan *.json은 삭제한다."""
+    import_dir = tmp_path / "import"
+    export_dir = tmp_path / "export"
+    import_dir.mkdir()
+    export_dir.mkdir()
+    write_record(import_dir, "a.json", registration_number="R-keep")
+    load = academy_import_service.load_records(import_dir)
+    academy_import_service.import_records(
+        db_session, [record for _, record in load.records]
+    )
+
+    stale = export_dir / "gone.json"
+    stale.write_text('{"name": "삭제될학원"}', encoding="utf-8")
+    assert stale.exists()
+
+    report = academy_export_service.export_records(db_session, export_dir)
+    assert report.written == 1
+    assert not stale.exists()
+    names = {p.name for p in export_dir.glob("*.json")}
+    assert names == {"registry-R-keep.json"}

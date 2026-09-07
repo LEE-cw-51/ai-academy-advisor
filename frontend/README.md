@@ -48,12 +48,16 @@ npm run dev
    재배포할 때는 **저장소 루트**에서 실행한다(`frontend/`만 올리면 Root
    Directory 설정과 어긋나 실패한다).
 3. Framework: **Next.js** (자동 감지)
-4. **Environment Variables** (Production):
+4. **Environment Variables** (Production **및 Preview**):
 
 | 변수 | 예시 |
 |------|------|
-| `BACKEND_ORIGIN` | `https://ai-academy-advisor-backend.vercel.app` (백엔드 프로젝트 프로덕션 URL) |
+| `BACKEND_ORIGIN` | `https://ai-academy-advisor-backend.vercel.app` (백엔드 프로젝트 프로덕션 URL; Preview에도 동일 값 허용) |
 | `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID` | (선택) 네이버 지도 클라이언트 ID |
+
+`VERCEL_ENV`가 `production` 또는 `preview`이면 `BACKEND_ORIGIN`이 필수다
+(`next.config.ts`가 없으면 빌드를 실패시킨다). CI·로컬은 `VERCEL_ENV`가 없어
+기본 `http://localhost:8000`을 쓴다.
 
 `NEXT_PUBLIC_API_URL`은 프록시를 우회해 백엔드를 직접 호출할 때만 설정한다(기본은
 비워 두어 `/api/backend` same-origin 프록시를 쓴다).

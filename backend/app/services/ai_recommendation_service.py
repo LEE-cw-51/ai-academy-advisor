@@ -27,12 +27,11 @@ from app.services.scoring import ScoredAcademy
 logger = logging.getLogger(__name__)
 
 # `backend/vercel.json`의 `maxDuration=30`(서버리스 함수 전체 예산) 대비 여유를 둔다.
-# embed 1회 + scoring/직렬화 오버헤드를 뺀 나머지를 `limit`(최대 10)개 LLM 호출이
-# 나눠 쓴다. 개별 호출 타임아웃(각 provider의 httpx timeout)만으로는 limit=10일 때
-# 합계가 maxDuration을 넘을 수 있어, 여기서 남은 예산을 직접 추적해 예산을 넘기면
-# 그 항목은 LLM을 아예 호출하지 않고 `_fallback_reason`으로 바로 넘어간다.
-_REASON_TIME_BUDGET_SECONDS = 20.0
-_MIN_REASON_CALL_SECONDS = 3.0
+# 요청 시작 시점부터 추적한다 — `build_context`(embed 최대 ~10s) 뒤에야 예산을
+# 열면 embed+LLM 창이 겹쳐 하드캡을 넘을 수 있다. 남은 시간이 Groq httpx
+# timeout(8.0)보다 짧으면 LLM을 시작하지 않고 `_fallback_reason`으로 넘어간다.
+_REQUEST_DEADLINE_SECONDS = 28.0
+_MIN_REASON_CALL_SECONDS = 8.0
 
 
 def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
@@ -123,8 +122,10 @@ def _build_reason(
 
 
 def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:
+    # embed/DB/랭킹보다 먼저 요청 전역 deadline을 연다 — build_context 이후에
+    # 예산을 열면 embed(최대 ~10s)와 LLM 창이 겹쳐 maxDuration을 넘길 수 있다.
+    deadline = time.monotonic() + _REQUEST_DEADLINE_SECONDS
     ctx = build_context(db, query, limit=limit)
-    deadline = time.monotonic() + _REASON_TIME_BUDGET_SECONDS
 
     # ⚠️ limit truncate 후에만 LLM 호출 — 풀 전체를 돌리면 호출이 폭주한다.
     top = ctx.scored[:limit]
