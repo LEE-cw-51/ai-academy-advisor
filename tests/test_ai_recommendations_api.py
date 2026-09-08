@@ -256,6 +256,59 @@ def test_ai_recommend_empty_db_returns_200_with_empty_items(client, db_session):
     assert response.json()["items"] == []
 
 
+class _ExplodingEmbedder:
+    """OpenAI 임베딩 장애 시뮬레이션 — embed가 항상 실패한다."""
+
+    def embed(self, texts):
+        raise RuntimeError("openai embeddings unavailable")
+
+
+def test_ai_recommend_returns_facts_when_embedding_fails(
+    client, db_session, monkeypatch
+):
+    """임베딩이 죽어도 학원 사실 후보는 200 + evidence_reviews 빈 배열."""
+    seed_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline.get_embedding_provider",
+        lambda: _ExplodingEmbedder(),
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items
+    for item in items:
+        assert item["evidence_reviews"] == []
+        assert "used_fallback" not in item
+
+
+class _ExplodingVectorStore:
+    """pgvector 장애 시뮬레이션 — search가 항상 실패한다."""
+
+    def search(self, query_embedding, top_k=5):
+        raise RuntimeError("pgvector unavailable")
+
+
+def test_ai_recommend_returns_facts_when_vector_search_fails(
+    client, db_session, monkeypatch
+):
+    """벡터 검색이 죽어도 학원 사실 후보는 200 + evidence_reviews 빈 배열."""
+    seed_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline.get_vector_store",
+        lambda db=None: _ExplodingVectorStore(),
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items
+    for item in items:
+        assert item["evidence_reviews"] == []
+
+
 class _ExplodingLLM:
     """벤더 장애·모델 폐기 시뮬레이션 — chat이 항상 실패한다."""
 
