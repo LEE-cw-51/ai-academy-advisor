@@ -63,9 +63,10 @@ def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
         )
     parts = [head]
     if scored.unknown:
-        parts.append(
-            f"미확인 항목 {len(scored.unknown)}개는 상담에서 직접 확인해 주세요."
-        )
+        # 개수를 세지 않는다 — 카드는 unknown_conditions 를 나열하지 않으므로
+        # "N개"라고 하면 사용자가 볼 수 없는 목록을 가리키게 된다
+        # (2026-09-08 카드는 사실 우선). 응답 필드 자체는 그대로 둔다.
+        parts.append("등록 정보에서 확인되지 않은 항목은 상담에서 직접 확인해 주세요.")
     if "region" in relaxed:
         parts.append("지역 조건이 완화되어 다른 지역의 후보가 포함될 수 있습니다.")
     return " ".join(parts)

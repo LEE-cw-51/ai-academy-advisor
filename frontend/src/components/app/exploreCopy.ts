@@ -47,8 +47,34 @@ export const CANDIDATES_ERROR =
 export const NO_CANDIDATES =
   "조건에 맞는 후보 정보를 찾지 못했어요. 학년·과목·고민을 조금 바꿔 다시 정리해 보세요.";
 
+// 완화 배너 — 백엔드 relaxed 는 필터 키(`q`·`region`)라 그대로 찍으면 영문 키가
+// 그대로 보인다. region 은 폼에 지역 행이 없는데도 쿼리에 늘 들어가는 고정값
+// (하남 미사)이라, 키만 보면 사용자가 설정한 적도 볼 수도 없는 조건이 튀어나온다.
+// CONDITION_LABELS 처럼 '이름'으로 바꾸는 걸론 부족하다 — region → "지역"이 돼도
+// 여전히 내가 건 적 없는 조건이다. 키마다 무엇이 왜 넓어졌는지 문장으로 적는다.
+export const RELAXED_HEADING = "조건을 조금 넓혀 찾은 후보 정보예요.";
+export const RELAXED_NOTES: Record<string, string> = {
+  q: "적어 주신 내용과 딱 맞는 곳이 적어, 찾는 범위를 조금 넓혔어요.",
+  region:
+    "하남 미사 안에 조건에 맞는 곳이 적어, 인근 지역 후보 정보도 함께 담았어요.",
+};
+
+/** 아는 키의 문장만 남긴다. conditionLabel 과 달리 키로 폴백하지 않는다 —
+ *  백엔드가 완화 사다리에 키를 늘려도 raw 키가 화면에 새면 안 된다.
+ *  순서는 백엔드가 담아 준 순서를 그대로 따른다(사다리 순서는 백엔드 소유). */
+export function relaxedNotes(keys: readonly string[]): string[] {
+  return keys
+    .map((key) => RELAXED_NOTES[key])
+    .filter((note): note is string => Boolean(note));
+}
+
+// 라이브 폼이 제출 스냅샷과 달라졌을 때의 안내 — 요약 칩과 펼친 폼 두 곳에서 같이 쓴다.
+export const CONDITIONS_CHANGED_NOTE = "조건이 바뀌었어요. 아래 질문·후보는 이전 조건으로 정리한 내용이에요.";
+export const RESUBMIT_LABEL = "바뀐 조건으로 다시 보내기";
+
 // 지도 헤딩 — 지금 지도가 무엇을 보여 주는지 모드별로 읽힌다.
-export const MAP_HEADING_IDLE = "후보 위치";
+// 셋은 서로 달라야 한다. 제출 전(idle)에 "후보 위치"라고 하면 아직 없는 후보를 약속한다.
+export const MAP_HEADING_IDLE = "하남 미사 학원";
 export const MAP_HEADING_CANDIDATES = "후보 위치";
 export const MAP_HEADING_SEARCH = "검색 결과";
 export const MAP_EMPTY_HINT =

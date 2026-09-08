@@ -263,7 +263,7 @@ export function MapPanel({
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => onOpenDetail(a.id)}
+                onActivate={() => onOpenDetail(a.id)}
               >
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="font-medium text-ink">{a.name}</p>

@@ -53,15 +53,7 @@ export function RecommendationCard({
       ]
         .filter(Boolean)
         .join(" ")}
-      onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect?.();
-        }
-      }}
+      onActivate={() => onSelect?.()}
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge tone="brand">{CANDIDATE_BADGE}</Badge>
@@ -127,7 +119,7 @@ export function RecommendationCard({
           className="!px-2.5 !py-1.5 text-xs"
           onClick={(e) => {
             e.stopPropagation();
-            onTrack?.("detail");
+            // detail 계측은 AppShell.onOpenDetail 한 곳에서 한다 (지도 목록과 공통 합류점).
             onShowDetail?.();
           }}
         >

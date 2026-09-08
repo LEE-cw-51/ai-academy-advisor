@@ -201,7 +201,8 @@ def test_map_list_card_shows_phone_and_opens_canonical_detail():
     assert "a.phone" in map_panel
     assert "onOpenDetail" in map_panel
     # 마커는 하이라이트만, 목록 카드가 상세를 연다.
-    assert "onClick={() => onOpenDetail(a.id)}" in map_panel
+    # onActivate = 마우스 + Enter/Space (Card 가 role·tabIndex 를 붙인다).
+    assert "onActivate={() => onOpenDetail(a.id)}" in map_panel
     assert "website_url" not in map_panel
     assert "blog_url" not in map_panel
 
@@ -252,7 +253,9 @@ def test_style_tags_feed_consultation_questions_not_ai_query():
         .split("return chunks.join", 1)[0]
     )
     assert "tags" not in build_query
-    assert "style_tags: tags" in chat
+    # 태그는 계속 상담 질문에만 간다. 이제 제출 스냅샷을 거쳐 가므로 화면 요약과
+    # 실제로 보낸 값이 같은 객체에서 나온다.
+    assert "style_tags: snapshot.tags" in chat
     assert "TAGS_HELPER" in chat
     assert "후보를 거르는 조건은 아니에요" in copy
 
@@ -424,3 +427,149 @@ def test_form_collapses_to_summary_after_submit():
     )[0]
     assert "setFormExpanded(false)" in run_query
     assert "onExplored" in chat
+    assert "setSubmitted(snapshot)" in run_query
+    assert "const hasSubmitted = submitted !== null" in chat
+
+
+def test_condition_summary_reads_submitted_snapshot_not_live_form():
+    """요약 칩은 제출 시점 조건만 적는다. 폼만 바꾸고 다시 보내지 않았는데 칩이
+    새 조건을 적으면, 아래 질문·후보가 어떤 조건에서 나온 사실인지 잘못 알린다."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+
+    assert "interface SubmittedConditions" in chat
+    assert "useState<SubmittedConditions | null>(null)" in chat
+
+    run_query = chat.split("async function runQuery()", 1)[1]
+    before_request, _, _ = run_query.partition("Promise.allSettled")
+    assert "const snapshot: SubmittedConditions = {" in before_request
+    assert "setSubmitted(snapshot)" in before_request
+
+    # 요약 본문은 스냅샷만 읽고, 의존성에 라이브 폼 state 가 없다.
+    _, _, after = chat.partition("const conditionSummary = useMemo(")
+    body, _, deps = after.partition("}, [")
+    for field in ("submitted.intent", "submitted.grade", "submitted.subject"):
+        assert field in body, field
+    assert deps.startswith("submitted]);")
+
+
+def test_changed_conditions_offer_resubmit_instead_of_silent_mismatch():
+    """폼이 스냅샷과 달라지면 안내 + 다시 보내기. 접기만 하는 '질문·후보 보기'가
+    새 조건을 요약에 적고 옛 결과를 아래 두는 상태를 만들면 안 된다."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+
+    assert "조건이 바뀌었어요" in copy
+    assert 'RESUBMIT_LABEL = "바뀐 조건으로 다시 보내기"' in copy
+    assert "CONDITIONS_CHANGED_NOTE" in chat
+    assert "RESUBMIT_LABEL" in chat
+
+    # 요약에 안 보이는 학교·현재 학원·태그·고민도 결과를 바꾸므로 전부 비교한다.
+    changed = chat.split("const conditionsChanged = useMemo(", 1)[1].split("}, [", 1)[0]
+    for field in (
+        "submitted.intent",
+        "submitted.grade",
+        "submitted.subject",
+        "submitted.school",
+        "submitted.currentAcademy",
+        "submitted.note",
+        "submitted.tags",
+    ):
+        assert field in changed, field
+
+    # 접힌 요약과 펼친 폼 두 곳 모두에서 다시 보내기가 runQuery 를 다시 친다.
+    assert chat.count("onResubmit={() => void runQuery()}") == 2
+    # 안내 컴포넌트는 ChatPanel 뒤에 정의한다 (JSX 슬라이스 테스트 보호).
+    assert chat.index("export function ChatPanel") < chat.index(
+        "function ChangedConditionsNotice"
+    )
+
+
+def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
+    """완화 배너는 백엔드 필터 키(q·region)를 그대로 보여 주지 않는다. region 은
+    폼에 없는 고정값(하남 미사)이라 키만 보면 사용자가 건 적 없는 조건이 튀어나온다."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+
+    assert 'relaxed.join(", ")' not in chat
+    assert "RELAXED_HEADING" in chat
+    assert "relaxedNotes" in chat
+    assert 'RELAXED_HEADING = "조건을 조금 넓혀 찾은 후보 정보예요."' in copy
+
+    notes = copy.split("RELAXED_NOTES: Record<string, string> = {", 1)[1].split(
+        "};", 1
+    )[0]
+    assert "하남 미사" in notes
+    assert "인근 지역" in notes
+    assert "q:" in notes
+
+    # 모르는 키는 문장이 없으면 버린다 — conditionLabel 의 `?? key` 폴백을 쓰지 않는다.
+    # 슬라이스를 함수 본문으로 끊는다 — EOF 까지 열어 두면 아래 conditionLabel 의
+    # `?? key` 를 잡아 이 단정문이 영원히 통과한다.
+    fn = copy.split("export function relaxedNotes", 1)[1].split("\n}", 1)[0]
+    assert "?? key" not in fn
+    assert "filter(" in fn
+
+    # 배너는 키 배열을 직접 그리지 않는다.
+    jsx = chat.split("return (", 1)[1]
+    banner = jsx.split("relaxed.length > 0", 1)[1].split("min-h-0 flex-1", 1)[0]
+    assert "relaxed.map" not in banner
+    assert "relaxed.join" not in banner
+
+    # region 은 계속 쿼리에 넣는다(= /app 하남 미사 고정). 배너 문구로만 설명한다.
+    assert 'const REGION = "하남 미사"' in chat
+    assert "region: REGION" in chat
+
+
+def test_map_headings_distinguish_all_three_modes():
+    """MapMode 3상태를 만들었으면 헤딩도 셋이 달라야 한다. 제출 전(idle)에
+    '후보 위치'라고 하면 아직 없는 후보를 약속한다 (2026-09-08 헤딩 결정)."""
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+
+    assert 'MAP_HEADING_IDLE = "하남 미사 학원"' in copy
+    assert 'MAP_HEADING_CANDIDATES = "후보 위치"' in copy
+    assert 'MAP_HEADING_SEARCH = "검색 결과"' in copy
+
+    headings = {
+        line.split("= ", 1)[1]
+        for line in copy.splitlines()
+        if line.startswith("export const MAP_HEADING_")
+    }
+    assert len(headings) == 3
+
+
+def test_clickable_cards_are_keyboard_reachable():
+    """카드 클릭이 선택·이동을 하면 키보드로도 닿아야 한다. Card 가 onActivate 를
+    받으면 role·tabIndex·Enter/Space 를 한 번에 붙인다 — 호출부 복사 금지."""
+    card = (REPO_ROOT / "frontend" / "src" / "components" / "ui" / "Card.tsx").read_text(
+        encoding="utf-8"
+    )
+    map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
+    rec_card = REC_CARD.read_text(encoding="utf-8")
+
+    assert "onActivate" in card
+    assert 'role: "button"' in card
+    assert "tabIndex: 0" in card
+    assert '"Enter"' in card and '" "' in card
+    # 중첩 버튼에서 올라온 키 이벤트로 카드까지 발화하면 안 된다.
+    assert "event.target !== event.currentTarget" in card
+
+    # 호출부는 접근성 속성을 직접 붙이지 않는다.
+    for source in (map_panel, rec_card):
+        assert "onActivate" in source
+        assert 'role="button"' not in source
+        assert "onKeyDown" not in source
+
+
+def test_detail_event_is_tracked_once_at_the_shared_entry_point():
+    """상세 모달 경로는 둘(후보 카드·지도 목록)이고 둘 다 AppShell.onOpenDetail 을
+    지난다. 계측을 거기 두지 않으면 지도 경로가 통째로 빠져 퍼널이 과소 집계된다."""
+    shell = APP_SHELL.read_text(encoding="utf-8")
+    rec_card = REC_CARD.read_text(encoding="utf-8")
+
+    open_detail = shell.split("const onOpenDetail = useCallback(", 1)[1].split(
+        "}, [", 1
+    )[0]
+    assert 'handleTrack(id, "detail")' in open_detail
+    # 카드에 남겨 두면 카드 경로만 두 번 센다.
+    assert '"detail"' not in rec_card
+    assert 'onTrack?.("phone")' in rec_card

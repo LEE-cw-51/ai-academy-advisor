@@ -43,6 +43,15 @@ const MAP_HEADINGS: Record<MapMode, string> = {
   search: MAP_HEADING_SEARCH,
 };
 
+// 컴포넌트 state 를 안 쓰므로 모듈 스코프에 둔다 — useCallback 의존성에서 자유롭다.
+async function handleTrack(academyId: number, event: ClickEventType) {
+  try {
+    await trackEvent({ academy_id: academyId, event });
+  } catch {
+    // tracking should not block UX
+  }
+}
+
 export function AppShell() {
   const [listAcademies, setListAcademies] = useState<AcademySummary[]>([]);
   const [recItems, setRecItems] = useState<AiRecommendationItem[]>([]);
@@ -122,20 +131,16 @@ export function AppShell() {
     setSelectedId(id);
   }, []);
 
+  // 상세 모달로 오는 경로는 둘(후보 카드 상세 버튼 · 지도 목록 카드)이고 둘 다 여기를
+  // 지난다. detail 계측을 여기 두면 두 경로가 같은 수를 남긴다 — 호출부마다 붙이면
+  // 한쪽을 빠뜨려 퍼널이 과소 집계된다.
   const onOpenDetail = useCallback((id: number) => {
     setSelectedId(id);
     setDetailId(id);
+    void handleTrack(id, "detail");
   }, []);
 
   const closeDetail = useCallback(() => setDetailId(null), []);
-
-  async function handleTrack(academyId: number, event: ClickEventType) {
-    try {
-      await trackEvent({ academy_id: academyId, event });
-    } catch {
-      // tracking should not block UX
-    }
-  }
 
   const onSearchSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {

@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/types";
 import {
   CANDIDATES_ERROR,
   CANDIDATES_HEADING,
+  CONDITIONS_CHANGED_NOTE,
   EDIT_CONDITIONS_LABEL,
   EMPTY_RESULTS,
   FORM_HEADING,
@@ -28,14 +29,20 @@ import {
   NO_CANDIDATES,
   QUESTIONS_ERROR,
   QUESTIONS_HEADING,
+  RELAXED_HEADING,
+  RESUBMIT_LABEL,
   SUBJECT_FORM_HELPER,
   SUBJECT_HELPER,
   SUBMIT_LABEL,
   TAGS_HEADING,
   TAGS_HELPER,
+  relaxedNotes,
 } from "./exploreCopy";
 import { RecommendationCard } from "./RecommendationCard";
 
+// /app 을 하남 미사로 고정하는 값. 폼에 지역 행은 없다(헤더 배지로 충분).
+// 후보가 비어 이 조건이 풀리면 relaxed 에 "region" 이 담기는데, 키가 아니라
+// RELAXED_NOTES.region 문장으로 설명한다.
 const REGION = "하남 미사";
 
 const GRADES = ["중1", "중2", "중3", "고1", "고2", "고3"] as const;
@@ -53,6 +60,19 @@ const INTENT_SUMMARY: Record<ConsultationIntent, string> = {
   find_new_academy: "새 학원",
   counsel_only: "상담",
 };
+
+/** 제출 시점에 고정한 조건. 요약 칩과 "조건이 바뀌었어요" 비교의 기준이고,
+ *  요청도 여기서 보낸다 — 화면에 적힌 조건과 실제로 보낸 값을 구조로 일치시킨다.
+ *  runQuery 가드(!grade || !subject)를 통과한 뒤에만 만들어지므로 null 필드가 없다. */
+interface SubmittedConditions {
+  intent: ConsultationIntent;
+  grade: string;
+  subject: string;
+  school: string;
+  currentAcademy: string;
+  tags: string[];
+  note: string;
+}
 
 interface ChatPanelProps {
   onResults: (items: AiRecommendationItem[]) => void;
@@ -103,7 +123,9 @@ export function ChatPanel({
   const [questions, setQuestions] = useState<ConsultationQuestion[]>([]);
   const [questionsDisclaimer, setQuestionsDisclaimer] = useState("");
   const [relaxed, setRelaxed] = useState<string[]>([]);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  // 제출 스냅샷이 곧 "지금 화면 아래 사실을 만든 조건"이다. hasSubmitted 를 따로
+  // 두면 둘이 어긋날 수 있어 파생값으로 낮춘다.
+  const [submitted, setSubmitted] = useState<SubmittedConditions | null>(null);
   const [formExpanded, setFormExpanded] = useState(true);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
 
@@ -120,13 +142,39 @@ export function ChatPanel({
   );
 
   const canSubmit = Boolean(grade && subject && note.trim());
+  const hasSubmitted = submitted !== null;
 
+  // 요약은 라이브 폼이 아니라 제출 스냅샷에서 만든다. 폼만 바꾸고 다시 보내지 않으면
+  // 아래 질문·후보는 이전 조건의 사실인데 칩만 새 조건을 적어, 어떤 조건에서 나온
+  // 사실인지 잘못 알린다 (docs/decision-log.md 2026-09-08 사실 우선).
   const conditionSummary = useMemo(() => {
-    const parts = [INTENT_SUMMARY[intent]];
-    if (grade) parts.push(grade);
-    if (subject) parts.push(subject);
-    return parts.join(" · ");
-  }, [intent, grade, subject]);
+    if (!submitted) return "";
+    return [
+      INTENT_SUMMARY[submitted.intent],
+      submitted.grade,
+      submitted.subject,
+    ].join(" · ");
+  }, [submitted]);
+
+  // 요약에 안 보이는 학교·현재 학원·태그·고민도 아래 결과를 바꾼다. 학교·고민은 AI
+  // 쿼리 문자열에, 태그·현재 학원·상황은 상담 질문에 들어간다. 요약 3필드만 비교하면
+  // 태그만 바꾼 사용자는 칩이 맞는데 질문이 이전 것인 상태를 안내 없이 본다.
+  // 태그는 순서를 무시한다 — 고르는 차례가 조건 변경은 아니다.
+  const conditionsChanged = useMemo(() => {
+    if (!submitted) return false;
+    return (
+      submitted.intent !== intent ||
+      submitted.grade !== grade ||
+      submitted.subject !== subject ||
+      submitted.school !== school.trim() ||
+      submitted.currentAcademy !== currentAcademy.trim() ||
+      submitted.note !== note.trim() ||
+      submitted.tags.length !== tags.length ||
+      submitted.tags.some((t) => !tags.includes(t))
+    );
+  }, [submitted, intent, grade, subject, school, currentAcademy, note, tags]);
+
+  const relaxedSentences = useMemo(() => relaxedNotes(relaxed), [relaxed]);
 
   function toggleTag(tag: string) {
     setTags((prev) =>
@@ -137,6 +185,16 @@ export function ChatPanel({
   async function runQuery() {
     const trimmed = query.trim();
     if (!trimmed || !canSubmit || !grade || !subject) return;
+    // 보내는 값과 요약이 같은 객체에서 나오게 한다 — 규칙이 아니라 구조로 일치시킨다.
+    const snapshot: SubmittedConditions = {
+      intent,
+      grade,
+      subject,
+      school: school.trim(),
+      currentAcademy: currentAcademy.trim(),
+      tags: [...tags],
+      note: note.trim(),
+    };
     setLoading(true);
     setQuestions([]);
     setItems([]);
@@ -145,19 +203,20 @@ export function ChatPanel({
     onResults([]);
     setQuestionsError("");
     setCandidatesError("");
-    setHasSubmitted(true);
+    // 요청이 실패해도 되돌리지 않는다 — 아래 에러 문구도 이 조건으로 보낸 결과다.
+    setSubmitted(snapshot);
     setFormExpanded(false);
     onExplored?.();
     try {
       const [questionsResult, recsResult] = await Promise.allSettled([
         requestConsultationQuestions({
-          grade,
-          subject,
-          school: school.trim(),
-          current_academy: currentAcademy.trim(),
-          style_tags: tags,
-          concern: note.trim(),
-          intent,
+          grade: snapshot.grade,
+          subject: snapshot.subject,
+          school: snapshot.school,
+          current_academy: snapshot.currentAcademy,
+          style_tags: snapshot.tags,
+          concern: snapshot.note,
+          intent: snapshot.intent,
         }),
         requestAiRecommendations(trimmed, 3),
       ]);
@@ -210,15 +269,24 @@ export function ChatPanel({
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       {hasSubmitted && !formExpanded ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-border-soft bg-surface-muted px-3 py-2.5">
-          <p className="text-sm font-medium text-ink">{conditionSummary}</p>
-          <button
-            type="button"
-            onClick={() => setFormExpanded(true)}
-            className="text-sm font-semibold text-brand underline-offset-2 hover:underline"
-          >
-            {EDIT_CONDITIONS_LABEL}
-          </button>
+        <div className="rounded-card border border-border-soft bg-surface-muted px-3 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* 제출 시점 스냅샷. 아래 질문·후보를 만든 조건이 그대로 적힌다. */}
+            <p className="text-sm font-medium text-ink">{conditionSummary}</p>
+            <button
+              type="button"
+              onClick={() => setFormExpanded(true)}
+              className="text-sm font-semibold text-brand underline-offset-2 hover:underline"
+            >
+              {EDIT_CONDITIONS_LABEL}
+            </button>
+          </div>
+          {conditionsChanged ? (
+            <ChangedConditionsNotice
+              disabled={loading || !canSubmit}
+              onResubmit={() => void runQuery()}
+            />
+          ) : null}
         </div>
       ) : (
         <>
@@ -363,13 +431,22 @@ export function ChatPanel({
           </div>
 
           {hasSubmitted ? (
-            <button
-              type="button"
-              onClick={() => setFormExpanded(false)}
-              className="self-start text-sm text-ink-subtle underline-offset-2 hover:underline"
-            >
-              질문·후보 보기
-            </button>
+            <div className="space-y-1.5">
+              {/* 이 버튼이 버그의 진입점이었다 — 접기만 하므로 접기 전에 경고가 보여야 한다. */}
+              {conditionsChanged ? (
+                <ChangedConditionsNotice
+                  disabled={loading || !canSubmit}
+                  onResubmit={() => void runQuery()}
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setFormExpanded(false)}
+                className="self-start text-sm text-ink-subtle underline-offset-2 hover:underline"
+              >
+                질문·후보 보기
+              </button>
+            </div>
           ) : null}
         </>
       )}
@@ -381,9 +458,13 @@ export function ChatPanel({
       ) : null}
 
       {relaxed.length > 0 ? (
-        <p className="text-xs text-ink-subtle">
-          일부 조건을 완화해 찾았어요: {relaxed.join(", ")}
-        </p>
+        <div className="space-y-0.5 rounded-card border border-border-soft bg-surface-muted px-3 py-2 text-xs text-ink-subtle">
+          {/* 어떤 조건이 어떻게 넓어졌는지 문장으로. 백엔드 키(region·q)는 노출하지 않는다. */}
+          <p>{RELAXED_HEADING}</p>
+          {relaxedSentences.map((note) => (
+            <p key={note}>{note}</p>
+          ))}
+        </div>
       ) : null}
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
@@ -451,5 +532,30 @@ function FilterRow({
         {children}
       </div>
     </div>
+  );
+}
+
+/** 라이브 폼이 제출 스냅샷과 달라졌을 때의 안내. 접힌 요약과 펼친 폼 두 곳에서
+ *  같은 문구·같은 동작을 쓴다 — 한쪽만 고쳐 어긋나는 걸 막는다.
+ *  고민을 비워 canSubmit 이 꺼지면 버튼도 꺼진다. 그때 길은 옆의 조건 바꾸기다. */
+function ChangedConditionsNotice({
+  disabled,
+  onResubmit,
+}: {
+  disabled: boolean;
+  onResubmit: () => void;
+}) {
+  return (
+    <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-warn">
+      <span>{CONDITIONS_CHANGED_NOTE}</span>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onResubmit}
+        className="font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {RESUBMIT_LABEL}
+      </button>
+    </p>
   );
 }
