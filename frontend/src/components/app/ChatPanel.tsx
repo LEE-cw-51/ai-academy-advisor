@@ -5,11 +5,10 @@ import { Badge, Chip } from "@/components/ui";
 import {
   requestAiRecommendations,
   requestConsultationQuestions,
-  trackEvent,
+  trackEventSafe,
 } from "@/lib/api";
 import type {
   AiRecommendationItem,
-  ClickEventType,
   ConsultationIntent,
   ConsultationQuestion,
 } from "@/lib/types";
@@ -258,14 +257,6 @@ export function ChatPanel({
     }
   }
 
-  async function handleTrack(academyId: number, event: ClickEventType) {
-    try {
-      await trackEvent({ academy_id: academyId, event });
-    } catch {
-      // tracking should not block UX
-    }
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       {hasSubmitted && !formExpanded ? (
@@ -498,7 +489,7 @@ export function ChatPanel({
                 selected={selectedAcademyId === item.academy.id}
                 onSelect={() => onSelectAcademy(item.academy.id)}
                 onShowDetail={() => onOpenDetail(item.academy.id)}
-                onTrack={(event) => void handleTrack(item.academy.id, event)}
+                onTrack={(event) => void trackEventSafe(item.academy.id, event)}
               />
             ))}
           </div>

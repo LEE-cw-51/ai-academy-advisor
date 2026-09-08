@@ -3,11 +3,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
-import { fetchAllAcademies, trackEvent } from "@/lib/api";
+import { fetchAllAcademies, trackEventSafe } from "@/lib/api";
 import type {
   AcademySummary,
   AiRecommendationItem,
-  ClickEventType,
 } from "@/lib/types";
 import { AcademyDetailModal } from "./AcademyDetailModal";
 import { ChatPanel } from "./ChatPanel";
@@ -42,15 +41,6 @@ const MAP_HEADINGS: Record<MapMode, string> = {
   candidates: MAP_HEADING_CANDIDATES,
   search: MAP_HEADING_SEARCH,
 };
-
-// 컴포넌트 state 를 안 쓰므로 모듈 스코프에 둔다 — useCallback 의존성에서 자유롭다.
-async function handleTrack(academyId: number, event: ClickEventType) {
-  try {
-    await trackEvent({ academy_id: academyId, event });
-  } catch {
-    // tracking should not block UX
-  }
-}
 
 export function AppShell() {
   const [listAcademies, setListAcademies] = useState<AcademySummary[]>([]);
@@ -137,7 +127,7 @@ export function AppShell() {
   const onOpenDetail = useCallback((id: number) => {
     setSelectedId(id);
     setDetailId(id);
-    void handleTrack(id, "detail");
+    void trackEventSafe(id, "detail");
   }, []);
 
   const closeDetail = useCallback(() => setDetailId(null), []);
@@ -282,7 +272,7 @@ export function AppShell() {
       <AcademyDetailModal
         academyId={detailId}
         onClose={closeDetail}
-        onTrack={(academyId, event) => void handleTrack(academyId, event)}
+        onTrack={(academyId, event) => void trackEventSafe(academyId, event)}
       />
     </div>
   );

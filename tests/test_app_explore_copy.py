@@ -5,7 +5,10 @@
 한 흐름: 마운트 시 전체 fetch 없음, 짧은 폼·글자 제출, 제출 후 조건 요약으로 접기.
 """
 
+import re
 from pathlib import Path
+
+from tests.source_slice import slice_between
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 APP = REPO_ROOT / "frontend" / "src" / "components" / "app"
@@ -31,6 +34,28 @@ BANNED_RESULT_COPY = (
     "교육비 대비 우수",
     "AI 학원 추천",
 )
+
+
+def component_jsx(chat: str) -> str:
+    """ChatPanel 컴포넌트 자신의 렌더 트리.
+
+    `chat.split("return (")[1]` 은 안 된다 — 파일의 첫 `return (` 는 이제
+    conditionsChanged useMemo 안이라 앵커가 어긋나고, 오른쪽이 EOF 까지 열려
+    보조 컴포넌트(FilterRow·ChangedConditionsNotice)까지 삼킨다.
+    들여쓰기로 컴포넌트 자신의 return 을 집고 보조 컴포넌트 앞에서 끊는다.
+    """
+    return slice_between(chat, "\n  return (", "\nfunction FilterRow")
+
+
+def card_open_tag(source: str) -> str:
+    """`<Card ... >` 여는 태그의 props 부분.
+
+    두 호출부의 들여쓰기가 달라 고정 문자열로는 경계를 못 준다. 닫는 `>` 는
+    화살표 함수(`=>`)와 구분해야 하므로 줄 시작의 `>` 만 잡는다.
+    """
+    match = re.search(r"<Card\b(.*?)\n\s*>", source, re.S)
+    assert match, "Card 여는 태그를 찾지 못했다"
+    return match.group(1)
 
 
 def test_explore_submit_calls_consultation_and_ai_recs_in_parallel():
@@ -269,10 +294,17 @@ def test_detail_modal_groups_unverified_fields_into_one_line():
     for field in ("operating_hours", "tuition_monthly_fee", "shuttle_available"):
         assert field in modal
     # 정보 확인일만 빈 값을 행으로 남긴다.
-    rows_with_empty = [
-        block for block in modal.split("<DetailRow")[1:] if "showEmpty" in block
-    ]
-    assert len(rows_with_empty) == 1
+    # <dl> 로 경계를 준다 — EOF 까지 열어 두면 마지막 조각이 DetailRow 함수 정의
+    # (showEmpty = false 기본값)를 삼켜, 진짜 행에서 showEmpty 를 지워도 통과한다.
+    rows = slice_between(modal, "<dl", "</dl>")
+    assert rows.count("showEmpty") == 1
+    last_row = rows.split("<DetailRow")[-1]
+    assert "정보 확인일" in last_row and "showEmpty" in last_row
+    # 라벨과 null 판정은 factRows 한 곳에서만 나온다 — 두 벌로 들고 있으면
+    # 한쪽만 고쳤을 때 값이 있는 학원과 없는 학원을 다른 이름으로 부르게 된다.
+    assert "factRows" in modal
+    assert modal.count('"월 수강료"') == 1
+    assert "factRows" in slice_between(modal, "const unverifiedFields", ";")
     assert "source_note" in modal
     assert "ASK_AT_CONSULTATION_ITEMS" in modal
 
@@ -281,7 +313,7 @@ def test_subject_helpers_split_form_and_results():
     """과목 칩 아래는 폼 도움말, 배지 안내는 후보 결과 옆에만 둔다."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
-    jsx = chat.split("return (", 1)[1]
+    jsx = component_jsx(chat)
 
     assert "SUBJECT_FORM_HELPER" in copy
     assert "선택한 과목은 상담 질문과 후보 정리에 쓰여요" in copy
@@ -360,7 +392,18 @@ def test_app_shell_does_not_fetch_all_academies_on_mount():
     shell = APP_SHELL.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
 
-    assert "useEffect" not in shell
+    # useEffect 자체는 금지하지 않는다 — 포커스 관리·리사이즈처럼 정당한 용도가 있고,
+    # 금지해 봐야 useLayoutEffect·데이터 훅으로 쓴 진짜 마운트 fetch 는 통과한다.
+    # 실제 규칙: 목록 fetch 는 runSearch 안에서만, runSearch 는 제출 핸들러에서만.
+    assert shell.count("fetchAllAcademies(") == 1  # import 줄은 괄호가 없다
+    run_search = slice_between(shell, "const runSearch = useCallback(", "}, []);")
+    assert "fetchAllAcademies({ q })" in run_search
+    assert run_search.index("if (!q)") < run_search.index("fetchAllAcademies")
+    assert shell.count("void runSearch(") == 1
+    submit = slice_between(
+        shell, "const onSearchSubmit = useCallback(", "[runSearch, searchInput],"
+    )
+    assert "void runSearch(searchInput)" in submit
     assert 'runSearch("")' not in shell
     assert "MAP_EMPTY_HINT" in shell
     assert "조건을 보내면 후보 위치가 여기에 표시됩니다" in copy
@@ -389,7 +432,7 @@ def test_short_form_hides_optional_fields_and_shows_text_submit():
     """필수(상황·학년·과목·고민)+글자 제출. 학교·학원·태그는 더 알려주기. 지역 행 없음."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
-    jsx = chat.split("return (", 1)[1]
+    jsx = component_jsx(chat)
 
     assert 'SUBMIT_LABEL = "질문과 후보 정보 보기"' in copy
     assert "{loading ? LOADING_LABEL : SUBMIT_LABEL}" in chat
@@ -510,7 +553,7 @@ def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
     assert "filter(" in fn
 
     # 배너는 키 배열을 직접 그리지 않는다.
-    jsx = chat.split("return (", 1)[1]
+    jsx = component_jsx(chat)
     banner = jsx.split("relaxed.length > 0", 1)[1].split("min-h-0 flex-1", 1)[0]
     assert "relaxed.map" not in banner
     assert "relaxed.join" not in banner
@@ -553,11 +596,14 @@ def test_clickable_cards_are_keyboard_reachable():
     # 중첩 버튼에서 올라온 키 이벤트로 카드까지 발화하면 안 된다.
     assert "event.target !== event.currentTarget" in card
 
-    # 호출부는 접근성 속성을 직접 붙이지 않는다.
-    for source in (map_panel, rec_card):
-        assert "onActivate" in source
-        assert 'role="button"' not in source
-        assert "onKeyDown" not in source
+    # 호출부는 접근성 속성을 직접 붙이지 않는다. 파일 전역에서 onKeyDown 을 막으면
+    # 무관한 키보드 처리(목록 Escape 닫기 등)까지 걸리므로 <Card> 여는 태그만 본다.
+    for name, source in (("MapPanel", map_panel), ("RecommendationCard", rec_card)):
+        props = card_open_tag(source)
+        assert "onActivate" in props, name
+        assert 'role="button"' not in props, name
+        assert "tabIndex" not in props, name
+        assert "onKeyDown" not in props, name
 
 
 def test_detail_event_is_tracked_once_at_the_shared_entry_point():
@@ -569,7 +615,8 @@ def test_detail_event_is_tracked_once_at_the_shared_entry_point():
     open_detail = shell.split("const onOpenDetail = useCallback(", 1)[1].split(
         "}, [", 1
     )[0]
-    assert 'handleTrack(id, "detail")' in open_detail
-    # 카드에 남겨 두면 카드 경로만 두 번 센다.
-    assert '"detail"' not in rec_card
+    assert 'trackEventSafe(id, "detail")' in open_detail
+    # 카드에 남겨 두면 카드 경로만 두 번 센다. 문자열 "detail" 자체를 막으면
+    # variant="detail" 같은 무관한 쓰임까지 걸리므로 실제 호출 형태로 좁힌다.
+    assert 'onTrack?.("detail")' not in rec_card
     assert 'onTrack?.("phone")' in rec_card

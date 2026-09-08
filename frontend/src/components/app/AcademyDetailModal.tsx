@@ -66,18 +66,52 @@ export function AcademyDetailModal({
       ? { lat: detail.latitude, lng: detail.longitude }
       : null;
 
-  // 아직 거의 채워지지 않은 필드는 행마다 "미확인"을 반복하는 대신 한 줄로 묶는다.
-  // 값이 들어오면 자동으로 위의 <dl> 행으로 올라간다.
-  const unverifiedFields = detail
+  // <dl> 행과 "아직 확인하지 못한 항목" 줄이 **같은 배열**에서 나온다. 라벨·null 판정을
+  // 두 벌로 들고 있으면 한쪽만 고쳤을 때 값이 있는 학원과 없는 학원을 서로 다른
+  // 이름으로 부르게 된다 — 사실 표시 화면이라 그 드리프트가 특히 나쁘다.
+  //
+  // groupWhenEmpty: 아직 거의 채워지지 않은 운영 정보. 비면 행마다 "미확인"을
+  // 반복하는 대신 아래 한 줄로 묶는다. 값이 들어오면 자동으로 행으로 올라간다.
+  // 주소·전화는 플래그가 없어 비면 행만 사라진다(묶음 줄에 넣지 않는다).
+  const factRows = detail
     ? [
-        { label: "운영 시간", value: detail.operating_hours },
-        { label: "월 수강료", value: detail.tuition_monthly_fee },
-        { label: "셔틀", value: detail.shuttle_available },
-        { label: "강사 수", value: detail.teacher_count },
+        { label: "주소", value: detail.address },
+        { label: "전화", value: detail.phone },
+        {
+          label: "운영 시간",
+          value: detail.operating_hours,
+          groupWhenEmpty: true,
+        },
+        {
+          label: "월 수강료",
+          value:
+            detail.tuition_monthly_fee != null
+              ? `${detail.tuition_monthly_fee.toLocaleString("ko-KR")}원`
+              : null,
+          groupWhenEmpty: true,
+        },
+        {
+          label: "강사 수",
+          value:
+            detail.teacher_count != null ? `${detail.teacher_count}명` : null,
+          groupWhenEmpty: true,
+        },
+        {
+          label: "셔틀",
+          value:
+            detail.shuttle_available == null
+              ? null
+              : detail.shuttle_available
+                ? "운행"
+                : "미운행",
+          groupWhenEmpty: true,
+        },
       ]
-        .filter((field) => field.value == null)
-        .map((field) => field.label)
     : [];
+
+  const unverifiedFields = factRows
+    .filter((field) => field.groupWhenEmpty && field.value == null)
+    .map((field) => field.label);
 
   return (
     <Modal
@@ -135,33 +169,11 @@ export function AcademyDetailModal({
           ) : null}
 
           <dl className="space-y-1.5">
-            <DetailRow label="주소" value={detail.address} />
-            <DetailRow label="전화" value={detail.phone} />
-            <DetailRow label="운영 시간" value={detail.operating_hours} />
-            <DetailRow
-              label="월 수강료"
-              value={
-                detail.tuition_monthly_fee != null
-                  ? `${detail.tuition_monthly_fee.toLocaleString("ko-KR")}원`
-                  : null
-              }
-            />
-            <DetailRow
-              label="강사 수"
-              value={
-                detail.teacher_count != null ? `${detail.teacher_count}명` : null
-              }
-            />
-            <DetailRow
-              label="셔틀"
-              value={
-                detail.shuttle_available == null
-                  ? null
-                  : detail.shuttle_available
-                    ? "운행"
-                    : "미운행"
-              }
-            />
+            {factRows.map((row) => (
+              <DetailRow key={row.label} label={row.label} value={row.value} />
+            ))}
+            {/* 확인일만 값이 없어도 행으로 남긴다 — "언제 확인한 정보인가"는
+                비어 있다는 사실 자체가 사용자에게 필요한 정보다. */}
             <DetailRow
               label="정보 확인일"
               value={detail.last_verified_at}

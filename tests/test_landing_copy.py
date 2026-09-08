@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+from tests.source_slice import slice_between
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ACADEMIES = REPO_ROOT / "data" / "academies"
 LANDING = REPO_ROOT / "frontend" / "src" / "components" / "landing"
@@ -230,9 +232,10 @@ def test_service_preview_says_example_before_the_cards():
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     section = SERVICE_PREVIEW_SECTION.read_text(encoding="utf-8")
 
-    notice_at = section.index("PREVIEW_NOTICE")
-    cards_at = section.index("EXAMPLE_ITEMS.map")
-    assert notice_at < cards_at
+    # 렌더 블록으로 경계를 준다 — 파일 전체에서 찾으면 알파벳순 import 목록의
+    # PREVIEW_NOTICE 가 항상 먼저라 이 순서 비교는 절대 실패할 수 없다.
+    render = slice_between(section, "return (", "\n}")
+    assert render.index("PREVIEW_NOTICE") < render.index("EXAMPLE_ITEMS.map")
     assert "AI 추천 예시" in section
     assert "Disclaimer" in section
     assert "PREVIEW_DISCLAIMER" in section
@@ -456,7 +459,9 @@ def test_home_metadata_reflects_the_two_situations():
     layout = LAYOUT.read_text(encoding="utf-8")
 
     assert "META_DESCRIPTION" in layout
-    description = facts.split("META_DESCRIPTION =")[1][:300]
+    # [:300] 은 상수를 넘어 다음 주석과 FOOTER_STATUS_COPY 까지 삼켰다 —
+    # 중개·예약·결제 고지를 여기서 통째로 지워도 그 spillover 때문에 통과했다.
+    description = slice_between(facts, "META_DESCRIPTION =", '";')
     assert "알아보는 중" in description
     assert "다니는 중" in description
     assert "후보 정보" in description
@@ -465,7 +470,7 @@ def test_home_metadata_reflects_the_two_situations():
     assert "결제" in description
     # 푸터 고지는 메타로 대체되지 않고 그대로 남는다.
     assert "FOOTER_STATUS_COPY" in facts
-    footer = facts.split("FOOTER_STATUS_COPY =")[1][:300]
+    footer = slice_between(facts, "FOOTER_STATUS_COPY =", '";')
     assert "정식 출시 전" in footer
     assert "후보 정보" in footer
 
