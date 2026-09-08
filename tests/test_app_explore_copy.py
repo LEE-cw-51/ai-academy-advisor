@@ -364,6 +364,24 @@ def test_app_shell_does_not_fetch_all_academies_on_mount():
     assert "fetchAllAcademies({ q })" in shell
 
 
+def test_search_responses_are_sequence_guarded():
+    """검색 해제·연속 검색 뒤 늦게 온 응답이 상태를 덮으면 안 된다.
+
+    fetchAllAcademies 응답을 쓰는 모든 경로(성공·실패·finally)와 해제 핸들러가
+    같은 일련번호를 본다.
+    """
+    shell = APP_SHELL.read_text(encoding="utf-8")
+
+    assert "useRef" in shell
+    assert "const searchSeq = useRef(0)" in shell
+    # 요청 시작 시 번호를 올리고, 응답 반영 전에 최신인지 확인한다.
+    assert "const seq = ++searchSeq.current" in shell
+    assert shell.count("if (seq !== searchSeq.current) return;") == 2
+    assert "if (seq === searchSeq.current) setSearching(false);" in shell
+    # 검색 해제도 진행 중인 요청을 무효화한다.
+    assert "searchSeq.current += 1;" in shell.split("const onSearchClear", 1)[1]
+
+
 def test_short_form_hides_optional_fields_and_shows_text_submit():
     """필수(상황·학년·과목·고민)+글자 제출. 학교·학원·태그는 더 알려주기. 지역 행 없음."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")

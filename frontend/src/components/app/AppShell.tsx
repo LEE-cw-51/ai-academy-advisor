@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
 import { fetchAllAcademies, trackEvent } from "@/lib/api";
@@ -56,20 +56,28 @@ export function AppShell() {
   // 상황 입력을 한 번이라도 제출하면 2열(질문·후보 | 지도)로 전환한다.
   const [hasExplored, setHasExplored] = useState(false);
 
+  // 검색 요청 일련번호. 최신 요청만 상태에 반영한다 — 검색 해제(searchSeq 증가)
+  // 뒤에 도착한 응답이 방금 지운 검색 결과를 되살리거나, 연속 검색 두 개가
+  // 순서를 뒤바꿔 도착하는 것을 막는다.
+  const searchSeq = useRef(0);
+
   // 키워드 검색만 GET /academies?q= 를 친다. 빈 q로 전체 목록을 올리지 않는다.
   const runSearch = useCallback(async (raw: string) => {
     const q = raw.trim();
+    const seq = ++searchSeq.current;
     if (!q) {
       setListAcademies([]);
       setActiveQuery("");
       setSearchTotal(null);
       setListError("");
       setSelectedId(null);
+      setSearching(false);
       return;
     }
     setSearching(true);
     try {
       const res = await fetchAllAcademies({ q });
+      if (seq !== searchSeq.current) return;
       setListAcademies(res.items);
       setActiveQuery(q);
       setSearchTotal(res.total);
@@ -79,9 +87,10 @@ export function AppShell() {
         prev !== null && !res.items.some((a) => a.id === prev) ? null : prev,
       );
     } catch {
+      if (seq !== searchSeq.current) return;
       setListError(SEARCH_ERROR);
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
   }, []);
 
@@ -137,6 +146,9 @@ export function AppShell() {
   );
 
   const onSearchClear = useCallback(() => {
+    // 진행 중인 검색 응답을 무효화한다 — 해제 후 도착해도 상태를 덮지 않는다.
+    searchSeq.current += 1;
+    setSearching(false);
     setSearchInput("");
     setListAcademies([]);
     setActiveQuery("");

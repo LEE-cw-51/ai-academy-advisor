@@ -112,6 +112,13 @@ def test_q_matches_name_address_and_phone(client, db_session):
     assert names(by_phone) == ["가온수학(예시)"]
 
 
+def test_q_wildcard_does_not_match_every_row(client, db_session):
+    """q="%" 는 리터럴 % 검색이다. 전 행이 매치되면 검색창이 전체 목록 로드가 된다."""
+    seed_academies(db_session)
+    response = client.get("/academies", params={"q": "%"})
+    assert response.json()["total"] == 0
+
+
 def test_pagination_limit_offset_total(client, db_session):
     seed_academies(db_session)
     response = client.get("/academies", params={"limit": 2, "offset": 2})

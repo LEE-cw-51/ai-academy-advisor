@@ -1,7 +1,10 @@
 """recommendation_pipeline.build_context 단위 테스트."""
 
+import pytest
+
 from app.models.academy import Academy
 from app.models.engagement import SearchHistory
+from app.providers.base import Hit
 from app.schemas.academy import AcademySummary
 from app.services.recommendation_pipeline import build_context
 
@@ -74,6 +77,43 @@ class _ExplodingVectorStore:
 
     def search(self, query_embedding, top_k=5):
         raise RuntimeError("pgvector unavailable")
+
+
+class _StubVectorStore:
+    """항상 review id 1 을 히트로 돌려주는 정상 벡터 스토어."""
+
+    def search(self, query_embedding, top_k=5):
+        return [Hit(id="1", score=0.9)]
+
+
+def test_build_context_does_not_swallow_review_lookup_errors(
+    db_session, monkeypatch
+):
+    """폴백 범위는 임베딩·벡터 검색뿐이다.
+
+    리뷰 본문 조회(요청 세션 DB)나 스키마 검증이 깨지면 '근거 없음'으로 위장하지
+    말고 터져야 한다 — 아니면 스키마 드리프트가 WARNING 한 줄만 남기고 전 사용자에게
+    영구히 빈 evidence 를 내보낸다.
+    """
+    _seed(
+        db_session,
+        [Academy(name="가온수학", address="경기도 하남시 미사대로 1")],
+    )
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline.get_vector_store",
+        lambda db=None: _StubVectorStore(),
+    )
+
+    def _boom(db, ids):
+        raise RuntimeError("connection reset by pooler")
+
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline"
+        ".engagement_repository.get_reviews_by_ids",
+        _boom,
+    )
+    with pytest.raises(RuntimeError, match="connection reset by pooler"):
+        build_context(db_session, "미사 수학학원", limit=3)
 
 
 def test_build_context_keeps_candidates_when_vector_search_fails(
