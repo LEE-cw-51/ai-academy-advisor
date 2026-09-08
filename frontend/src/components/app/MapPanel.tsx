@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui";
 import type { AcademySummary } from "@/lib/types";
-import { MAP_HEADING } from "./exploreCopy";
+import { MAP_EMPTY_LIST } from "./exploreCopy";
 
 type NaverMapInstance = {
   setCenter: (latLng: unknown) => void;
@@ -47,9 +47,15 @@ const HANAM_CENTER = { lat: 37.56015, lng: 127.1866 };
 
 interface MapPanelProps {
   academies: AcademySummary[];
+  /** 지도가 지금 무엇을 보여 주는지 — 대기 / 후보 위치 / 검색 결과. */
+  heading: string;
+  /** 목록이 비었을 때 지도·리스트에 보여 줄 안내 (제출 전 빈 지도 등). */
+  emptyHint?: string;
   selectedId: number | null;
   onSelect: (id: number) => void;
   onOpenDetail: (id: number) => void;
+  /** 헤딩과 지도 사이에 들어가는 보조 도구(키워드 검색 등). */
+  children?: ReactNode;
 }
 
 const SCRIPT_TIMEOUT_MS = 10_000;
@@ -96,9 +102,12 @@ function loadNaverScript(clientId: string): Promise<void> {
 
 export function MapPanel({
   academies,
+  heading,
+  emptyHint,
   selectedId,
   onSelect,
   onOpenDetail,
+  children,
 }: MapPanelProps) {
   const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.trim() ?? "";
   const mapRef = useRef<HTMLDivElement>(null);
@@ -197,13 +206,17 @@ export function MapPanel({
   }, [academies, selectedId, mapReady]);
 
   const showPlaceholder = !clientId || mapError || !mapReady;
+  const isEmpty = academies.length === 0;
+  const emptyMessage = emptyHint ?? MAP_EMPTY_LIST;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-ink">{MAP_HEADING}</h2>
-        <Badge>{academies.length}곳</Badge>
+        <h2 className="text-lg font-bold text-ink">{heading}</h2>
+        {!isEmpty ? <Badge>{academies.length}곳</Badge> : null}
       </div>
+
+      {children ? <div className="space-y-2">{children}</div> : null}
 
       <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-card border border-border-soft bg-surface-subtle">
         {clientId ? (
@@ -223,15 +236,24 @@ export function MapPanel({
                 ? "Naver Maps 스크립트 로드를 확인해 주세요."
                 : "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID를 설정하면 네이버 지도가 표시됩니다."}
             </p>
+            {isEmpty && emptyHint ? (
+              <p className="max-w-xs text-xs text-ink-subtle">{emptyHint}</p>
+            ) : null}
+          </div>
+        ) : isEmpty && emptyHint ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4 text-center">
+            <p className="max-w-xs rounded-card bg-surface/85 px-3 py-2 text-sm text-ink-muted shadow-soft">
+              {emptyHint}
+            </p>
           </div>
         ) : null}
       </div>
 
-      <ul className="max-h-48 space-y-2 overflow-y-auto sm:max-h-56">
-        {academies.length === 0 ? (
-          <li className="text-sm text-ink-subtle">표시할 학원이 없습니다.</li>
-        ) : (
-          academies.map((a) => (
+      {isEmpty ? (
+        <p className="text-sm text-ink-subtle">{emptyMessage}</p>
+      ) : (
+        <ul className="max-h-48 space-y-2 overflow-y-auto sm:max-h-56">
+          {academies.map((a) => (
             <li key={a.id}>
               <Card
                 padding="sm"
@@ -243,7 +265,12 @@ export function MapPanel({
                   .join(" ")}
                 onClick={() => onOpenDetail(a.id)}
               >
-                <p className="font-medium text-ink">{a.name}</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="font-medium text-ink">{a.name}</p>
+                  {a.subjects?.map((s) => (
+                    <Badge key={s}>{s}</Badge>
+                  ))}
+                </div>
                 {a.address ? (
                   <p className="mt-0.5 text-xs text-ink-subtle">{a.address}</p>
                 ) : null}
@@ -252,9 +279,9 @@ export function MapPanel({
                 ) : null}
               </Card>
             </li>
-          ))
-        )}
-      </ul>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui";
 import { fetchAllAcademies, trackEvent } from "@/lib/api";
@@ -17,16 +17,31 @@ import {
   APP_HEADER_NOTE,
   APP_NO_BROKERAGE,
   APP_TITLE,
+  BACK_TO_CANDIDATES_LABEL,
+  MAP_EMPTY_HINT,
+  MAP_HEADING_CANDIDATES,
+  MAP_HEADING_IDLE,
+  MAP_HEADING_SEARCH,
   SEARCH_CLEAR_LABEL,
   SEARCH_ERROR,
+  SEARCH_HELPER,
   SEARCH_LABEL,
-  SEARCH_NO_RESULTS,
+  SEARCH_OVERRIDES_CANDIDATES,
   SEARCH_PLACEHOLDER,
+  searchNoResults,
   searchResultCount,
 } from "./exploreCopy";
 
-const LIST_ERROR =
-  "학원 목록을 불러오지 못했어요. 백엔드 연결(BACKEND_ORIGIN)을 확인해 주세요.";
+// 지도가 지금 무엇을 보여 주는지. 한 흐름(상황 입력 → 질문·후보 → 후보 핀)이
+// 기본이고, 키워드 검색은 아는 학원을 이름·주소·전화로 찾는 보조다.
+// idle: 제출 전(또는 검색·후보 없음) — 마커 없이 빈 지도.
+type MapMode = "idle" | "candidates" | "search";
+
+const MAP_HEADINGS: Record<MapMode, string> = {
+  idle: MAP_HEADING_IDLE,
+  candidates: MAP_HEADING_CANDIDATES,
+  search: MAP_HEADING_SEARCH,
+};
 
 export function AppShell() {
   const [listAcademies, setListAcademies] = useState<AcademySummary[]>([]);
@@ -38,32 +53,44 @@ export function AppShell() {
   const [searchTotal, setSearchTotal] = useState<number | null>(null);
   const [searching, setSearching] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  // 상황 입력을 한 번이라도 제출하면 2열(질문·후보 | 지도)로 전환한다.
+  const [hasExplored, setHasExplored] = useState(false);
 
-  // 초기 로드와 키워드 검색이 같은 경로를 쓴다 — GET /academies(?q=).
-  // 최신 응답이 이긴다(늦게 온 이전 요청이 덮어써도 다음 검색으로 복구 가능한 MVP 동작).
+  // 키워드 검색만 GET /academies?q= 를 친다. 빈 q로 전체 목록을 올리지 않는다.
   const runSearch = useCallback(async (raw: string) => {
     const q = raw.trim();
+    if (!q) {
+      setListAcademies([]);
+      setActiveQuery("");
+      setSearchTotal(null);
+      setListError("");
+      setSelectedId(null);
+      return;
+    }
     setSearching(true);
     try {
-      const res = await fetchAllAcademies(q ? { q } : undefined);
+      const res = await fetchAllAcademies({ q });
       setListAcademies(res.items);
       setActiveQuery(q);
-      setSearchTotal(q ? res.total : null);
+      setSearchTotal(res.total);
       setListError("");
       // 선택된 학원이 검색 결과에서 사라지면 지도 선택을 해제한다.
       setSelectedId((prev) =>
         prev !== null && !res.items.some((a) => a.id === prev) ? null : prev,
       );
     } catch {
-      setListError(q ? SEARCH_ERROR : LIST_ERROR);
+      setListError(SEARCH_ERROR);
     } finally {
       setSearching(false);
     }
   }, []);
 
-  useEffect(() => {
-    void runSearch("");
-  }, [runSearch]);
+  const hasCandidates = recItems.length > 0;
+  const mapMode: MapMode = activeQuery
+    ? "search"
+    : hasCandidates
+      ? "candidates"
+      : "idle";
 
   const mapAcademies = useMemo(() => {
     // 키워드 검색이 활성일 땐 검색 결과가 지도를 차지한다.
@@ -76,6 +103,10 @@ export function AppShell() {
 
   const onResults = useCallback((items: AiRecommendationItem[]) => {
     setRecItems(items);
+  }, []);
+
+  const onExplored = useCallback(() => {
+    setHasExplored(true);
   }, []);
 
   const onSelect = useCallback((id: number | null) => {
@@ -107,8 +138,23 @@ export function AppShell() {
 
   const onSearchClear = useCallback(() => {
     setSearchInput("");
-    void runSearch("");
-  }, [runSearch]);
+    setListAcademies([]);
+    setActiveQuery("");
+    setSearchTotal(null);
+    setListError("");
+    if (recItems.length > 0) {
+      setSelectedId((prev) => {
+        if (prev !== null && recItems.some((item) => item.academy.id === prev)) {
+          return prev;
+        }
+        return recItems[0]?.academy.id ?? null;
+      });
+      return;
+    }
+    setSelectedId(null);
+  }, [recItems]);
+
+  const dualColumn = hasExplored || hasCandidates || Boolean(activeQuery);
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
@@ -137,55 +183,82 @@ export function AppShell() {
         </div>
       ) : null}
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-4 p-4 sm:p-6 lg:grid-cols-2 lg:gap-6">
-        <section className="min-h-[420px] rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5">
+      {/* DOM 순서 = 모바일 순서: 상황 입력 → 질문·후보 → 지도·검색.
+          제출 전에는 폼이 주인공(단열), 제출·검색 후에만 2열. */}
+      <div
+        className={[
+          "mx-auto grid w-full max-w-6xl flex-1 gap-4 p-4 sm:p-6",
+          dualColumn ? "lg:grid-cols-2 lg:gap-6" : "lg:max-w-2xl",
+        ].join(" ")}
+      >
+        <section
+          className={[
+            "rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
+            dualColumn ? "min-h-[420px]" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <ChatPanel
             onResults={onResults}
+            onExplored={onExplored}
             onSelectAcademy={onSelect}
             selectedAcademyId={selectedId}
             onOpenDetail={onOpenDetail}
           />
         </section>
-        <section className="min-h-[420px] rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5">
-          <form onSubmit={onSearchSubmit} className="mb-3 flex gap-2">
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder={SEARCH_PLACEHOLDER}
-              aria-label={SEARCH_LABEL}
-              className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={searching}
-              className="rounded-full bg-surface-subtle px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-brand hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {SEARCH_LABEL}
-            </button>
-          </form>
-          {activeQuery ? (
-            <p className="mb-2 flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
-              <span>
-                {searchTotal === 0
-                  ? SEARCH_NO_RESULTS
-                  : searchResultCount(searchTotal ?? listAcademies.length)}
-              </span>
-              <button
-                type="button"
-                onClick={onSearchClear}
-                className="underline underline-offset-2"
-              >
-                {SEARCH_CLEAR_LABEL}
-              </button>
-            </p>
-          ) : null}
+        <section
+          className={[
+            "rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
+            dualColumn ? "min-h-[420px]" : "min-h-[280px]",
+          ].join(" ")}
+        >
           <MapPanel
             academies={mapAcademies}
+            heading={MAP_HEADINGS[mapMode]}
+            emptyHint={mapMode === "idle" ? MAP_EMPTY_HINT : undefined}
             selectedId={selectedId}
             onSelect={onSelect}
             onOpenDetail={onOpenDetail}
-          />
+          >
+            <form onSubmit={onSearchSubmit} className="flex gap-2">
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder={SEARCH_PLACEHOLDER}
+                aria-label={SEARCH_LABEL}
+                className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={searching}
+                className="rounded-full bg-surface-subtle px-4 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-brand hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {SEARCH_LABEL}
+              </button>
+            </form>
+            <p className="text-xs text-ink-subtle">{SEARCH_HELPER}</p>
+            {activeQuery ? (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-ink-subtle">
+                <span>
+                  {searchTotal === 0
+                    ? searchNoResults(activeQuery)
+                    : searchResultCount(searchTotal ?? listAcademies.length)}
+                </span>
+                {hasCandidates ? (
+                  <span>{SEARCH_OVERRIDES_CANDIDATES}</span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onSearchClear}
+                  className="underline underline-offset-2"
+                >
+                  {hasCandidates ? BACK_TO_CANDIDATES_LABEL : SEARCH_CLEAR_LABEL}
+                </button>
+              </p>
+            ) : null}
+          </MapPanel>
         </section>
       </div>
 

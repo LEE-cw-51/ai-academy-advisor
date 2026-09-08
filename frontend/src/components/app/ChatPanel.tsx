@@ -17,15 +17,22 @@ import { ApiError } from "@/lib/types";
 import {
   CANDIDATES_ERROR,
   CANDIDATES_HEADING,
+  EDIT_CONDITIONS_LABEL,
   EMPTY_RESULTS,
   FORM_HEADING,
   FORM_SUPPORT,
   INTENTS,
   LOADING_LABEL,
+  MORE_DETAILS_HIDE_LABEL,
+  MORE_DETAILS_LABEL,
   NO_CANDIDATES,
   QUESTIONS_ERROR,
   QUESTIONS_HEADING,
+  SUBJECT_FORM_HELPER,
+  SUBJECT_HELPER,
   SUBMIT_LABEL,
+  TAGS_HEADING,
+  TAGS_HELPER,
 } from "./exploreCopy";
 import { RecommendationCard } from "./RecommendationCard";
 
@@ -42,19 +49,28 @@ const STYLE_TAGS = [
   "개념 위주",
 ] as const;
 
+const INTENT_SUMMARY: Record<ConsultationIntent, string> = {
+  find_new_academy: "새 학원",
+  counsel_only: "상담",
+};
+
 interface ChatPanelProps {
   onResults: (items: AiRecommendationItem[]) => void;
+  /** 상황 입력을 제출하면 부모가 2열 레이아웃으로 전환한다. */
+  onExplored?: () => void;
   onSelectAcademy: (id: number | null) => void;
   selectedAcademyId: number | null;
   onOpenDetail: (id: number) => void;
 }
 
+// AI 후보 쿼리. 태그(소수정예·선행 등)는 넣지 않는다 — 백엔드 intent 파서가
+// class_*/curriculum_* 조건으로 읽지만 그 컬럼은 아직 대부분 null이라 카드마다
+// "미확인"만 늘어난다. 태그는 상담 질문(style_tags)에만 쓴다.
 function buildQuery(parts: {
   region: string;
   grade: string | null;
   school: string;
   subject: string | null;
-  tags: string[];
   note: string;
 }): string {
   const chunks: string[] = [];
@@ -62,13 +78,13 @@ function buildQuery(parts: {
   if (parts.grade) chunks.push(parts.grade);
   if (parts.school.trim()) chunks.push(parts.school.trim());
   if (parts.subject) chunks.push(parts.subject);
-  if (parts.tags.length) chunks.push(parts.tags.join(", "));
   if (parts.note.trim()) chunks.push(parts.note.trim());
   return chunks.join(" · ");
 }
 
 export function ChatPanel({
   onResults,
+  onExplored,
   onSelectAcademy,
   selectedAcademyId,
   onOpenDetail,
@@ -88,6 +104,8 @@ export function ChatPanel({
   const [questionsDisclaimer, setQuestionsDisclaimer] = useState("");
   const [relaxed, setRelaxed] = useState<string[]>([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [formExpanded, setFormExpanded] = useState(true);
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
 
   const query = useMemo(
     () =>
@@ -96,13 +114,19 @@ export function ChatPanel({
         grade,
         school,
         subject,
-        tags,
         note,
       }),
-    [grade, school, subject, tags, note],
+    [grade, school, subject, note],
   );
 
   const canSubmit = Boolean(grade && subject && note.trim());
+
+  const conditionSummary = useMemo(() => {
+    const parts = [INTENT_SUMMARY[intent]];
+    if (grade) parts.push(grade);
+    if (subject) parts.push(subject);
+    return parts.join(" · ");
+  }, [intent, grade, subject]);
 
   function toggleTag(tag: string) {
     setTags((prev) =>
@@ -122,6 +146,8 @@ export function ChatPanel({
     setQuestionsError("");
     setCandidatesError("");
     setHasSubmitted(true);
+    setFormExpanded(false);
+    onExplored?.();
     try {
       const [questionsResult, recsResult] = await Promise.allSettled([
         requestConsultationQuestions({
@@ -183,134 +209,170 @@ export function ChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
-      <div>
-        <div className="mb-1 flex items-center gap-2">
-          <h2 className="text-lg font-bold text-ink">{FORM_HEADING}</h2>
-          <Badge tone="brand">하남 미사</Badge>
+      {hasSubmitted && !formExpanded ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-border-soft bg-surface-muted px-3 py-2.5">
+          <p className="text-sm font-medium text-ink">{conditionSummary}</p>
+          <button
+            type="button"
+            onClick={() => setFormExpanded(true)}
+            className="text-sm font-semibold text-brand underline-offset-2 hover:underline"
+          >
+            {EDIT_CONDITIONS_LABEL}
+          </button>
         </div>
-        <p className="text-sm text-ink-subtle">{FORM_SUPPORT}</p>
-      </div>
+      ) : (
+        <>
+          <div>
+            <div className="mb-1 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-ink">{FORM_HEADING}</h2>
+              <Badge tone="brand">하남 미사</Badge>
+            </div>
+            <p className="text-sm text-ink-subtle">{FORM_SUPPORT}</p>
+          </div>
 
-      <div className="space-y-3.5">
-        <FilterRow label="상황">
-          {INTENTS.map((option) => (
-            <Chip
-              key={option.id}
-              selected={intent === option.id}
+          <div className="space-y-3.5">
+            <FilterRow label="상황">
+              {INTENTS.map((option) => (
+                <Chip
+                  key={option.id}
+                  selected={intent === option.id}
+                  disabled={loading}
+                  onClick={() => setIntent(option.id)}
+                >
+                  {option.label}
+                </Chip>
+              ))}
+            </FilterRow>
+
+            <FilterRow label="학년">
+              {GRADES.map((g) => (
+                <Chip
+                  key={g}
+                  selected={grade === g}
+                  disabled={loading}
+                  onClick={() => setGrade(grade === g ? null : g)}
+                >
+                  {g}
+                </Chip>
+              ))}
+            </FilterRow>
+
+            <FilterRow label="과목">
+              {SUBJECTS.map((s) => (
+                <Chip
+                  key={s}
+                  selected={subject === s}
+                  disabled={loading}
+                  onClick={() => setSubject(subject === s ? null : s)}
+                >
+                  {s}
+                </Chip>
+              ))}
+            </FilterRow>
+            <p className="pl-[3.25rem] text-xs text-ink-subtle">
+              {SUBJECT_FORM_HELPER}
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            <label className="sr-only" htmlFor="explore-concern">
+              고민
+            </label>
+            <textarea
+              id="explore-concern"
+              name="note"
+              rows={3}
               disabled={loading}
-              onClick={() => setIntent(option.id)}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void runQuery();
+                }
+              }}
+              placeholder="예) 질문하면 잘 받아주는지, 오답은 어떻게 봐 주는지 궁금해요."
+              className="w-full resize-none rounded-card border border-border bg-surface px-4 py-3.5 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+            />
+            <button
+              type="button"
+              disabled={loading || !canSubmit}
+              onClick={() => void runQuery()}
+              className="w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {option.label}
-            </Chip>
-          ))}
-        </FilterRow>
+              {loading ? LOADING_LABEL : SUBMIT_LABEL}
+            </button>
+          </div>
 
-        <FilterRow label="지역">
-          <Chip selected soft disabled>
-            {REGION}
-          </Chip>
-        </FilterRow>
-
-        <FilterRow label="학년">
-          {GRADES.map((g) => (
-            <Chip
-              key={g}
-              selected={grade === g}
+          <div className="space-y-2.5">
+            <button
+              type="button"
               disabled={loading}
-              onClick={() => setGrade(grade === g ? null : g)}
+              aria-expanded={moreDetailsOpen}
+              onClick={() => setMoreDetailsOpen((open) => !open)}
+              className="text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60"
             >
-              {g}
-            </Chip>
-          ))}
-        </FilterRow>
+              {moreDetailsOpen ? MORE_DETAILS_HIDE_LABEL : MORE_DETAILS_LABEL}
+            </button>
+            {moreDetailsOpen ? (
+              <div className="space-y-3.5 rounded-card border border-border-soft bg-surface-muted px-3 py-3">
+                <FilterRow label="학교">
+                  <input
+                    type="text"
+                    name="school"
+                    value={school}
+                    disabled={loading}
+                    placeholder="학교 이름을 입력하세요 (예: 미사중학교)"
+                    onChange={(e) => setSchool(e.target.value)}
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                  />
+                </FilterRow>
 
-        <FilterRow label="학교">
-          <input
-            type="text"
-            name="school"
-            value={school}
-            disabled={loading}
-            placeholder="학교 이름을 입력하세요 (예: 미사중학교)"
-            onChange={(e) => setSchool(e.target.value)}
-            className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
-          />
-        </FilterRow>
+                <FilterRow label="학원">
+                  <input
+                    type="text"
+                    name="current_academy"
+                    value={currentAcademy}
+                    disabled={loading}
+                    placeholder="현재 다니는 학원 (없으면 비워 두세요)"
+                    onChange={(e) => setCurrentAcademy(e.target.value)}
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                  />
+                </FilterRow>
 
-        <FilterRow label="학원">
-          <input
-            type="text"
-            name="current_academy"
-            value={currentAcademy}
-            disabled={loading}
-            placeholder="현재 다니는 학원 (없으면 비워 두세요)"
-            onChange={(e) => setCurrentAcademy(e.target.value)}
-            className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
-          />
-        </FilterRow>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-ink-subtle">
+                    {TAGS_HEADING}
+                  </p>
+                  <p className="text-xs text-ink-subtle">{TAGS_HELPER}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {STYLE_TAGS.map((tag) => (
+                      <Chip
+                        key={tag}
+                        selected={tags.includes(tag)}
+                        disabled={loading}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {tag}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
 
-        <FilterRow label="과목">
-          {SUBJECTS.map((s) => (
-            <Chip
-              key={s}
-              selected={subject === s}
-              disabled={loading}
-              onClick={() => setSubject(subject === s ? null : s)}
+          {hasSubmitted ? (
+            <button
+              type="button"
+              onClick={() => setFormExpanded(false)}
+              className="self-start text-sm text-ink-subtle underline-offset-2 hover:underline"
             >
-              {s}
-            </Chip>
-          ))}
-        </FilterRow>
-      </div>
-
-      <div className="space-y-2.5">
-        <p className="flex items-center gap-1.5 text-sm font-medium text-ink-subtle">
-          <span aria-hidden>✨</span>
-          많이 찾는 질문
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {STYLE_TAGS.map((tag) => (
-            <Chip
-              key={tag}
-              selected={tags.includes(tag)}
-              disabled={loading}
-              onClick={() => toggleTag(tag)}
-            >
-              {tag}
-            </Chip>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative rounded-card border border-border bg-surface shadow-soft">
-        <textarea
-          name="note"
-          rows={3}
-          disabled={loading}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void runQuery();
-            }
-          }}
-          placeholder="예) 내신 대비를 잘하는 학원을 찾고 싶어요. 숙제가 너무 많지는 않았으면 좋겠어요."
-          className="w-full resize-none rounded-card bg-transparent px-4 py-3.5 pr-14 text-sm text-ink placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
-        />
-        <button
-          type="button"
-          aria-label={SUBMIT_LABEL}
-          disabled={loading || !canSubmit}
-          onClick={() => void runQuery()}
-          className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-subtle text-ink-subtle transition-colors hover:bg-brand hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface-subtle disabled:hover:text-ink-subtle"
-        >
-          {loading ? (
-            <span className="text-xs font-semibold">…</span>
-          ) : (
-            <SendIcon />
-          )}
-        </button>
-      </div>
+              질문·후보 보기
+            </button>
+          ) : null}
+        </>
+      )}
 
       {loading ? <p className="text-sm text-ink-subtle">{LOADING_LABEL}</p> : null}
       {questionsError ? <p className="text-sm text-warn">{questionsError}</p> : null}
@@ -347,6 +409,7 @@ export function ChatPanel({
         {items.length > 0 ? (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-ink">{CANDIDATES_HEADING}</h3>
+            <p className="text-xs text-ink-subtle">{SUBJECT_HELPER}</p>
             {items.map((item) => (
               <RecommendationCard
                 key={item.academy.id}
@@ -388,23 +451,5 @@ function FilterRow({
         {children}
       </div>
     </div>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <path
-        d="M3.4 20.4 21 12 3.4 3.6 3 10.5l11 1.5L3 13.5l.4 6.9Z"
-        fill="currentColor"
-      />
-    </svg>
   );
 }

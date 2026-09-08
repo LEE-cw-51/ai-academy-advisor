@@ -9,6 +9,7 @@ import {
   ASK_AT_CONSULTATION_HEADING,
   ASK_AT_CONSULTATION_ITEMS,
   UNCONFIRMED_VALUE,
+  UNVERIFIED_FIELDS_LABEL,
 } from "./exploreCopy";
 
 interface AcademyDetailModalProps {
@@ -64,6 +65,19 @@ export function AcademyDetailModal({
     detail && detail.latitude != null && detail.longitude != null
       ? { lat: detail.latitude, lng: detail.longitude }
       : null;
+
+  // 아직 거의 채워지지 않은 필드는 행마다 "미확인"을 반복하는 대신 한 줄로 묶는다.
+  // 값이 들어오면 자동으로 위의 <dl> 행으로 올라간다.
+  const unverifiedFields = detail
+    ? [
+        { label: "운영 시간", value: detail.operating_hours },
+        { label: "월 수강료", value: detail.tuition_monthly_fee },
+        { label: "셔틀", value: detail.shuttle_available },
+        { label: "강사 수", value: detail.teacher_count },
+      ]
+        .filter((field) => field.value == null)
+        .map((field) => field.label)
+    : [];
 
   return (
     <Modal
@@ -123,11 +137,7 @@ export function AcademyDetailModal({
           <dl className="space-y-1.5">
             <DetailRow label="주소" value={detail.address} />
             <DetailRow label="전화" value={detail.phone} />
-            <DetailRow
-              label="운영 시간"
-              value={detail.operating_hours}
-              showEmpty
-            />
+            <DetailRow label="운영 시간" value={detail.operating_hours} />
             <DetailRow
               label="월 수강료"
               value={
@@ -135,7 +145,6 @@ export function AcademyDetailModal({
                   ? `${detail.tuition_monthly_fee.toLocaleString("ko-KR")}원`
                   : null
               }
-              showEmpty
             />
             <DetailRow
               label="강사 수"
@@ -152,7 +161,6 @@ export function AcademyDetailModal({
                     ? "운행"
                     : "미운행"
               }
-              showEmpty
             />
             <DetailRow
               label="정보 확인일"
@@ -160,6 +168,11 @@ export function AcademyDetailModal({
               showEmpty
             />
           </dl>
+          {unverifiedFields.length ? (
+            <p className="text-xs text-ink-subtle">
+              {UNVERIFIED_FIELDS_LABEL}: {unverifiedFields.join(", ")}
+            </p>
+          ) : null}
           <div className="rounded-btn bg-surface-muted px-3 py-2">
             <p className="text-xs font-semibold text-ink-muted">
               {ASK_AT_CONSULTATION_HEADING}
