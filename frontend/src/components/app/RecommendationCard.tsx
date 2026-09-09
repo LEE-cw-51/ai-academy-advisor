@@ -27,6 +27,9 @@ interface RecommendationCardProps {
  * `score`는 응답 내 상대값이라 표시하지 않는다. `unknown_conditions`도 나열하지
  * 않는다 — 컬럼 대부분이 아직 null이라 미확인 목록이 사실보다 길어진다. 확인된
  * 조건만 보여 주고, 물어볼 것은 왼쪽 상담 질문과 상세 모달에 둔다.
+ *
+ * 선택 영역(Card onActivate)과 전화·상세·길찾기 버튼은 형제다 — role=button
+ * 카드 안에 버튼을 넣지 않는다.
  */
 export function RecommendationCard({
   item,
@@ -45,68 +48,75 @@ export function RecommendationCard({
   const subjects = academy.subjects ?? [];
 
   return (
-    <Card
-      padding="sm"
+    <article
       className={[
-        "cursor-pointer transition-shadow hover:shadow-soft",
+        "overflow-hidden rounded-card border border-border-soft bg-surface shadow-card",
         selected ? "ring-2 ring-brand" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      onActivate={() => onSelect?.()}
     >
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Badge tone="brand">{CANDIDATE_BADGE}</Badge>
-        <h3 className="font-semibold text-ink">{academy.name}</h3>
-        {subjects.map((s) => (
-          <Badge key={s}>{s}</Badge>
-        ))}
-      </div>
+      <Card
+        padding="sm"
+        className="cursor-pointer rounded-none border-0 shadow-none transition-colors hover:bg-surface-muted/50"
+        onActivate={() => onSelect?.()}
+      >
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <Badge tone="brand">{CANDIDATE_BADGE}</Badge>
+          <h3 className="font-semibold text-ink">{academy.name}</h3>
+          {subjects.map((s) => (
+            <Badge key={s}>{s}</Badge>
+          ))}
+        </div>
 
-      <div className="space-y-0.5 text-xs text-ink-subtle">
-        {academy.address ? <p>{academy.address}</p> : null}
-        {academy.phone ? <p>{academy.phone}</p> : null}
-        <p>
-          {VERIFIED_AT_LABEL}: {academy.last_verified_at ?? UNCONFIRMED_VALUE}
-        </p>
-      </div>
-
-      <CardSection title={WHY_CANDIDATE_HEADING}>
-        <p className="text-sm text-ink-muted">{reason}</p>
-        {matched_conditions.length > 0 ? (
-          <p className="mt-1 text-xs text-ink-subtle">
-            {MATCHED_CONDITIONS_LABEL}:{" "}
-            {matched_conditions.map(conditionLabel).join(", ")}
+        <div className="space-y-0.5 text-xs text-ink-subtle">
+          {academy.address ? <p>{academy.address}</p> : null}
+          {academy.phone ? <p>{academy.phone}</p> : null}
+          <p>
+            {VERIFIED_AT_LABEL}: {academy.last_verified_at ?? UNCONFIRMED_VALUE}
           </p>
-        ) : null}
-      </CardSection>
+        </div>
 
-      {conflicts.length > 0 ? (
-        <CardSection title={CONFLICTS_HEADING}>
-          <p className="text-xs text-ink-subtle">
-            {conflicts.map(conditionLabel).join(", ")}
+        <CardSection title={WHY_CANDIDATE_HEADING}>
+          <p className="line-clamp-4 break-words text-sm text-ink-muted">
+            {reason}
           </p>
-        </CardSection>
-      ) : null}
-
-      {review ? (
-        <CardSection title={REVIEW_EVIDENCE_HEADING}>
-          <p className="line-clamp-2 text-xs text-ink-subtle">
-            “{review.content}”
-          </p>
-          {review.source ? (
-            <p className="mt-0.5 text-xs text-ink-subtle">출처: {review.source}</p>
+          {matched_conditions.length > 0 ? (
+            <p className="mt-1 break-words text-xs text-ink-subtle">
+              {MATCHED_CONDITIONS_LABEL}:{" "}
+              {matched_conditions.map(conditionLabel).join(", ")}
+            </p>
           ) : null}
         </CardSection>
-      ) : null}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+        {conflicts.length > 0 ? (
+          <CardSection title={CONFLICTS_HEADING}>
+            <p className="break-words text-xs text-ink-subtle">
+              {conflicts.map(conditionLabel).join(", ")}
+            </p>
+          </CardSection>
+        ) : null}
+
+        {review ? (
+          <CardSection title={REVIEW_EVIDENCE_HEADING}>
+            <p className="line-clamp-2 break-words text-xs text-ink-subtle">
+              “{review.content}”
+            </p>
+            {review.source ? (
+              <p className="mt-0.5 text-xs text-ink-subtle">
+                출처: {review.source}
+              </p>
+            ) : null}
+          </CardSection>
+        ) : null}
+      </Card>
+
+      <div className="flex flex-wrap gap-2 border-t border-border-soft px-3 py-2">
         {academy.phone ? (
           <Button
             variant="secondary"
-            className="!px-2.5 !py-1.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
+            className="min-h-11 px-2.5 text-xs"
+            onClick={() => {
               onTrack?.("phone");
               window.open(`tel:${academy.phone}`, "_self");
             }}
@@ -116,9 +126,8 @@ export function RecommendationCard({
         ) : null}
         <Button
           variant="secondary"
-          className="!px-2.5 !py-1.5 text-xs"
-          onClick={(e) => {
-            e.stopPropagation();
+          className="min-h-11 px-2.5 text-xs"
+          onClick={() => {
             // detail 계측은 AppShell.onOpenDetail 한 곳에서 한다 (지도 목록과 공통 합류점).
             onShowDetail?.();
           }}
@@ -128,9 +137,8 @@ export function RecommendationCard({
         {coords ? (
           <Button
             variant="ghost"
-            className="!px-2.5 !py-1.5 text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
+            className="min-h-11 px-2.5 text-xs"
+            onClick={() => {
               onTrack?.("directions");
               onSelect?.();
               window.open(
@@ -144,7 +152,7 @@ export function RecommendationCard({
           </Button>
         ) : null}
       </div>
-    </Card>
+    </article>
   );
 }
 

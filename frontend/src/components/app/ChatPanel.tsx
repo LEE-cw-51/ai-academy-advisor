@@ -357,7 +357,7 @@ export function ChatPanel({
               type="button"
               disabled={loading || !canSubmit}
               onClick={() => void runQuery()}
-              className="w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? LOADING_LABEL : SUBMIT_LABEL}
             </button>

@@ -2,6 +2,65 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-09 — 디자인 점검 중간 이슈 — 다음 세션
+
+- **계기**: 웹 디자인 가이드라인·퍼널/`/app` 감사에서 **높음**은 이번 커밋에서
+  처리했다. **중간**만 남겼고, 다음 세션이 같은 감사를 다시 돌리지 않도록
+  열린 항목만 적는다. (높음 재작업 금지.)
+- **이번 커밋에 이미 들어간 것 (다시 하지 말 것)**:
+  - AI `reason` 채점 덤프 가드 + stub 한국어 폴백 (`ai_recommendation_service` /
+    `stub` / `docs/api.md` `reason` 계약)
+  - 상세 모달 `source_note` 비공개 (`AcademyDetailModal`)
+  - 높음 터치·a11y: Modal `overscroll-contain`·닫기 44px, Chip/CTA `min-h-11`,
+    LandingHeader 로고 히트, LandingFooter 링크 `min-h-11`, SiteChrome 하단
+    scroll/safe 여유, Card `focus-visible`(onActivate), MapPanel 목록 카드는
+    Card를 통해 focus-visible 상속
+- **다음 세션 — 중간 (미해결, 중복 제거)**:
+  - `Modal.tsx`: `overscroll-contain`은 됨. 패널/닫기에 `safe-area-inset` 패딩
+    없음
+  - Skip link → `<main>` 없음 (`layout.tsx` / `SiteChrome.tsx` / 랜딩 페이지들)
+  - `PageHero.tsx:66` h1에 `text-wrap: balance`/`pretty` 없음
+  - `LandingFooter.tsx`·`LandingHeader.tsx`·`KakaoChannelModal.tsx:48` 개인정보·
+    텍스트 링크: 히트 영역은 고쳤으나 `focus-visible` 유틸 없음
+  - `checklists/page.tsx:41–50` 그룹 앵커 nav: `focus-visible` 없음
+  - `MiniAcademyCheck.tsx:199`「이전 질문」ghost CTA 높이; `:207–224`
+    progressbar는 `aria-hidden` 장식만 (role/valuenow 없음)
+  - `ServicePreviewSection.tsx:31`「왜 추천했나요?」vs `/app` 테마
+    `WHY_CANDIDATE_HEADING`「왜 이 후보를 보여드렸나요?」불일치
+  - `layout.tsx` / `globals.css`: `theme-color` 메타 없음; `touch-action:
+    manipulation` 없음
+  - `AppShell.tsx:180` 브랜드가 `span`(페이지 h1 아님); `:185–190` 개인정보
+    링크 focus-visible·히트; `:246–252` 검색 `autocomplete` 없음; `:273–279`
+    검색 해제 링크 focus-visible
+  - `ChatPanel.tsx`: 학교·학원 입력(`:378–399`) label/`htmlFor`·`autocomplete`
+    없음; `:445` 로딩에 `aria-live` 없음; 필터 행이 `fieldset` 아님; 헤딩
+    text-wrap; 「조건 수정」·「자세히」·「질문·후보 보기」등 텍스트 컨트롤
+    focus-visible
+  - `MapPanel.tsx:297`: 목록 카드 `onActivate`→상세 직행 vs 왼쪽 후보
+    선택(데스크톱 비대칭). 카드 focus-visible는 Card로 이미 처리
+  - `AcademyDetailModal.tsx:153` 로딩 문구에 `aria-live` 없음
+- **바꾸지 않은 것**: 중간 항목 구현, 감사 재실행, 낮음/니트픽.
+
+## 2026-09-09 — AI 추천 이유는 학부모용 문장만 (채점 덤프 금지)
+
+- **계기**: 후보 카드「왜 이 후보를 보여드렸나요?」에 `matched=['subject']`,
+  `[stub-llm]`, `적합도:` 같은 디버그 문자열이 그대로 나왔다. `_build_reason`이
+  채점 리스트를 LLM에 넣었고, 기본 `StubLLMProvider`가 user 메시지를 에코했다.
+  Groq여도 모델이 덤프를 따라 쓸 수 있다. 프론트는 `reason`을 가공하지 않는다.
+- **결정**:
+  - 프롬프트에는 한국어 조건 라벨만 넘긴다. `matched=`/`unknown=`/`conflicts=`
+    덤프와 주소 전문은 넣지 않는다.
+  - 시스템 프롬프트는 2–3문장, 확인된 사실만. 영문 키·`[]`·`적합도:`·필드명·
+    리뷰 원문 붙여넣기·점수 언급을 금지한다.
+  - LLM 출력이 덤프처럼 보이면(`matched=`, `[stub-llm]`, `적합도:`, 파이썬
+    리스트) `_fallback_reason`으로 교체한다. stub 성공 경로도 깨진 문장을 막는다.
+  - stub은 프롬프트를 에코하지 않고 폴백과 같은 짧은 한국어를 반환한다.
+- **바꾸지 않은 것**: `POST /recommendations`와 `/recommendations/ai` 분리,
+  `reason: str` 계약, `score`를 문장에 넣지 않음, 프론트의 `reason` 파싱 없음,
+  `matched_conditions` 등 투명성 필드.
+- **다음**: 상세 `source_note` 비공개는 같은 날 프론트 커밋에서 처리.
+    남은 중간 a11y는 위「디자인 점검 중간 이슈」항목.
+
 ## 2026-09-09 — 소스 텍스트 단정문 규칙 (가드하지 못하는 테스트 정리)
 
 - **계기**: 리뷰 후속으로 테스트 품질 2건을 보려다 감사를 돌렸더니 **17건**이 나왔다.

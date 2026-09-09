@@ -212,10 +212,6 @@ export function AcademyDetailModal({
               ))}
             </div>
           ) : null}
-
-          {detail.source_note ? (
-            <p className="pt-1 text-xs text-ink-subtle">{detail.source_note}</p>
-          ) : null}
         </div>
       ) : null}
     </Modal>

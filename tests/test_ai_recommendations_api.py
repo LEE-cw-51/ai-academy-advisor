@@ -49,6 +49,12 @@ def test_ai_recommend_returns_items_with_reason_and_score(client, db_session):
         assert isinstance(item["reason"], str) and item["reason"]
         assert isinstance(item["score"], (int, float))
         assert item["evidence_reviews"] == []  # 리뷰 ingest 전이라 근거 없음
+        # stub 기본 경로도 학부모용 문장 — 채점 덤프·에코를 카드에 올리지 않는다.
+        assert "matched=" not in item["reason"]
+        assert "[stub-llm]" not in item["reason"]
+        assert "unknown=" not in item["reason"]
+        assert "적합도:" not in item["reason"]
+        assert "확인해 볼 후보" in item["reason"]
 
 
 def test_ai_recommend_exposes_parsed_intent(client, db_session):
@@ -449,3 +455,76 @@ def test_reason_system_prompt_forbids_invented_contact():
     assert "이유 문장" in _REASON_SYSTEM_PROMPT
     assert "전화" in _REASON_SYSTEM_PROMPT
     assert "웹사이트" in _REASON_SYSTEM_PROMPT
+    assert "적합도:" in _REASON_SYSTEM_PROMPT
+    assert "주소 전문" in _REASON_SYSTEM_PROMPT
+    assert "영문 키" in _REASON_SYSTEM_PROMPT
+
+
+class _DumpLLM:
+    """모델이 프롬프트 덤프를 따라 쓴 경우."""
+
+    def chat(self, messages):
+        return (
+            "[stub-llm] 입력을 받았습니다: 질문: 고1 내신 "
+            "적합도: matched=['subject'], unknown=['level_high']"
+        )
+
+
+def test_ai_recommend_replaces_dump_like_llm_output(client, db_session, monkeypatch):
+    """LLM이 matched= / [stub-llm] / 적합도: 덤프를 돌려줘도 폴백 문장으로 바꾼다."""
+    seed_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: _DumpLLM(),
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items
+    for item in items:
+        assert "matched=" not in item["reason"]
+        assert "[stub-llm]" not in item["reason"]
+        assert "unknown=" not in item["reason"]
+        assert "적합도:" not in item["reason"]
+        assert "확인해 볼 후보" in item["reason"]
+
+
+class _CapturingGoodLLM:
+    """프롬프트에 덤프가 실리는지 검사하고, 깨끗한 문장을 반환한다."""
+
+    def __init__(self) -> None:
+        self.user_content = ""
+
+    def chat(self, messages):
+        for message in messages:
+            if message.get("role") == "user":
+                self.user_content = str(message.get("content", ""))
+        return "등록된 고등·내신 정보와 맞아 확인해 볼 후보로 정리했습니다."
+
+
+def test_reason_prompt_sends_korean_labels_not_debug_dump(
+    client, db_session, monkeypatch
+):
+    seed_academies(db_session)
+    llm = _CapturingGoodLLM()
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: llm,
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    assert "matched=" not in llm.user_content
+    assert "unknown=" not in llm.user_content
+    assert "적합도:" not in llm.user_content
+    assert "conflicts=" not in llm.user_content
+    assert "고등" in llm.user_content
+    assert "내신" in llm.user_content
+    assert "과목" in llm.user_content
+    for item in response.json()["items"]:
+        assert item["reason"] == (
+            "등록된 고등·내신 정보와 맞아 확인해 볼 후보로 정리했습니다."
+        )

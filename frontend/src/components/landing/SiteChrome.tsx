@@ -9,11 +9,14 @@ interface SiteChromeProps {
 
 /** `/`·`/check`·`/checklists`·`/privacy`가 공유하는 크롬.
  *  하단 고정 바가 `fixed`라 본문·법적 푸터가 가려지지 않게 패딩을 둔다.
- *  5.5rem(88px) = 바 높이(44px) + 44px 여유. 바 라벨이 한 줄일 때 기준이고,
- *  라벨이 두 줄이 되면 바가 ~72px가 되니 여전히 덮는다. `/app`은 안내형 추천 셸이라 여기 넣지 않는다. */
+ *  StickyKakaoBar는 pt-3 + CTA(!py-3) + 내부 pb-3 + safe-area. 375px에서
+ *  라벨이 두 줄이면 바 ≈69–72px(+safe-area). 예전 5.5rem(88px)는 여유
+ *  ~16px뿐이라 스크롤 끝·포커스 시 법적 링크가 바에 가려졌다.
+ *  8rem(128px)+safe-area ≈ 바 + ≥44px 터치/포커스 여유.
+ *  `/app`은 안내형 추천 셸이라 여기 넣지 않는다. */
 export function SiteChrome({ children }: SiteChromeProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-canvas pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+    <div className="flex min-h-screen flex-col bg-canvas pb-[calc(8rem+env(safe-area-inset-bottom))]">
       <LandingHeader />
       {children}
       <LandingFooter />

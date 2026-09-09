@@ -305,8 +305,22 @@ def test_detail_modal_groups_unverified_fields_into_one_line():
     assert "factRows" in modal
     assert modal.count('"월 수강료"') == 1
     assert "factRows" in slice_between(modal, "const unverifiedFields", ";")
-    assert "source_note" in modal
     assert "ASK_AT_CONSULTATION_ITEMS" in modal
+
+
+def test_card_and_modal_do_not_render_source_note():
+    """운영용 source_note는 학부모 화면(카드·상세 모달)에 그리지 않는다.
+
+    확인일은 기존 last_verified_at / 정보 확인일 행만 남긴다. AI reason 가공은
+    백엔드 몫이라 여기서 파싱하지 않는다.
+    """
+    modal = DETAIL_MODAL.read_text(encoding="utf-8")
+    card = REC_CARD.read_text(encoding="utf-8")
+
+    assert "source_note" not in modal
+    assert "source_note" not in card
+    assert "정보 확인일" in modal
+    assert "last_verified_at" in modal
 
 
 def test_subject_helpers_split_form_and_results():

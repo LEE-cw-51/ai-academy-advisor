@@ -12,38 +12,56 @@ type NaverMapInstance = {
 
 type NaverMarkerInstance = {
   setMap: (map: unknown | null) => void;
+  setIcon: (icon: unknown) => void;
+  setZIndex: (zIndex: number) => void;
+};
+
+type NaverMapsApi = {
+  Map: new (
+    el: HTMLElement,
+    opts: {
+      center: unknown;
+      zoom: number;
+    },
+  ) => NaverMapInstance;
+  LatLng: new (lat: number, lng: number) => unknown;
+  Point: new (x: number, y: number) => unknown;
+  Marker: new (opts: {
+    position: unknown;
+    map: unknown;
+    title?: string;
+    icon?: unknown;
+    zIndex?: number;
+  }) => NaverMarkerInstance;
+  Event: {
+    addListener: (
+      target: unknown,
+      event: string,
+      handler: () => void,
+    ) => void;
+  };
 };
 
 declare global {
   interface Window {
     naver?: {
-      maps: {
-        Map: new (
-          el: HTMLElement,
-          opts: {
-            center: unknown;
-            zoom: number;
-          },
-        ) => NaverMapInstance;
-        LatLng: new (lat: number, lng: number) => unknown;
-        Marker: new (opts: {
-          position: unknown;
-          map: unknown;
-          title?: string;
-        }) => NaverMarkerInstance;
-        Event: {
-          addListener: (
-            target: unknown,
-            event: string,
-            handler: () => void,
-          ) => void;
-        };
-      };
+      maps: NaverMapsApi;
     };
   }
 }
 
 const HANAM_CENTER = { lat: 37.56015, lng: 127.1866 };
+
+/** 목록 ring-2 와 맞추는 선택 핀. Marker setIcon 경로만 쓴다. */
+function markerIcon(maps: NaverMapsApi, selected: boolean) {
+  const size = selected ? 18 : 12;
+  const bg = selected ? "rgb(245 166 35)" : "rgb(71 85 105)";
+  const ring = selected ? "box-shadow:0 0 0 3px rgba(245,166,35,0.45);" : "";
+  return {
+    content: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #fff;${ring}"></div>`,
+    anchor: new maps.Point(size / 2, size / 2),
+  };
+}
 
 interface MapPanelProps {
   academies: AcademySummary[];
@@ -171,7 +189,7 @@ export function MapPanel({
   }, [clientId]);
 
   // 마커는 목록이 바뀔 때만 다시 만든다. selectedId를 여기 넣으면 선택할 때마다
-  // 전체 마커가 재생성된다.
+  // 전체 마커가 재생성된다. 선택 강조는 아래 setIcon/setZIndex 이펙트가 맡는다.
   useEffect(() => {
     if (!mapReady || !window.naver?.maps || !mapInstance.current) return;
     const maps = window.naver.maps;
@@ -183,6 +201,8 @@ export function MapPanel({
         position: new maps.LatLng(academy.latitude, academy.longitude),
         map,
         title: academy.name,
+        icon: markerIcon(maps, false),
+        zIndex: 0,
       });
       maps.Event.addListener(marker, "click", () => {
         onSelectRef.current(academy.id);
@@ -195,6 +215,17 @@ export function MapPanel({
       markersRef.current = [];
     };
   }, [academies, mapReady]);
+
+  // 목록 Card 의 ring-2 와 같이, 선택된 핀만 크게·브랜드색으로 올린다.
+  useEffect(() => {
+    if (!mapReady || !window.naver?.maps) return;
+    const maps = window.naver.maps;
+    for (const { id, marker } of markersRef.current) {
+      const selected = id === selectedId;
+      marker.setIcon(markerIcon(maps, selected));
+      marker.setZIndex(selected ? 1000 : 0);
+    }
+  }, [selectedId, mapReady, academies]);
 
   useEffect(() => {
     if (!mapReady || !window.naver?.maps || !mapInstance.current) return;

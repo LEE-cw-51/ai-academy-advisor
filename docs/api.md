@@ -164,7 +164,7 @@ POST /recommendations/ai
   "items": [
     {
       "academy": { "id": 1, "name": "가온수학(예시)", "...": "..." },
-      "reason": "추천 이유 (AI 생성)",
+      "reason": "입력하신 조건 중 4개 항목이 등록 정보와 맞아 확인해 볼 후보로 정리했습니다.",
       "score": 6.0,
       "matched_conditions": ["subject", "level_high", "curriculum_naesin", "region"],
       "unknown_conditions": [],
@@ -176,6 +176,11 @@ POST /recommendations/ai
   ]
 }
 ```
+
+**`reason`**: 학부모용 짧은 한국어 문장(2–3문장). 확인된 사실만 말한다.
+`matched=`·`unknown=`·`[stub-llm]`·`적합도:` 같은 채점 덤프는 반환하지 않는다.
+기본 stub과, 덤프처럼 보이는 LLM 출력은 규칙 기반 폴백 문장으로 바꾼다.
+`score`는 이유 문장에 넣지 않는다.
 
 **`score`**: 무한대 상대 랭킹 점수(대략 0–12). 절대값에 의미가 없으므로 별점·신뢰도(%)처럼
 렌더링하면 안 된다. 같은 응답 안에서의 순서 비교에만 쓴다.
