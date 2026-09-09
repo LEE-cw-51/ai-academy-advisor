@@ -90,6 +90,31 @@ def test_q_matches_name_address_and_phone(db_session):
     assert [r.name for r in by_phone] == ["가온수학"]
 
 
+def test_q_like_wildcards_are_escaped(db_session):
+    """q 의 LIKE 메타문자는 리터럴이다 — "%" 한 글자로 전 행이 매치되면 안 된다.
+
+    프론트는 검색 결과를 100행씩 끝까지 끌어와 지도에 전부 찍으므로,
+    이스케이프가 빠지면 검색창이 전체 테이블 로드 경로가 된다.
+    """
+    _seed(
+        db_session,
+        [
+            Academy(name="가온수학", address="미사대로 1"),
+            Academy(name="나래영어", address="망월동 2"),
+            Academy(name="100%수학", address="덕풍동 3"),
+        ],
+    )
+    wildcard = academy_repository.list_candidates(
+        db_session, RecommendationRequest(q="%", limit=20)
+    )
+    assert [r.name for r in wildcard] == ["100%수학"]
+
+    underscore = academy_repository.list_candidates(
+        db_session, RecommendationRequest(q="_", limit=20)
+    )
+    assert underscore == []
+
+
 def test_pool_limit_respected(db_session):
     _seed(
         db_session,

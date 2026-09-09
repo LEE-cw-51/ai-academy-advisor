@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models.review import Review
 from app.providers.factory import get_embedding_provider, get_vector_store
 from app.repositories import academy_repository, engagement_repository
 from app.schemas.academy import AcademySummary, RecommendationRequest
@@ -100,20 +99,25 @@ def _candidate_pool(
     return [], list(relaxed)
 
 
-def _evidence_for(
-    db: Session, query_embedding: list[float]
-) -> list[tuple[Review, float]]:
-    """질문 임베딩으로 벡터 스토어를 검색해 (리뷰, 유사도) 쌍을 반환한다.
+def _similar_review_ids(db: Session, query: str) -> dict[int, float] | None:
+    """질문 임베딩으로 벡터 스토어를 검색해 {review_id: 유사도} 를 반환한다.
 
-    Hit.score 는 id 로 lookup 한다. get_reviews_by_ids 가 없는 id 를 조용히
-    버리므로 위치 zip 은 어긋날 수 있다.
+    **폴백 대상은 이 두 호출뿐이다.** 임베딩/벡터 장애가 학원 사실 후보를 500으로
+    죽이지 않게 None 을 돌려주고 채점은 사실만으로 이어간다. 리뷰 본문 조회와
+    스키마 검증은 이 밖에 둔다 — 그쪽 결함까지 삼키면 코드 버그가 '근거 없음'으로
+    위장돼 WARNING 만 남기고 영구히 빈 evidence 를 내보내게 된다.
     """
-    hits = get_vector_store(db).search(query_embedding, top_k=_EVIDENCE_TOP_K)
-    similarity_by_id = {int(h.id): h.score for h in hits if h.id.isdigit()}
-    reviews = engagement_repository.get_reviews_by_ids(
-        db, list(similarity_by_id)
-    )
-    return [(r, similarity_by_id[r.id]) for r in reviews]
+    try:
+        query_embedding = get_embedding_provider().embed([query])[0]
+        hits = get_vector_store(db).search(
+            query_embedding, top_k=_EVIDENCE_TOP_K
+        )
+    except Exception:
+        logger.warning(
+            "RAG 근거 검색 실패 — 학원 사실만으로 채점 계속", exc_info=True
+        )
+        return None
+    return {int(h.id): h.score for h in hits if h.id.isdigit()}
 
 
 def _load_review_evidence(
@@ -123,33 +127,33 @@ def _load_review_evidence(
     dict[int, float],
     dict[int, int],
 ]:
-    """임베딩 + 벡터 검색으로 학원별 근거·유사도·건수를 모은다.
+    """벡터 히트를 학원별 근거·유사도·건수로 모은다.
 
-    이 단계만 폴백한다. 임베딩/벡터 장애가 학원 사실 후보를 500으로 죽이지 않게
-    빈 dict 세 개를 돌려주고 채점은 사실만으로 이어간다. 후보 풀·SearchHistory는
-    여기서 감싸지 않는다.
+    Hit.score 는 id 로 lookup 한다. get_reviews_by_ids 가 없는 id 를 조용히
+    버리므로 위치 zip 은 어긋날 수 있다. 후보 풀·SearchHistory 는 여기서 감싸지 않는다.
     """
-    try:
-        query_embedding = get_embedding_provider().embed([query])[0]
-        evidence_by_academy: dict[int, list[ReviewEvidence]] = {}
-        similarity_by_academy: dict[int, float] = {}
-        evidence_counts: dict[int, int] = {}
-        for review, sim in _evidence_for(db, query_embedding):
-            evidence_by_academy.setdefault(review.academy_id, []).append(
-                ReviewEvidence.model_validate(review)
-            )
-            evidence_counts[review.academy_id] = evidence_counts.get(
-                review.academy_id, 0
-            ) + 1
-            prev = similarity_by_academy.get(review.academy_id)
-            if prev is None or sim > prev:
-                similarity_by_academy[review.academy_id] = sim
-        return evidence_by_academy, similarity_by_academy, evidence_counts
-    except Exception:
-        logger.warning(
-            "RAG 근거 검색 실패 — 학원 사실만으로 채점 계속", exc_info=True
-        )
+    similarity_by_id = _similar_review_ids(db, query)
+    if not similarity_by_id:
         return {}, {}, {}
+
+    evidence_by_academy: dict[int, list[ReviewEvidence]] = {}
+    similarity_by_academy: dict[int, float] = {}
+    evidence_counts: dict[int, int] = {}
+    reviews = engagement_repository.get_reviews_by_ids(
+        db, list(similarity_by_id)
+    )
+    for review in reviews:
+        sim = similarity_by_id[review.id]
+        evidence_by_academy.setdefault(review.academy_id, []).append(
+            ReviewEvidence.model_validate(review)
+        )
+        evidence_counts[review.academy_id] = evidence_counts.get(
+            review.academy_id, 0
+        ) + 1
+        prev = similarity_by_academy.get(review.academy_id)
+        if prev is None or sim > prev:
+            similarity_by_academy[review.academy_id] = sim
+    return evidence_by_academy, similarity_by_academy, evidence_counts
 
 
 def build_context(

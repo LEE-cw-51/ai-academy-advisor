@@ -3,6 +3,7 @@ import type {
   AcademyListResponse,
   AiRecommendationResponse,
   ClickEventPayload,
+  ClickEventType,
   ConsultationRequest,
   ConsultationResponse,
   CreatedResponse,
@@ -182,6 +183,19 @@ export function trackEvent(payload: ClickEventPayload): Promise<CreatedResponse>
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+/** 계측 실패가 화면을 막지 않게 삼키는 래퍼. 여러 화면이 같은 try/catch 를
+ *  복사해 두면 재시도·샘플링 같은 정책 변경이 한쪽만 반영된다. */
+export async function trackEventSafe(
+  academyId: number,
+  event: ClickEventType,
+): Promise<void> {
+  try {
+    await trackEvent({ academy_id: academyId, event });
+  } catch {
+    // tracking should not block UX
+  }
 }
 
 /** 백엔드 POST /waitlist 계약 유지용. 랜딩은 카카오 채널 추가로 대체되어 호출하지 않는다. */

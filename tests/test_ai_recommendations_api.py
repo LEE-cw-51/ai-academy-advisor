@@ -334,6 +334,37 @@ def test_ai_recommend_falls_back_when_llm_fails(client, db_session, monkeypatch)
         assert "확인해 볼 후보" in item["reason"]
 
 
+def test_fallback_reason_does_not_count_items_the_card_never_lists(
+    client, db_session, monkeypatch
+):
+    """폴백 문구는 미확인 항목을 '개수'로 세지 않는다.
+
+    카드가 unknown_conditions 를 나열하지 않기로 한 뒤(2026-09-08 사실 우선),
+    "미확인 항목 3개"는 사용자가 화면 어디서도 볼 수 없는 목록을 가리킨다.
+    응답 필드 자체는 투명성 필드로 남는다 — 바꾼 건 사람이 읽는 문장뿐.
+    """
+    # 미확인(NULL) 사실이 있는 시드라야 unknown_conditions 가 채워진다.
+    seed_null_fact_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: _ExplodingLLM(),
+    )
+    response = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    )
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert items
+
+    with_unknown = [i for i in items if i["unknown_conditions"]]
+    assert with_unknown, "미확인 항목이 있는 후보가 없으면 이 회귀를 못 지킨다"
+    for item in with_unknown:
+        # matched 개수는 카드가 "확인된 조건"으로 실제 나열하므로 세도 된다.
+        # 세면 안 되는 건 화면에 없는 unknown 쪽이다.
+        assert "미확인 항목" not in item["reason"]
+        assert "등록 정보에서 확인되지 않은 항목" in item["reason"]
+
+
 def test_ai_recommend_falls_back_when_provider_init_fails(
     client, db_session, monkeypatch
 ):

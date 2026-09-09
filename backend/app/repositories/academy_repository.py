@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import Select, case, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
@@ -25,6 +25,25 @@ _CURRICULUM_COLUMNS = {
     CurriculumType.SUNEUNG: Academy.curriculum_suneung,
 }
 
+# LIKE 메타문자. q="%" 한 글자로 전 행이 매치되면 프론트가 전체 목록을
+# 다시 끌어와 지도에 전부 찍는다 — 사용자 입력이므로 반드시 이스케이프한다.
+_Q_ESCAPE = str.maketrans({"\\": r"\\", "%": r"\%", "_": r"\_"})
+
+
+def _q_predicate(q: str) -> ColumnElement[bool]:
+    """`q` 부분일치 술어 (이름·주소·전화).
+
+    두 추천 경로의 **필터 계약은 분리 유지**하되(AGENTS.md §7), '무엇을 검색어로
+    매치하는가'는 여기 한 곳에서만 늘린다. GET /academies 와 AI 후보 풀이
+    서로 다른 컬럼을 매치하면 같은 검색어에 다른 학원이 나온다.
+    """
+    pattern = f"%{q.translate(_Q_ESCAPE)}%"
+    return or_(
+        Academy.name.ilike(pattern, escape="\\"),
+        Academy.address.ilike(pattern, escape="\\"),
+        Academy.phone.ilike(pattern, escape="\\"),
+    )
+
 
 def _apply_filters(stmt: Select, params: AcademyListParams) -> Select:
     # Boolean 필터는 IS TRUE / IS FALSE 를 명시해 NULL(미확인)을 제외한다.
@@ -37,14 +56,7 @@ def _apply_filters(stmt: Select, params: AcademyListParams) -> Select:
     if params.shuttle is not None:
         stmt = stmt.where(Academy.shuttle_available.is_(params.shuttle))
     if params.q is not None:
-        pattern = f"%{params.q}%"
-        stmt = stmt.where(
-            or_(
-                Academy.name.ilike(pattern),
-                Academy.address.ilike(pattern),
-                Academy.phone.ilike(pattern),
-            )
-        )
+        stmt = stmt.where(_q_predicate(params.q))
     return stmt
 
 
@@ -136,14 +148,7 @@ def list_candidates(
     if params.region is not None:
         stmt = stmt.where(Academy.address.ilike(f"%{params.region}%"))
     if params.q is not None:
-        pattern = f"%{params.q}%"
-        stmt = stmt.where(
-            or_(
-                Academy.name.ilike(pattern),
-                Academy.address.ilike(pattern),
-                Academy.phone.ilike(pattern),
-            )
-        )
+        stmt = stmt.where(_q_predicate(params.q))
 
     order_clauses: list = []
     if name_like:

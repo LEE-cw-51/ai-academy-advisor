@@ -164,6 +164,22 @@ gg 소스 행은 상태 기준으로 걸러지지 않는다 (기본 포함).
 website_url 16.5%, blog_url 23.6%; phone·주소·좌표는 건드리지 않음). 플레이스
 크롤링은 하지 않는다.
 
+### 채움 우선순위 (2026-09-08)
+
+기준은 "필터를 만들고 싶다"가 아니라 **지금 `/app` 카드·검색·전화 CTA가 비지 않게**다.
+운영 정본은 Supabase Studio, git JSON은 시드·백업, 공개 쓰기 API 없음 — 새 파이프라인을
+만들지 않고 아래 기존 CLI·Studio 루프만 쓴다. 반영마다 `source_note`·`last_verified_at`을
+남긴다.
+
+| 우선 | 필드 | 이유 | 방법 |
+|---|---|---|---|
+| P0 | `phone` (남은 ~32%) | 검색 키이자 핵심 CTA | gg 공공데이터 재확인 `convert_registry <gg.xml> ../data/academies --source gg --filter 미사 --enrich`(null만 채움) → 남는 건 Studio. enrich CSV의 `proposed_phone`은 정본에 자동 반영하지 않음(2026-09-01 A3) |
+| P0 | `subjects` (수학·영어 우선) | 카드·지도 목록 배지, 소프트 랭킹. 지금은 기타 편중(기타 56 · 영어 32 · 수학 30) | `enrich_academy_from_search` → CSV → Founder가 **high** 행 검토 → `apply_enrich_csv --apply`(null만) 또는 Studio → `export_academies` 백업. 지역검색 `category`만 근거. 이름에 "수학"이 있어도 채우지 않음 |
+| P1 | `website_url` / `blog_url` | 상세 CTA | enrich high + `is_homepage_url`·이름 일치 가드 유지(2026-09-01 롤백 교훈) |
+| P1 | `registration_number` | 자연키. gg만 쓰면 0% | neis 하남시 변환 후 `(name, address)` 매칭 `--enrich`. 강제 덮어쓰기 없음 |
+| P2 | `level_*` / `class_*` / `curriculum_*` | 하드 필터·태그 매칭 | 공개 출처가 있을 때만. 채워지기 전에는 UI에 필터를 열지 않음 |
+| 하지 않음 | 수강료·셔틀·강사 수·수업 품질 | 0%이거나 학원 전체 값으로 품질 추론 금지 | 상담 질문으로만 |
+
 ## 리뷰·engagement 테이블 (DB 직접 쓰기)
 
 `reviews`(임베딩 포함) / `search_history` / `click_logs` / `feedback` / `waitlist`는
