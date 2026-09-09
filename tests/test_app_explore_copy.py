@@ -331,9 +331,11 @@ def test_subject_helpers_split_form_and_results():
 def test_back_to_candidates_skips_full_list_refetch():
     """검색 해제(후보로 돌아가기·검색 지우기)는 GET /academies를 다시 치지 않는다."""
     shell = APP_SHELL.read_text(encoding="utf-8")
-    fn = shell.split("const onSearchClear", 1)[1].split("}, [", 1)[0]
+    fn = slice_between(
+        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
+    )
 
-    assert "recItems.length > 0" in fn
+    assert "nextCandidateSelectedId" in fn
     assert 'setActiveQuery("")' in fn
     assert "runSearch" not in fn
     assert "fetchAllAcademies" not in fn
@@ -396,12 +398,16 @@ def test_app_shell_does_not_fetch_all_academies_on_mount():
     # 금지해 봐야 useLayoutEffect·데이터 훅으로 쓴 진짜 마운트 fetch 는 통과한다.
     # 실제 규칙: 목록 fetch 는 runSearch 안에서만, runSearch 는 제출 핸들러에서만.
     assert shell.count("fetchAllAcademies(") == 1  # import 줄은 괄호가 없다
-    run_search = slice_between(shell, "const runSearch = useCallback(", "}, []);")
+    run_search = slice_between(
+        shell, "const runSearch = useCallback(", "}, [recItems]);"
+    )
     assert "fetchAllAcademies({ q })" in run_search
     assert run_search.index("if (!q)") < run_search.index("fetchAllAcademies")
     assert shell.count("void runSearch(") == 1
     submit = slice_between(
-        shell, "const onSearchSubmit = useCallback(", "[runSearch, searchInput],"
+        shell,
+        "const onSearchSubmit = useCallback(",
+        "[runSearch, searchInput, onSearchClear],",
     )
     assert "void runSearch(searchInput)" in submit
     assert 'runSearch("")' not in shell
@@ -561,6 +567,49 @@ def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
     # region 은 계속 쿼리에 넣는다(= /app 하남 미사 고정). 배너 문구로만 설명한다.
     assert 'const REGION = "하남 미사"' in chat
     assert "region: REGION" in chat
+
+
+def test_empty_search_and_clear_share_candidate_pin_restore():
+    """빈 검색과 '후보로 돌아가기'는 같은 핀 복원을 쓴다. !q 분기가
+    무조건 setSelectedId(null)이면 후보는 보이는데 하이라이트만 빠진다."""
+    shell = APP_SHELL.read_text(encoding="utf-8")
+
+    helper = slice_between(shell, "function nextCandidateSelectedId(", "\n}")
+    assert "recItems.length === 0" in helper
+    assert "recItems[0]" in helper
+    assert "setSelectedId(null)" not in helper
+
+    empty_branch = slice_between(shell, "if (!q) {", "return;")
+    assert "nextCandidateSelectedId" in empty_branch
+    assert "setSelectedId(null)" not in empty_branch
+
+    clear = slice_between(
+        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
+    )
+    assert "nextCandidateSelectedId" in clear
+
+    submit = slice_between(
+        shell,
+        "const onSearchSubmit = useCallback(",
+        "[runSearch, searchInput, onSearchClear],",
+    )
+    assert "onSearchClear()" in submit
+    assert 'runSearch("")' not in shell
+
+
+def test_map_mode_uses_has_explored_so_idle_hint_stays_pre_submit():
+    """상황 제출 뒤(로딩·후보 0건 포함) mapMode 는 candidates 다.
+    MAP_EMPTY_HINT('조건을 보내면…')는 idle 에만 묶인다."""
+    shell = APP_SHELL.read_text(encoding="utf-8")
+
+    mode = slice_between(shell, "const mapMode: MapMode =", ";")
+    assert "hasExplored" in mode
+    assert "hasCandidates" in mode
+    assert "activeQuery" in mode
+
+    empty_hint = slice_between(shell, "emptyHint={", "}")
+    assert 'mapMode === "idle"' in empty_hint
+    assert "MAP_EMPTY_HINT" in empty_hint
 
 
 def test_map_headings_distinguish_all_three_modes():

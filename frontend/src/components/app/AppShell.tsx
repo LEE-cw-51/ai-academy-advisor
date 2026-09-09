@@ -33,7 +33,7 @@ import {
 
 // 지도가 지금 무엇을 보여 주는지. 한 흐름(상황 입력 → 질문·후보 → 후보 핀)이
 // 기본이고, 키워드 검색은 아는 학원을 이름·주소·전화로 찾는 보조다.
-// idle: 제출 전(또는 검색·후보 없음) — 마커 없이 빈 지도.
+// idle: 제출 전 — 마커 없이 빈 지도. 제출 뒤(로딩·후보 0건)는 candidates.
 type MapMode = "idle" | "candidates" | "search";
 
 const MAP_HEADINGS: Record<MapMode, string> = {
@@ -41,6 +41,21 @@ const MAP_HEADINGS: Record<MapMode, string> = {
   candidates: MAP_HEADING_CANDIDATES,
   search: MAP_HEADING_SEARCH,
 };
+
+// 검색을 끄면 후보 핀을 되돌린다. 기존 선택이 후보에 남아 있으면 유지,
+// 없으면 첫 후보, 후보가 없으면 null. 빈 검색과 '후보로 돌아가기'가 같은 규칙을 쓴다.
+function nextCandidateSelectedId(
+  recItems: AiRecommendationItem[],
+  prev: number | null,
+): number | null {
+  if (recItems.length === 0) {
+    return null;
+  }
+  if (prev !== null && recItems.some((item) => item.academy.id === prev)) {
+    return prev;
+  }
+  return recItems[0]?.academy.id ?? null;
+}
 
 export function AppShell() {
   const [listAcademies, setListAcademies] = useState<AcademySummary[]>([]);
@@ -69,7 +84,7 @@ export function AppShell() {
       setActiveQuery("");
       setSearchTotal(null);
       setListError("");
-      setSelectedId(null);
+      setSelectedId((prev) => nextCandidateSelectedId(recItems, prev));
       setSearching(false);
       return;
     }
@@ -91,12 +106,12 @@ export function AppShell() {
     } finally {
       if (seq === searchSeq.current) setSearching(false);
     }
-  }, []);
+  }, [recItems]);
 
   const hasCandidates = recItems.length > 0;
   const mapMode: MapMode = activeQuery
     ? "search"
-    : hasCandidates
+    : hasCandidates || hasExplored
       ? "candidates"
       : "idle";
 
@@ -132,14 +147,6 @@ export function AppShell() {
 
   const closeDetail = useCallback(() => setDetailId(null), []);
 
-  const onSearchSubmit = useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      void runSearch(searchInput);
-    },
-    [runSearch, searchInput],
-  );
-
   const onSearchClear = useCallback(() => {
     // 진행 중인 검색 응답을 무효화한다 — 해제 후 도착해도 상태를 덮지 않는다.
     searchSeq.current += 1;
@@ -149,17 +156,20 @@ export function AppShell() {
     setActiveQuery("");
     setSearchTotal(null);
     setListError("");
-    if (recItems.length > 0) {
-      setSelectedId((prev) => {
-        if (prev !== null && recItems.some((item) => item.academy.id === prev)) {
-          return prev;
-        }
-        return recItems[0]?.academy.id ?? null;
-      });
-      return;
-    }
-    setSelectedId(null);
+    setSelectedId((prev) => nextCandidateSelectedId(recItems, prev));
   }, [recItems]);
+
+  const onSearchSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!searchInput.trim()) {
+        onSearchClear();
+        return;
+      }
+      void runSearch(searchInput);
+    },
+    [runSearch, searchInput, onSearchClear],
+  );
 
   const dualColumn = hasExplored || hasCandidates || Boolean(activeQuery);
 
