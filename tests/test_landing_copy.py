@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 from tests.source_slice import slice_between
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -104,10 +106,19 @@ def test_groundwork_copy_interpolates_the_academy_count_not_a_literal():
     """GROUNDWORK_BODY/SOURCE_NOTE가 리터럴 "410"을 박아두면 MISA_ACADEMY_COUNT가
     바뀌어도 화면 문구가 따라가지 않는다 — 반드시 그 상수를 보간해야 한다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    body = facts.split("GROUNDWORK_BODY =")[1].split(";")[0]
-    note = facts.split("GROUNDWORK_SOURCE_NOTE =")[1].split(";")[0]
+    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
+    note = slice_between(facts, "GROUNDWORK_SOURCE_NOTE =", ";")
     assert "${MISA_ACADEMY_COUNT}" in body
     assert "${MISA_ACADEMY_COUNT}" in note
+
+
+def test_groundwork_slice_catches_literal_count_without_interpolation():
+    """[:200]·EOF 슬라이스는 리터럴 410을 박아도 통과했다 — 경계 슬라이스는 잡아야 한다."""
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
+    mutated = body.replace("${MISA_ACADEMY_COUNT}", "410")
+    with pytest.raises(AssertionError):
+        assert "${MISA_ACADEMY_COUNT}" in mutated
 
 
 def test_tracked_link_and_kakao_link_do_not_latch_modified_clicks():
@@ -158,17 +169,17 @@ def test_reassurance_lines_do_not_nest_a_bare_middle_dot_inside_a_dot_list():
     끼어 있으면 항목 수를 오인하게 만든다 — 되돌아오기 방지 가드."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
 
-    cta_line = facts.split('CTA_REASSURANCE = "')[1].split('"')[0]
+    cta_line = slice_between(facts, 'CTA_REASSURANCE = "', '";')
     assert " · " in cta_line
     assert "·" not in cta_line.replace(" · ", ""), (
         f"CTA_REASSURANCE still nests a bare middle dot: {cta_line!r}"
     )
 
-    consult_line = facts.split('CONSULT_REASSURANCE = "')[1].split('"')[0]
+    consult_line = slice_between(facts, 'CONSULT_REASSURANCE = "', '";')
     assert " · " in consult_line
     assert "·" not in consult_line.replace(" · ", "")
     # `/check`의 CHECK_CTA_HINT와 같은 3항목 " · " 배지 형식으로 통일했는지.
-    check_hint = facts.split('CHECK_CTA_HINT = "')[1].split('"')[0]
+    check_hint = slice_between(facts, 'CHECK_CTA_HINT = "', '";')
     assert consult_line.split(" · ")[0] == check_hint.split(" · ")[0] == "로그인"
 
 
@@ -194,6 +205,19 @@ def test_home_is_a_situation_router_not_a_single_feature_page():
         assert const in hero, f"{const} not rendered by HeroSection"
 
 
+def test_hero_support_points_to_situation_cards_not_a_single_check_path():
+    """옛 히어로 '맞는 곳부터'는 탐색 기대를 만들었는데 행동은 /check로 갔다.
+    지금은 카드 두 장이 첫 과업이므로 서포트도 아래 선택을 가리켜야 한다."""
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    support = slice_between(facts, "HERO_SUPPORT =", '";')
+    assert "아래" in support
+    assert "상황" in support
+    assert "상담" in support
+    assert "점검" in support
+    assert "맞는 곳부터" not in support
+    assert "410" not in support
+
+
 def test_home_explains_the_service_around_the_situation_choice():
     """상황 선택 다음에 준비 중 기능 예고와 예시 화면이 오고, 근거는 맨 아래다."""
     page = LANDING_PAGE.read_text(encoding="utf-8")
@@ -215,9 +239,9 @@ def test_planned_features_are_marked_as_planned():
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     section = PLANNED_FEATURES_SECTION.read_text(encoding="utf-8")
 
-    features_block = facts.split("export const PLANNED_FEATURES = [")[1].split(
-        "] as const;"
-    )[0]
+    features_block = slice_between(
+        facts, "export const PLANNED_FEATURES = [", "] as const;"
+    )
     assert features_block.count("title:") == 2
     assert features_block.count("예정입니다.") == 2
     assert "추천해드립니다" not in features_block
@@ -240,9 +264,9 @@ def test_service_preview_says_example_before_the_cards():
     assert "Disclaimer" in section
     assert "PREVIEW_DISCLAIMER" in section
 
-    items_block = facts.split("export const EXAMPLE_ITEMS = [")[1].split(
-        "] as const;"
-    )[0]
+    items_block = slice_between(
+        facts, "export const EXAMPLE_ITEMS = [", "] as const;"
+    )
     assert items_block.count("rank:") == 3
     assert "OO수학학원" in items_block
     assert "△△영어학원" in items_block
@@ -297,7 +321,8 @@ def test_no_dead_stage_vocabulary_remains():
 def test_launch_status_notice_still_on_home_first_screen():
     """배지가 중립 문구로 바뀌어도 출시 전 사실은 첫 화면 어딘가에 남아야 한다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    assert "정식 출시 후" in facts.split("GROUNDWORK_BODY =")[1][:200]
+    groundwork_body = slice_between(facts, "GROUNDWORK_BODY =", ";")
+    assert "정식 출시 후" in groundwork_body
     groundwork = GROUNDWORK_SECTION.read_text(encoding="utf-8")
     assert "GROUNDWORK_BODY" in groundwork
 
@@ -307,7 +332,8 @@ def test_kakao_reward_is_question_framed_not_a_count():
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     modal = KAKAO_MODAL.read_text(encoding="utf-8")
 
-    assert "상담" in facts.split("KAKAO_REWARD_NOTE =")[1][:200]
+    reward_note = slice_between(facts, "KAKAO_REWARD_NOTE =", ";")
+    assert "상담" in reward_note
     assert "KAKAO_REWARD_LABEL" in GROUNDWORK_SECTION.read_text(encoding="utf-8")
     assert "체크리스트 3종" not in modal
 
@@ -475,12 +501,25 @@ def test_home_metadata_reflects_the_two_situations():
     assert "후보 정보" in footer
 
 
+def test_meta_description_slice_catches_removed_brokerage_notice():
+    """[:300] 슬라이스는 META에서 중개 고지를 지워도 FOOTER spillover 로 통과했다."""
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    mutated = facts.replace(
+        "특정 학원을 정해 드리거나 중개·예약·결제를 하지는 않습니다.",
+        "특정 학원을 정해 드리거나 예약·결제를 하지는 않습니다.",
+        1,
+    )
+    description = slice_between(mutated, "META_DESCRIPTION =", '";')
+    with pytest.raises(AssertionError):
+        assert "중개" in description
+
+
 def test_header_status_notice_sits_beside_the_logo():
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     header = LANDING_HEADER.read_text(encoding="utf-8")
 
     assert "HEADER_STATUS_NOTICE" in header
-    notice = facts.split('HEADER_STATUS_NOTICE =')[1][:400]
+    notice = slice_between(facts, "HEADER_STATUS_NOTICE =", ";")
     assert "정식 운영" in notice
     assert "랜딩 페이지" in notice
     assert "중개" in notice
@@ -509,8 +548,9 @@ def test_intro_pages_share_site_chrome_and_sticky_kakao():
     assert "fixed" in bar
     # 모달 제목(KAKAO_REWARD_LABEL "상담 질문 받아보기")과 같은 프레이밍.
     facts_text = LANDING_FACTS.read_text(encoding="utf-8")
-    assert "상담 질문" in facts_text.split("FOOTER_KAKAO_CTA_LABEL =")[1][:200]
-    assert "출시 알림 받기" not in facts_text.split("FOOTER_KAKAO_CTA_LABEL =")[1][:200]
+    footer_cta = slice_between(facts_text, "FOOTER_KAKAO_CTA_LABEL =", ";")
+    assert "상담 질문" in footer_cta
+    assert "출시 알림 받기" not in footer_cta
 
 
 def test_funnel_pages_share_the_home_hero_copy():
