@@ -58,6 +58,15 @@ def card_open_tag(source: str) -> str:
     return match.group(1)
 
 
+def rec_card_jsx(card: str) -> str:
+    """RecommendationCard 컴포넌트 자신의 렌더 트리.
+
+    `card.split("return (", 1)[1]` 은 EOF 까지 열려 CardSection 정의의
+    showEmpty 기본값 등을 삼킨다.
+    """
+    return slice_between(card, "\n  return (", "\n}\n\nfunction CardSection")
+
+
 def test_explore_submit_calls_consultation_and_ai_recs_in_parallel():
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     api = API_TS.read_text(encoding="utf-8")
@@ -254,7 +263,7 @@ def test_candidate_card_shows_facts_before_ai_reason():
     card = REC_CARD.read_text(encoding="utf-8")
     map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
 
-    jsx = card.split("return (", 1)[1]
+    jsx = rec_card_jsx(card)
     facts_at = jsx.index("subjects.map")  # 과목 배지 (있을 때만)
     verified_at = jsx.index("VERIFIED_AT_LABEL")
     reason_at = jsx.index("WHY_CANDIDATE_HEADING")
@@ -554,7 +563,7 @@ def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
     # 모르는 키는 문장이 없으면 버린다 — conditionLabel 의 `?? key` 폴백을 쓰지 않는다.
     # 슬라이스를 함수 본문으로 끊는다 — EOF 까지 열어 두면 아래 conditionLabel 의
     # `?? key` 를 잡아 이 단정문이 영원히 통과한다.
-    fn = copy.split("export function relaxedNotes", 1)[1].split("\n}", 1)[0]
+    fn = slice_between(copy, "export function relaxedNotes", "\n}")
     assert "?? key" not in fn
     assert "filter(" in fn
 
@@ -661,9 +670,9 @@ def test_detail_event_is_tracked_once_at_the_shared_entry_point():
     shell = APP_SHELL.read_text(encoding="utf-8")
     rec_card = REC_CARD.read_text(encoding="utf-8")
 
-    open_detail = shell.split("const onOpenDetail = useCallback(", 1)[1].split(
-        "}, [", 1
-    )[0]
+    open_detail = slice_between(
+        shell, "const onOpenDetail = useCallback(", "}, ["
+    )
     assert 'trackEventSafe(id, "detail")' in open_detail
     # 카드에 남겨 두면 카드 경로만 두 번 센다. 문자열 "detail" 자체를 막으면
     # variant="detail" 같은 무관한 쓰임까지 걸리므로 실제 호출 형태로 좁힌다.
