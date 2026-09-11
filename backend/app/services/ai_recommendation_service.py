@@ -2,8 +2,8 @@
 
 DB→Pydantic 코어는 recommendation_pipeline 에 있고, 여기서는 limit truncate 후
 LLM 추천 이유만 붙인다. `_build_reason` 호출 **전에** 자르는 것이 load-bearing —
-학원 1건당 LLM 1회인데 풀이 200건이므로, 순서를 뒤집으면 stub 이 아닌
-LLM_PROVIDER 에서 동기 200회 순차 호출이 난다.
+학원 1건당 LLM 1회인데 풀이 최대 pool_limit(현재 500)건이므로, 순서를 뒤집으면
+stub 이 아닌 LLM_PROVIDER 에서 동기 수백 회 순차 호출이 난다.
 """
 
 from __future__ import annotations

@@ -100,6 +100,8 @@ def _write_raw(raw_dir: Path, academy_id: int, items: list[ReviewItem], today: d
             "url": item.url,
             "source": item.source,
             "published_at": item.published_at.isoformat() if item.published_at else None,
+            "rating": item.rating,
+            "attributed": item.attributed,
         }
         for item in items
     ]
@@ -132,6 +134,8 @@ def load_raw(raw_dir: Path) -> dict[int, list[ReviewItem]]:
                     url=row.get("url") or "",
                     source=row.get("source") or "",
                     published_at=date.fromisoformat(raw_date) if raw_date else None,
+                    rating=row.get("rating"),
+                    attributed=bool(row.get("attributed", False)),
                 )
             )
     return by_academy
@@ -203,7 +207,9 @@ def _ingest_one(
     inserted = 0
 
     for item in items:
-        if not matches_academy(item, academy):
+        # attributed 항목은 소스가 이미 특정 학원 페이지에서 가져온 글이라
+        # 이름 사후필터를 건너뛴다 (플레이스형 소스). 그 외엔 오귀속 방지 필터.
+        if not item.attributed and not matches_academy(item, academy):
             report.skipped_unmatched += 1
             continue
         if item.url and item.url in seen:
@@ -219,6 +225,7 @@ def _ingest_one(
                 academy_id=academy.id,
                 content=_content_for(item),
                 source=item.source,
+                rating=item.rating,
                 source_url=item.url or None,
                 published_at=item.published_at,
             )

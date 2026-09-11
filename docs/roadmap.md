@@ -101,7 +101,8 @@
 
 ## Phase 4b (계속) — 리뷰 실데이터 탐색·근거화 (진행 중)
 - **목적**: 객관적 학원 사실 데이터 기반 후보 탐색을 유지하면서, 공개 웹의 주관적 학부모 경험을 상담 질문과 후보 비교에 보완한다. 리뷰는 학원 사실이나 품질 판정으로 바꾸지 않는다.
-- 리뷰 소스: **NAVER API HUB Search** `cafearticle`(지역 카페 공개글) + `blog` (`docs/decision-log.md` 2026-08-30)
+- 리뷰 소스: **NAVER API HUB Search** `cafearticle`(지역 카페 공개글) + `blog` (`docs/decision-log.md` 2026-08-30). 수집·dedup·raw 캐시·임베딩 백필 CLI는 구현 완료, 첫 실가동은 Founder 승인 후(`REVIEW_SOURCE=naver`). 엔드포인트는 `naver_review_endpoints` 설정으로 확장(`kin`·`webkr`은 HUB 노출 확인 후).
+- **브라우저 수집은 "허용된 소스만"**: robots·약관이 허용하는 소스가 나타나면 비-우회 렌더러 어댑터를 붙인다. 게이트 `app.cli.check_robots`와 포트 이음새(`ReviewItem.rating/attributed`, `factory`의 `"browser"` 분기)만 준비됨. 네이버 플레이스·카카오맵은 robots상 RAG 금지 + 429라 불가 (`docs/decision-log.md` 2026-09-11). 봇 차단 우회는 구현하지 않는다.
 - `local`(지역검색)로 학원 매칭 + `subjects`/`phone` 등 정본 파일 보강 (git 정본 원칙 유지)
 - AI 요약만 화면에 노출하고, 경험 근거에는 출처·시점·한계를 함께 표시한다. 원문 스니펫은 DB 보관 + RAG 근거 전용이며 git에 커밋하지 않는다.
 - 공개 리뷰의 단일 별점, 감성 점수, 요약만으로 학원 품질 또는 교육비 대비 가치를 단정하지 않는다.

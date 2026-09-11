@@ -2,6 +2,70 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-11 — 과목 4버킷 + subject_detail · 후보 풀/근거 상한 · 리뷰 수집 재개와 브라우저 수집 판단
+
+- **계기**: "검색이 어떤 조건이든 같은 학원만 낸다"는 Founder 보고. 원인은 리뷰
+  부재만이 아니라 **사실 데이터가 평평한 것**이었다. `/app`은 `region="하남 미사"`를
+  늘 넣고 411건 중 410건 주소에 "미사"가 있어 후보 풀이 사실상 전체이고,
+  `parse_intent`는 `q`를 세팅하지 않아 자유 텍스트가 SQL에 닿지 않는다.
+  `subjects`는 123/411만 채워졌고(기타 56·영어 32·수학 30·국어 5·과학 0) 나머지
+  bool 컬럼은 전부 null이라 점수면이 세 버킷으로 붕괴, `(-score, name, id)` 동점
+  정렬이 늘 같은 가나다순 앞 3개를 낸다. 리뷰는 0행이고 provider가 stub이라
+  근거는 구조적으로 비어 있다.
+- **결정 — 과목**:
+  - **taxonomy를 5종→4종(`국어·영어·수학·기타`)**. `과학`은 정본 0행이라 손실이 없고,
+    비-핵심 과목은 전부 `기타` 버킷 + **`subject_detail`(자유 라벨, `String(50)`)**로
+    원래 이름(피아노·미술·과학·무용…)을 보존한다. 2026-08-30의 5종 결정을 대체한다.
+  - `subject_detail`은 `subjects`에 `기타`가 있을 때만 채운다(Postgres CHECK
+    `ck_academies_subject_detail_requires_etc` + Pydantic model_validator). 어휘는
+    강제하지 않는다(느슨하게 시작 — 라벨이 늘 때마다 마이그레이션을 강요하지 않는다).
+  - 채점은 **라벨 인지형**이다(`scoring._subject_signal`). 기타 hit은 라벨이 학원
+    이름 또는 `subject_detail`과 맞을 때만 매치하고, 학원의 세부 라벨이 미확인이면
+    감점 없이 unknown이다. 맨 `기타`(라벨 없음)는 어떤 학원도 매치하지 않는다 —
+    그러지 않으면 "과학" 질의가 피아노 학원까지 끌어온다.
+  - 과목 오분류 수정: `("독서","국어")`가 **독서실·영어독서**를 국어로 오분류하던 것을
+    "긴 키워드 우선 + 매치 구간 소비" 매처로 구조적으로 없앴다(영수증·외국어·중국어
+    특례도 이 방식으로 통합). 무용·발레·바둑·바리스타 등 매핑에 없어 `[]`로 빠지던
+    카테고리도 이제 `기타`+라벨로 들어온다.
+  - 백필은 **신규 API 호출 없이** 기존 `data/raw/naver/enrich-proposals.csv`의
+    `category=` 근거를 재사용한다(`apply_enrich_csv` 폴백). dry-run 기준 80행이
+    `subject_detail`을 얻는다(기존 기타 61 + 매핑 확장분). 정본 반영은
+    export→0008→apply→import --force 순, Founder 승인 후.
+- **결정 — 랭킹 구조**: 후보 풀 상한 200→500(410 region 매치가 잘리지 않게),
+  근거 top-k 5→40 + **후보 풀 밖 학원의 리뷰 히트는 버린다**(전역 top-k가 무관한
+  학원에 근거를 뺏겨 채점에 반영 안 되던 낭비 제거).
+- **결정 — 리뷰 수집**:
+  - 기존 NAVER API HUB(`blog`+`cafearticle`) 경로를 실가동한다(Founder 승인 후
+    `REVIEW_SOURCE=naver`). 엔드포인트는 `naver_review_endpoints` 설정으로 확장
+    가능(`kin`·`webkr`은 HUB 노출을 `--dry-run`으로 확인한 뒤에만).
+  - **브라우저 수집은 "허용된 소스만" 구조로만 둔다.** 2026-07-31 결정(네이버 플레이스
+    크롤링 기각)을 재검토했고, 2026-09-11 직접 확인 결과 표적이 여전히 불가하다:
+    - `map.naver.com/robots.txt`·`map.kakao.com`·`place.map.kakao.com`: 첫 줄
+      `# BOT ACCESS FOR THE PURPOSES OF AI TRAINING AND RETRIEVAL-AUGMENTED
+      GENERATION (RAG) IS STRICTLY PROHIBITED.` + `User-agent: * / Disallow: /`
+      (홈만 `Allow: /$`). 우리 용도가 정확히 RAG다.
+    - `m.place.naver.com`·`pcmap.place.naver.com`: robots.txt 단순 GET에도 HTTP 429.
+  - 그래서 지금 만드는 것은 (1) 게이트 `app/cli/check_robots.py`(robots·상태 판정,
+    우회 없음), (2) 포트 이음새(`ReviewItem.rating/attributed`, `factory`의 미구현
+    `"browser"` 분기)뿐이다. robots·약관이 허용하는 소스가 나타나면 그때 **비-우회
+    렌더러**(순정 Playwright 또는 상용 Firecrawl) 어댑터를 붙인다.
+  - **봇 차단 우회 스킬은 채택하지 않는다.** skills.sh 조사 결과 존재는 확인했으나
+    (`greekr4/playwright-bot-bypass`·Camoufox·FlareSolverr·프록시 로테이션 등) 목적이
+    탐지 회피라 "허용된 소스만" 원칙과 배치된다. 로그인 담벼락 우회·캡차 해결·
+    프록시/IP 로테이션·핑거프린트 위장·robots 무시는 어떤 형태로도 구현하지 않는다.
+  - **Google Places API 기각**(이전까지 미기록): 리뷰의 30일 초과 저장·재사용을 약관이
+    금지해 DB+임베딩 보관 모델과 충돌한다. Kakao Daum 검색 API는 공식·무료지만 결과
+    저장 약관을 확인하기 전에는 붙이지 않는다.
+- **Founder 승인 필요**: (a) 0008을 Supabase에 적용(적용 전 `subjects @> '["과학"]'`
+  0행 확인), (b) 첫 실제 NAVER 수집 실행(DB 직접 쓰기, 822콜/일 3.3%), (c) OpenAI 키
+  발급 + Vercel 백엔드 환경변수(`EMBEDDING_PROVIDER=openai`·`VECTOR_STORE=pgvector`).
+- **바꾸지 않은 것**: 두 추천 API 분리, `q` 매칭 컬럼(이름·주소·전화, subjects 미포함),
+  `score` 비표시, 이름 휴리스틱으로 `subjects` 채우기 금지, 리뷰 원문 비커밋,
+  운영 정본=Supabase Studio·git JSON=시드.
+- **다음**: 실제 임베딩 후 유사도 하한·ANN 인덱스(ivfflat/hnsw), 카드가 리뷰 원문
+  스니펫을 그대로 렌더하는 문제(출처·시점 + LLM 요약으로 전환), `_fallback_reason`
+  동일 문장 완화.
+
 ## 2026-09-09 — 디자인 점검 중간 이슈 — 다음 세션
 
 - **계기**: 웹 디자인 가이드라인·퍼널/`/app` 감사에서 **높음**은 이번 커밋에서

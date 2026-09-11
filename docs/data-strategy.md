@@ -72,7 +72,8 @@ JSON 키(정본 파일)와 DB 컬럼은 1:1로 같다.
 | `address` | string \| null | 주소 | 도로명 주소. `(name, address)`가 자연키 #2 |
 | `phone` | string \| null | 전화번호 | 공개된 대표번호 |
 | `website_url` / `blog_url` / `instagram_url` | string \| null | 홈페이지/블로그/인스타그램 | **공식 채널만.** 네이버 플레이스·지도 단축 URL, 맘카페 글 URL은 넣지 않는다. `blog_url`은 학원 공식 블로그 홈. |
-| `subjects` | string[] \| null | 과목 | **허용 값만:** `국어` · `영어` · `수학` · `과학` · `기타`. 복수 가능(`["영어","수학"]`). 표시·소프트 랭킹용(하드 필터 미지원). 검색 근거 없이 학원명만으로 기입하지 않는다. |
+| `subjects` | string[] \| null | 과목 | **허용 값만:** `국어` · `영어` · `수학` · `기타` (4종, 2026-09-11). 복수 가능(`["영어","수학"]`). 국·영·수는 확정 분류하고 그 외는 `기타`. 표시·소프트 랭킹용(하드 필터 미지원). 검색 근거 없이 학원명만으로 기입하지 않는다. |
+| `subject_detail` | string \| null | 과목 세부 | `기타` 버킷의 실제 이름(예: `피아노`·`미술`·`과학`·`무용`). `subjects`에 `기타`가 있을 때만 채운다(결합 CHECK). 어휘는 강제하지 않는다. 검색 근거(지역검색 category) 없이 기입하지 않는다. |
 | `level_elementary` / `level_middle` / `level_high` | bool \| null | 초/중/고 | 개설 과정을 확인한 뒤에만 기입 |
 | `class_small_group` / `class_group` / `class_one_on_one` | bool \| null | 소수정예/그룹/1:1 | 학원이 공개한 수업 형태 |
 | `curriculum_seonhaeng` / `curriculum_naesin` / `curriculum_suneung` | bool \| null | 선행/내신/수능 | 학원이 공개한 커리큘럼 |
@@ -174,7 +175,7 @@ website_url 16.5%, blog_url 23.6%; phone·주소·좌표는 건드리지 않음)
 | 우선 | 필드 | 이유 | 방법 |
 |---|---|---|---|
 | P0 | `phone` (남은 ~32%) | 검색 키이자 핵심 CTA | gg 공공데이터 재확인 `convert_registry <gg.xml> ../data/academies --source gg --filter 미사 --enrich`(null만 채움) → 남는 건 Studio. enrich CSV의 `proposed_phone`은 정본에 자동 반영하지 않음(2026-09-01 A3) |
-| P0 | `subjects` (수학·영어 우선) | 카드·지도 목록 배지, 소프트 랭킹. 지금은 기타 편중(기타 56 · 영어 32 · 수학 30) | `enrich_academy_from_search` → CSV → Founder가 **high** 행 검토 → `apply_enrich_csv --apply`(null만) 또는 Studio → `export_academies` 백업. 지역검색 `category`만 근거. 이름에 "수학"이 있어도 채우지 않음 |
+| P0 | `subjects`+`subject_detail` | 카드·지도 목록 배지, 소프트 랭킹. 기타 버킷은 세부 라벨로 구분(피아노·미술·과학…) | `enrich_academy_from_search` → CSV(`proposed_subject_detail` 포함) → Founder가 **high** 행 검토 → `apply_enrich_csv --apply --today 2026-09-11`(null만; 컬럼 없으면 evidence의 `category=`에서 파생) 또는 Studio → `export_academies` 백업. 지역검색 `category`만 근거. 이름에 "수학"이 있어도 채우지 않음 |
 | P1 | `website_url` / `blog_url` | 상세 CTA | enrich high + `is_homepage_url`·이름 일치 가드 유지(2026-09-01 롤백 교훈) |
 | P1 | `registration_number` | 자연키. gg만 쓰면 0% | neis 하남시 변환 후 `(name, address)` 매칭 `--enrich`. 강제 덮어쓰기 없음 |
 | P2 | `level_*` / `class_*` / `curriculum_*` | 하드 필터·태그 매칭 | 공개 출처가 있을 때만. 채워지기 전에는 UI에 필터를 열지 않음 |

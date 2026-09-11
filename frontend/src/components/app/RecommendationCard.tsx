@@ -11,6 +11,7 @@ import {
   VERIFIED_AT_LABEL,
   WHY_CANDIDATE_HEADING,
   conditionLabel,
+  subjectBadges,
 } from "./exploreCopy";
 
 interface RecommendationCardProps {
@@ -45,7 +46,7 @@ export function RecommendationCard({
       ? { lat: academy.latitude, lng: academy.longitude }
       : null;
   const review = evidence_reviews[0];
-  const subjects = academy.subjects ?? [];
+  const subjects = subjectBadges(academy.subjects, academy.subject_detail);
 
   return (
     <article

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui";
 import type { AcademySummary } from "@/lib/types";
-import { MAP_EMPTY_LIST } from "./exploreCopy";
+import { MAP_EMPTY_LIST, subjectBadges } from "./exploreCopy";
 
 type NaverMapInstance = {
   setCenter: (latLng: unknown) => void;
@@ -298,7 +298,7 @@ export function MapPanel({
               >
                 <div className="flex flex-wrap items-center gap-1.5">
                   <p className="font-medium text-ink">{a.name}</p>
-                  {a.subjects?.map((s) => (
+                  {subjectBadges(a.subjects, a.subject_detail).map((s) => (
                     <Badge key={s}>{s}</Badge>
                   ))}
                 </div>

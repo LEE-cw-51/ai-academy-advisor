@@ -28,6 +28,7 @@ _CSV_FIELDS = (
     "name",
     "address",
     "proposed_subjects",
+    "proposed_subject_detail",
     "website_url",
     "blog_url",
     "proposed_phone",

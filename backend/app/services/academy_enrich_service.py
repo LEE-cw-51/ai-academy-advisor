@@ -13,7 +13,11 @@ from urllib.parse import parse_qs, urlparse
 from pydantic import ValidationError
 
 from app.core.academy_url_guards import is_homepage_url
-from app.core.subjects import extract_subjects_from_text, normalize_subjects, subjects_csv
+from app.core.subjects import (
+    extract_subject_hits,
+    normalize_subjects,
+    subjects_csv,
+)
 from app.providers.base import LocalPlace, LocalSearchProvider, ReviewItem, ReviewSource
 from app.providers.naver_review import clean_text
 from app.schemas.academy import AcademyRecord
@@ -45,12 +49,14 @@ class EnrichProposal:
     evidence: str
     source_note: str
     matched_local_title: str = ""
+    proposed_subject_detail: str = ""
 
     def as_csv_row(self) -> dict[str, str]:
         return {
             "name": self.name,
             "address": self.address,
             "proposed_subjects": subjects_csv(self.proposed_subjects),
+            "proposed_subject_detail": self.proposed_subject_detail,
             "website_url": self.website_url,
             "blog_url": self.blog_url,
             "proposed_phone": self.proposed_phone,
@@ -233,6 +239,7 @@ def build_proposal(
     picked = pick_local(academy, places)
     local, matched_by_address = picked if picked is not None else (None, False)
     subjects: list[str] = []
+    subject_detail = ""
     evidence_parts: list[str] = []
     website = ""
     proposed_phone = ""
@@ -241,7 +248,11 @@ def build_proposal(
     if local is not None:
         matched_title = local.title
         if local.category:
-            subjects.extend(extract_subjects_from_text(local.category))
+            hits = extract_subject_hits(local.category)
+            subjects.extend(hit.subject for hit in hits)
+            for hit in hits:
+                if hit.subject == "기타" and hit.label and not subject_detail:
+                    subject_detail = hit.label
             evidence_parts.append(f"subjects_from=category; category={local.category}")
         if is_homepage_url(local.link) and names_match(academy.name, local.title):
             website = local.link
@@ -262,6 +273,8 @@ def build_proposal(
         subjects = normalize_subjects(subjects)
     except ValueError:
         subjects = []
+    if "기타" not in subjects:
+        subject_detail = ""  # 결합 규칙: subjects에 기타가 있을 때만 세부 라벨
 
     has_payload = bool(subjects) or bool(website) or bool(blog_url)
     if matched_by_address and has_payload:
@@ -271,6 +284,7 @@ def build_proposal(
     else:
         confidence = "low"
         subjects = []
+        subject_detail = ""
         website = ""
         blog_url = ""
         proposed_phone = ""
@@ -285,6 +299,7 @@ def build_proposal(
         name=academy.name,
         address=academy.address or "",
         proposed_subjects=subjects,
+        proposed_subject_detail=subject_detail,
         website_url=website,
         blog_url=blog_url,
         proposed_phone=proposed_phone,

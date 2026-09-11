@@ -110,6 +110,33 @@ def test_explore_copy_uses_candidate_not_recommendation_language():
             assert banned not in text, f"{banned!r} found in {path}"
 
 
+def test_subject_detail_input_and_badges():
+    """국/영/수 외엔 "기타"를 고른 뒤 실제 과목을 적고, 배지는 그 이름으로 보인다."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    card = REC_CARD.read_text(encoding="utf-8")
+    map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
+    modal = DETAIL_MODAL.read_text(encoding="utf-8")
+    types = TYPES_TS.read_text(encoding="utf-8")
+
+    assert "export function subjectBadges" in copy
+    assert "SUBJECT_DETAIL_PLACEHOLDER" in copy
+    # "기타" 선택 시에만 실제 과목 입력이 뜬다.
+    assert 'subject === "기타"' in chat
+    assert "SUBJECT_DETAIL_PLACEHOLDER" in chat
+    assert "setSubjectDetail" in chat
+    # 세부 라벨 placeholder 는 "예)" 로 시작하지 않는다 (고민 예시 테스트와 충돌 방지).
+    detail_placeholder = next(
+        line for line in copy.splitlines() if "SUBJECT_DETAIL_PLACEHOLDER =" in line
+    )
+    assert '"예)' not in detail_placeholder
+    # 배지는 세 화면 모두 subjectBadges 로 "기타"→세부 라벨 치환.
+    assert "subjectBadges(academy.subjects, academy.subject_detail)" in card
+    assert "subjectBadges(a.subjects, a.subject_detail)" in map_panel
+    assert "subjectBadges(detail.subjects, detail.subject_detail)" in modal
+    assert "subject_detail" in types
+
+
 def test_score_is_not_rendered_as_stars_percent_or_trust():
     app_files = [
         CHAT_PANEL,

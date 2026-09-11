@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 from pathlib import Path
 
 from app.services.academy_apply_service import apply_enrich_csv
@@ -31,6 +32,18 @@ def main(argv: list[str] | None = None) -> int:
         default="high",
         help="반영할 confidence 값 (기본: high)",
     )
+    parser.add_argument(
+        "--today",
+        type=date.fromisoformat,
+        default=None,
+        help="last_verified_at·source_note에 쓸 날짜 (예: 2026-09-11). "
+        "subject_detail 백필 실행 때 오늘 날짜로 준다. 기본: 2026-09-01 유지",
+    )
+    parser.add_argument(
+        "--note",
+        default=None,
+        help="source_note 문구 재정의 (기본: A3 category 과목·URL 반영 문구)",
+    )
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument(
         "--dry-run",
@@ -44,12 +57,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    report = apply_enrich_csv(
-        args.csv,
-        args.json_dir,
-        confidence=args.confidence,
-        dry_run=args.dry_run,
-    )
+    kwargs: dict = {"confidence": args.confidence, "dry_run": args.dry_run}
+    if args.today is not None:
+        kwargs["verified_at"] = args.today
+        kwargs["source_note"] = args.note or (
+            f"네이버 지역검색 category 기반 subject_detail 반영, {args.today.isoformat()}"
+        )
+    elif args.note is not None:
+        kwargs["source_note"] = args.note
+    report = apply_enrich_csv(args.csv, args.json_dir, **kwargs)
 
     for result in report.results:
         if result.action == "applied":

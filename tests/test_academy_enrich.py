@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.subjects import extract_subjects_from_text, normalize_subjects
+from app.core.subjects import (
+    SubjectHit,
+    extract_subject_hits,
+    extract_subjects_from_text,
+    normalize_subjects,
+)
 from app.providers.naver_local import LocalPlace
 from app.providers.base import ReviewItem
 from app.schemas.academy import AcademyRecord
@@ -47,7 +52,9 @@ def test_academy_record_rejects_unknown_subject():
 
 def test_extract_yeongsu_and_science():
     assert extract_subjects_from_text("학원>영수학원") == ["영어", "수학"]
-    assert "과학" in extract_subjects_from_text("물리·화학 전문")
+    # 과학은 taxonomy 4종에서 빠져 기타 버킷 + 세부 라벨 "과학"으로 들어간다.
+    assert extract_subjects_from_text("물리·화학 전문") == ["기타"]
+    assert SubjectHit("기타", "과학") in extract_subject_hits("물리·화학 전문")
 
 
 def test_extract_subjects_rejects_substring_false_positives():
@@ -57,6 +64,19 @@ def test_extract_subjects_rejects_substring_false_positives():
     assert extract_subjects_from_text("학원>외국어학원") == ["기타"]
     assert extract_subjects_from_text("학원>중국어학원") == ["기타"]
     assert extract_subjects_from_text("학원>국어학원") == ["국어"]
+
+
+def test_extract_subject_hits_labels():
+    # 국/영/수는 라벨 없이, 기타 버킷은 원래 이름을 세부 라벨로 남긴다.
+    assert extract_subject_hits("음악교육>피아노")[0] == SubjectHit("기타", "피아노")
+    assert extract_subject_hits("교육,학문>독서실") == []
+    assert extract_subjects_from_text("제니영어독서클럽교습소") == ["영어"]
+    hits = extract_subject_hits("음악교육>통기타,클래식기타")
+    assert hits[0] == SubjectHit("기타", "기타(악기)")  # 악기 기타는 "기타(악기)"
+    assert extract_subject_hits("미술교육") == [SubjectHit("기타", "미술")]
+    assert extract_subject_hits("스포츠,레크레이션교육>무용,발레") == [
+        SubjectHit("기타", "무용")
+    ]
 
 
 def test_addresses_match_road():

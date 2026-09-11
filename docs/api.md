@@ -49,6 +49,7 @@ Boolean 필드의 `null`은 '미확인'을 뜻하며 어떤 필터에도 매치�
       "phone": "031-000-0001",
       "tagline": "초·중등 대상 소수정예 수학 전문학원(예시 데이터).",
       "subjects": ["수학"],
+      "subject_detail": null,
       "level_elementary": true,
       "level_middle": true,
       "level_high": false,
@@ -131,6 +132,10 @@ POST /recommendations
 
 파이프라인: 질문 기록 → 의도 분석 → 소프트 후보 풀(완화 사다리) → RAG 근거 검색 →
 적합도 채점 → 상위 `limit`건만 추천 이유 생성.
+
+후보 풀 상한은 500(2026-09-11, region 매치가 잘리지 않게), RAG 근거는 전역 상위 40건
+중 **후보 풀 안** 학원만 채점에 반영한다. 요약 필드에는 `subject_detail`(기타 버킷의
+세부 이름)이 포함되며, 과목 질의는 이름·`subjects`·`subject_detail` 라벨로 매칭한다.
 
 현재 provider 기본값은 **stub**이며(키·비용 0), 의도 분석은 규칙 기반이다.
 `EMBEDDING_PROVIDER=openai` + `VECTOR_STORE=pgvector`로 전환하면 실제 임베딩(OpenAI

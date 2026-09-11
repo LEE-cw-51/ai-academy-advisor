@@ -24,6 +24,19 @@ def subjects_pass_db_check(subjects: list[str] | None) -> bool:
     return all(item in SUBJECT_TAXONOMY for item in subjects)
 
 
+def subject_detail_pass_db_check(
+    subjects: list[str] | None, subject_detail: str | None
+) -> bool:
+    """Postgres `ck_academies_subject_detail_requires_etc`와 같은 결합 규칙.
+
+    `subject_detail`은 `기타` 버킷의 세부 이름이므로 subjects에 `기타`가 있을 때만
+    채울 수 있다. 어휘 자체는 강제하지 않는다.
+    """
+    if subject_detail is None or subject_detail == "":
+        return True
+    return isinstance(subjects, list) and "기타" in subjects
+
+
 def website_url_pass_db_check(url: str | None) -> bool:
     """Postgres `ck_academies_website_not_social`과 같은 호스트 거부.
 
@@ -41,6 +54,17 @@ def subjects_check_predicate_sql() -> str:
             OR (
                 jsonb_typeof(subjects) = 'array'
                 AND subjects <@ '{taxonomy_json}'::jsonb
+            )
+    """
+
+
+def subject_detail_check_predicate_sql() -> str:
+    """subject_detail은 subjects에 `기타`가 있을 때만 채울 수 있다."""
+    return """
+            subject_detail IS NULL
+            OR (
+                jsonb_typeof(subjects) = 'array'
+                AND subjects @> '["기타"]'::jsonb
             )
     """
 
@@ -81,9 +105,22 @@ def website_url_check_predicate_sql() -> str:
 
 
 def academies_violation_select_sql() -> str:
-    """CHECK 추가 전 위반 행 조회. 0006 사전 검사와 같은 SQL."""
+    """CHECK 추가 전 위반 행 조회. 0006 사전 검사와 같은 SQL.
+
+    0008에서 추가된 `subject_detail`은 여기 넣지 않는다 — 0006이 이 함수를
+    import하므로 컬럼을 참조하면 신규 DB에서 0006이 깨진다.
+    """
     return f"""
         SELECT id, name FROM academies
         WHERE NOT ({subjects_check_predicate_sql()})
            OR NOT ({website_url_check_predicate_sql()})
+    """
+
+
+def subject_detail_violation_select_sql() -> str:
+    """0008 사전 검사: 4종 taxonomy CHECK + subject_detail 결합 CHECK 위반 행."""
+    return f"""
+        SELECT id, name FROM academies
+        WHERE NOT ({subjects_check_predicate_sql()})
+           OR NOT ({subject_detail_check_predicate_sql()})
     """

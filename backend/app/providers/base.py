@@ -27,6 +27,10 @@ class ReviewItem:
 
     `published_at`은 `blog`만 제공한다. `cafearticle` 응답에는 날짜 필드가 없어
     `None`이 정상이며 결측이 아니다.
+
+    `rating`은 네이버 검색 API엔 없어 `None`이다. 향후 허용된 장소형 소스(별점 노출)
+    에서만 채워진다. `attributed=True`면 소스가 이미 특정 학원 페이지에서 가져온
+    글이라 학원명 사후필터(`matches_academy`)를 건너뛴다 (플레이스형 소스용).
     """
 
     title: str
@@ -34,6 +38,8 @@ class ReviewItem:
     url: str
     source: str  # "naver_blog" | "naver_cafearticle" | "stub"
     published_at: date | None
+    rating: int | None = None
+    attributed: bool = False
 
 
 @runtime_checkable

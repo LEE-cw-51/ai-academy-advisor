@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from app.core.subjects import normalize_subjects
+from app.core.subjects import extract_subject_hits, normalize_subjects
 from app.schemas.academy import AcademyRecord
 from app.services.academy_enrich_service import (
     addresses_match,
@@ -26,6 +26,26 @@ _APPLY_SOURCE_NOTE = (
 )
 _ROLLBACK_SOURCE_NOTE = "A3 URL 롤백 (잘못 매칭·비홈페이지), 2026-09-01"
 _APPLY_VERIFIED_AT = date(2026, 9, 1)
+
+# subject_detail 백필 실행용 (CLI가 --today로 넘길 때 사용). category= 폴백 파서.
+_CATEGORY_RE = re.compile(r"category=([^;|]+)")
+
+
+def _parse_subject_detail(row: dict[str, str]) -> str:
+    """CSV의 proposed_subject_detail 컬럼을 쓰되, 없으면 evidence의 category= 에서 파생.
+
+    기존 CSV에는 컬럼이 없으므로 evidence(`category=음악교육>피아노`)를 재사용한다.
+    """
+    explicit = (row.get("proposed_subject_detail") or "").strip()
+    if explicit:
+        return explicit
+    match = _CATEGORY_RE.search(row.get("evidence") or "")
+    if not match:
+        return ""
+    for hit in extract_subject_hits(match.group(1)):
+        if hit.subject == "기타" and hit.label:
+            return hit.label
+    return ""
 
 _PROTECTED_FIELDS = frozenset(
     {"address", "latitude", "longitude", "phone", "registration_number", "name"}
@@ -89,6 +109,8 @@ def apply_enrich_csv(
     *,
     confidence: str = "high",
     dry_run: bool = True,
+    source_note: str = _APPLY_SOURCE_NOTE,
+    verified_at: date = _APPLY_VERIFIED_AT,
 ) -> ApplyReport:
     """CSV 제안을 정본 JSON에 반영한다. `confidence` 행만, null 필드만 채운다."""
     report = ApplyReport()
@@ -170,6 +192,16 @@ def apply_enrich_csv(
             updated["subjects"] = proposed_subjects
             changes.append(f"subjects={proposed_subjects}")
 
+        proposed_subject_detail = _parse_subject_detail(row)
+        final_subjects = updated.get("subjects") or []
+        if (
+            record.subject_detail is None
+            and proposed_subject_detail
+            and "기타" in final_subjects
+        ):
+            updated["subject_detail"] = proposed_subject_detail
+            changes.append(f"subject_detail={proposed_subject_detail}")
+
         if record.website_url is None and proposed_website:
             updated["website_url"] = proposed_website
             changes.append(f"website_url={proposed_website}")
@@ -185,11 +217,11 @@ def apply_enrich_csv(
             continue
 
         existing_note = (updated.get("source_note") or "").strip()
-        if existing_note and _APPLY_SOURCE_NOTE not in existing_note:
-            updated["source_note"] = f"{existing_note}; {_APPLY_SOURCE_NOTE}"
+        if existing_note and source_note not in existing_note:
+            updated["source_note"] = f"{existing_note}; {source_note}"
         else:
-            updated["source_note"] = existing_note or _APPLY_SOURCE_NOTE
-        updated["last_verified_at"] = _APPLY_VERIFIED_AT.isoformat()
+            updated["source_note"] = existing_note or source_note
+        updated["last_verified_at"] = verified_at.isoformat()
         changes.extend(["source_note", "last_verified_at"])
 
         for protected in _PROTECTED_FIELDS:
