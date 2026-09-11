@@ -26,7 +26,7 @@ export const HERO_HEADLINE_MOBILE_LINES = [
   "선택을 돕습니다",
 ] as const;
 export const HERO_SUPPORT =
-  "상담에서 무엇을 확인할지, 지금 학원이 아이에게 맞는지부터 차근차근 정리해 드립니다.";
+  "아래에서 지금 상황을 고르시면, 상담 전 확인할 질문이나 1분 점검부터 시작할 수 있습니다.";
 /** `/checklists`의 `CONSULT_REASSURANCE`, `/check`의 `CHECK_CTA_HINT`와 같은
  *  " · " 3항목 배지 형식 — 세 페이지가 같은 자리에서 같은 형식으로 즉시 효익을 말한다. */
 export const HERO_REASSURANCE = "로그인 · 개인정보 입력 없음 · 지금 바로 확인";
