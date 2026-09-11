@@ -137,6 +137,56 @@ def test_build_context_keeps_candidates_when_vector_search_fails(
     assert rows[0].query == "미사 수학학원"
 
 
+class _HitForReview:
+    def __init__(self, review_id: int):
+        self._review_id = review_id
+
+    def search(self, query_embedding, top_k=5):
+        return [Hit(id=str(self._review_id), score=0.9)]
+
+
+def test_evidence_for_non_candidate_academy_is_dropped(db_session, monkeypatch):
+    """전역 top-k 히트가 후보 풀 밖 학원이면 근거에서 버린다."""
+    from app.models.review import Review
+
+    rows = _seed(
+        db_session,
+        [
+            Academy(name="가온수학", address="경기도 하남시 미사대로 1"),
+            Academy(name="강남수학", address="서울시 강남구 1"),
+        ],
+    )
+    gangnam = rows[1]
+    review = Review(
+        academy_id=gangnam.id,
+        content="강남수학 후기",
+        source="naver_blog",
+        source_url="https://blog.example/gangnam",
+    )
+    db_session.add(review)
+    db_session.commit()
+    db_session.refresh(review)
+
+    monkeypatch.setattr(
+        "app.services.recommendation_pipeline.get_vector_store",
+        lambda db=None: _HitForReview(review.id),
+    )
+    # region="미사"라 후보 풀은 가온수학만. 강남수학 리뷰 히트는 버려져야 한다.
+    ctx = build_context(db_session, "미사 수학학원", limit=3)
+    assert gangnam.id not in ctx.evidence_by_academy
+    assert ctx.evidence_by_academy == {}
+
+
+def test_evidence_top_k_and_pool_limit_constants():
+    from app.services import recommendation_pipeline as pipe
+
+    assert pipe._EVIDENCE_TOP_K >= 40
+    import inspect
+
+    sig = inspect.signature(pipe.build_context)
+    assert sig.parameters["pool_limit"].default >= 500
+
+
 def test_prev_filters_overridden_by_new_query(db_session):
     _seed(
         db_session,

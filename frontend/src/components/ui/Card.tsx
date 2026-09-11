@@ -46,6 +46,9 @@ export function Card({
       className={[
         "rounded-card border border-border-soft bg-surface shadow-card",
         paddingClass[padding],
+        onActivate
+          ? "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          : "",
         className,
       ]
         .filter(Boolean)

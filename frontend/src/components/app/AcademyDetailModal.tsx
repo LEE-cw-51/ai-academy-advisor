@@ -10,6 +10,7 @@ import {
   ASK_AT_CONSULTATION_ITEMS,
   UNCONFIRMED_VALUE,
   UNVERIFIED_FIELDS_LABEL,
+  subjectBadges,
 } from "./exploreCopy";
 
 interface AcademyDetailModalProps {
@@ -160,7 +161,7 @@ export function AcademyDetailModal({
 
           {detail.subjects?.length ? (
             <div className="flex flex-wrap gap-1.5">
-              {detail.subjects.map((s) => (
+              {subjectBadges(detail.subjects, detail.subject_detail).map((s) => (
                 <Badge key={s} tone="brand">
                   {s}
                 </Badge>
@@ -211,10 +212,6 @@ export function AcademyDetailModal({
                 </a>
               ))}
             </div>
-          ) : null}
-
-          {detail.source_note ? (
-            <p className="pt-1 text-xs text-ink-subtle">{detail.source_note}</p>
           ) : null}
         </div>
       ) : null}

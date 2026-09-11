@@ -90,7 +90,9 @@ Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프�
 컷오버·재해복구만 `import_academies --force`(또는 `ALLOW_ACADEMY_IMPORT=1`)로 JSON→DB.
 학원 사실용 **공개** 쓰기 API는 만들지 않는다. 스키마 변경은 Alembic만.
 확인 안 된 값은 `null` (3상태: `true`=있음 / `false`=없음 / `null`=미확인).
-이름에 "수학"이 있다고 `subjects`를 추측해 채우지 않는다. 가능하면 `source_note`·`last_verified_at`을 남긴다.
+이름에 "수학"이 있다고 `subjects`·`subject_detail`을 추측해 채우지 않는다 (지역검색
+`category` 근거만). `subjects`는 4종(`국어`·`영어`·`수학`·`기타`), 세부 이름은
+`subject_detail`(`기타`일 때만). 가능하면 `source_note`·`last_verified_at`을 남긴다.
 리뷰 원문·원시 수집 데이터는 커밋하지 않는다. → [docs/data-strategy.md](docs/data-strategy.md)
 (`reviews`/`search_history`/`click_logs`/`feedback`/`waitlist`는 DB 직접 쓰기가 허용된 예외다.)
 

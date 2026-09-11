@@ -8,7 +8,11 @@ export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
-        <Link href="/" aria-label="학원콕 홈" className="shrink-0">
+        <Link
+          href="/"
+          aria-label="학원콕 홈"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center"
+        >
           <Image
             src="/logo.png"
             alt="학원콕"

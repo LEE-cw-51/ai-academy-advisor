@@ -12,6 +12,9 @@ from app.core.academy_url_guards import (
 )
 from app.core.studio_guards import (
     academies_violation_select_sql,
+    subject_detail_check_predicate_sql,
+    subject_detail_pass_db_check,
+    subject_detail_violation_select_sql,
     subjects_check_predicate_sql,
     subjects_pass_db_check,
     website_url_check_predicate_sql,
@@ -33,6 +36,13 @@ MIGRATION_0007_PATH = (
     / "versions"
     / "0007_academy_fact_revisions_rls.py"
 )
+MIGRATION_0008_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "0008_subjects_taxonomy_4_and_subject_detail.py"
+)
 
 
 def test_subjects_check_allows_null_and_taxonomy():
@@ -40,6 +50,24 @@ def test_subjects_check_allows_null_and_taxonomy():
     assert subjects_pass_db_check(["수학", "영어"])
     assert not subjects_pass_db_check(["한문"])
     assert not subjects_pass_db_check(["수학", "코딩"])
+    # 과학은 taxonomy 4종에서 빠졌다 — DB CHECK도 거부해야 한다.
+    assert not subjects_pass_db_check(["과학"])
+
+
+def test_subject_detail_requires_etc_bucket():
+    assert subject_detail_pass_db_check(None, None)
+    assert subject_detail_pass_db_check(["기타"], "피아노")
+    assert subject_detail_pass_db_check(["수학"], None)
+    assert not subject_detail_pass_db_check(["수학"], "피아노")
+    assert not subject_detail_pass_db_check(None, "피아노")
+
+
+def test_subject_detail_check_sql_shape():
+    sql = subject_detail_check_predicate_sql()
+    assert "subject_detail IS NULL" in sql
+    assert '\'["기타"]\'::jsonb' in sql
+    violation = subject_detail_violation_select_sql()
+    assert "SELECT id, name FROM academies" in violation
 
 
 def test_website_url_check_rejects_social_hosts():
@@ -119,6 +147,21 @@ def test_migration_0007_locks_fact_revisions_from_data_api():
     assert "anon" in source
     assert "authenticated" in source
     assert 'down_revision = "0006"' in source
+
+
+def test_migration_0008_taxonomy_and_subject_detail():
+    """4종 taxonomy 재적용 + subject_detail 컬럼·결합 CHECK, 사전 위반 검사."""
+    source = MIGRATION_0008_PATH.read_text(encoding="utf-8")
+    assert 'down_revision = "0007"' in source
+    assert "from app.core.studio_guards import" in source
+    assert "subject_detail" in source
+    assert "add_column" in source
+    # 위반 사전 검사가 CHECK 재생성보다 앞서야 한다 (0006 패턴).
+    add_at = source.index("ADD CONSTRAINT ck_academies_subjects_taxonomy")
+    assert source.index("subject_detail_violation_select_sql") < add_at
+    assert source.index("RuntimeError") < add_at
+    # downgrade는 옛 5종을 하드코딩한다 (앱 코드엔 과학이 사라지므로).
+    assert "과학" in source
 
 
 def test_revision_model_roundtrip_sqlite(db_session):

@@ -42,8 +42,10 @@
 - `uq_academies_name_address` — 등록번호 없는 학원의 중복 방지 안전망
   (address가 NULL이면 DB 레벨에서는 중복이 허용되므로, 임포터의 파일 간 중복 검사가 원천 차단한다)
 - `ix_academies_name` — 이름 검색/정렬용
-- `ck_academies_subjects_taxonomy` — Postgres: `subjects`는 null이거나 taxonomy 5종만
-  (`app.core.studio_guards`, Alembic `0006`)
+- `ck_academies_subjects_taxonomy` — Postgres: `subjects`는 null이거나 taxonomy 4종만
+  (`국어`/`영어`/`수학`/`기타`). 4종 재적용은 Alembic `0008` (원래 5종은 `0006`)
+- `ck_academies_subject_detail_requires_etc` — Postgres: `subject_detail`은 null이거나
+  `subjects @> '["기타"]'`일 때만 (Alembic `0008`, `app.core.studio_guards`)
 - `ck_academies_website_not_social` — Postgres: `website_url` netloc이
   instagram/pf.kakao/youtube/litt.ly/ok114 및 플레이스·카페·블로그 호스트와
   정확히 일치하거나 해당 호스트의 서브도메인이면 거부 (`host = marker OR
@@ -53,14 +55,23 @@
   (NULL→값 백필은 허용). `last_verified_at`이 비어 있으면 `CURRENT_DATE` — 단,
   트랜잭션 GUC `app.skip_academy_stamp=1`(JSON 임포트)이면 스탬프하지 않음.
 
-### subjects 컬럼
+### subjects 컬럼 + subject_detail
 SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된다
-(`with_variant`). 허용 값은 `국어`/`영어`/`수학`/`과학`/`기타` 뿐이며 복수 기입 가능하다.
-JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프트 랭킹 전용이며,
-과목 하드 필터가 필요해지면 `academy_subjects` junction 테이블로 이관한다.
+(`with_variant`). 허용 값은 `국어`/`영어`/`수학`/`기타` 4종(2026-09-11)이며 복수 기입
+가능하다. 국·영·수는 확정 분류하고 그 외는 `기타`로 넣되, 실제 이름은 `subject_detail`
+(`String(50)`, 예: `피아노`·`미술`·`과학`)에 남긴다. `subject_detail`은 `subjects`에
+`기타`가 있을 때만 채운다. JSON containment 연산이 dialect 간 호환되지 않으므로
+표시·소프트 랭킹 전용이며, 과목 하드 필터가 필요해지면 `academy_subjects` junction
+테이블로 이관한다.
 
-## reviews (후기) — Phase 3에서 검토
-학원별 후기/평점. 사용자 쓰기 데이터이므로 git 정본을 거치지 않고 DB에 직접 쓴다.
+## reviews (후기·임베딩) — Phase 2/3, DB 직접 쓰기
+학원별 공개 게시물 스니펫. `0003`에서 생성돼 이미 존재한다. 컬럼: `academy_id`(FK),
+`content`, `source`(`naver_blog`/`naver_cafearticle`/…), `rating`(nullable),
+`source_url`, `published_at`, `embedding`(pgvector `Vector(1024)`/SQLite JSON),
+`created_at`. `(academy_id, source_url)` 복합 유니크로 재수집 중복을 막는다.
+사용자·수집 데이터라 git 정본을 거치지 않고 DB에 직접 쓴다. 원문은 커밋하지 않는다
+(`data/raw/`, gitignored). 수집 CLI는 `app.cli.ingest_reviews`, 임베딩 백필은
+`app.cli.ingest_review_embeddings`.
 
 ## 마이그레이션
 - Alembic으로 관리 (`backend/alembic/`)
@@ -74,6 +85,10 @@ JSON containment 연산이 dialect 간 호환되지 않으므로 표시·소프�
 - `0007_academy_fact_revisions_rls.py` — `academy_fact_revisions`에 정책 없는 RLS
   ENABLE + `REVOKE ALL … FROM anon, authenticated` (Data API 잠금). Studio·
   service_role은 계속 접근. `academies` 전체 RLS·MVP 로그인은 범위 밖.
+- `0008_subjects_taxonomy_4_and_subject_detail.py` — `subject_detail` 컬럼 추가(전
+  dialect), Postgres 전용: `과학` 등 4종 밖 subjects·기타 없는 subject_detail 사전
+  검사(위반 시 중단) → 과목 CHECK 4종 재생성 + subject_detail 결합 CHECK. downgrade는
+  옛 5종을 하드코딩.
 
 ### academy_fact_revisions (Postgres, Studio 이력)
 

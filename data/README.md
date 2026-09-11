@@ -41,6 +41,9 @@ uv run python -m app.cli.export_academies ../data/backups/YYYY-MM-DD    # DB→J
 - 임포트는 **sync 의미론**: 파일 내용으로 전 필드를 덮어쓴다 (`null` 포함).
 - 운영(Supabase/Railway) URL은 `--force` 또는 `ALLOW_ACADEMY_IMPORT=1` 없이 거부한다.
 - 검색 제안(과목·홈페이지·블로그 URL)은 JSON을 건드리지 않는다.
+- `subjects`는 4종(`국어`/`영어`/`수학`/`기타`). 국·영·수 외는 `기타`로 넣고 실제 이름은
+  `subject_detail`(예: `피아노`·`미술`·`과학`)에 남긴다 — `기타`가 있을 때만. 이름만으로
+  추측 기입하지 않는다(지역검색 `category` 근거만). taxonomy·컬럼 변경은 Alembic만.
 
 ```bash
 cd backend

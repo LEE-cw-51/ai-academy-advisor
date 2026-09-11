@@ -75,7 +75,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   const dialog = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
@@ -90,13 +90,18 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="relative z-10 w-full max-w-md rounded-card bg-surface p-6 shadow-card"
+        className="relative z-10 w-full max-w-md overscroll-contain rounded-card bg-surface p-6 shadow-card"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 id="modal-title" className="text-lg font-bold text-ink">
             {title}
           </h2>
-          <Button variant="ghost" className="!px-2 !py-1" onClick={onClose}>
+          <Button
+            variant="ghost"
+            aria-label="닫기"
+            className="!min-h-11 !min-w-11 !px-0 !py-0"
+            onClick={onClose}
+          >
             ✕
           </Button>
         </div>

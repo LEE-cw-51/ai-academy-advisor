@@ -131,7 +131,7 @@ def list_all(db: Session) -> list[Academy]:
 def list_candidates(
     db: Session,
     params: RecommendationRequest,
-    pool_limit: int = 200,
+    pool_limit: int = 500,
     name_like: Sequence[str] = (),
 ) -> list[Academy]:
     """AI 소프트 필터용 후보 풀.

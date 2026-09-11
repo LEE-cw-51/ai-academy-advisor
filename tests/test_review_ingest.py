@@ -65,6 +65,45 @@ def test_inserts_matching_items(db_session, academy):
     assert rows[0].content == "가온수학 후기 가온수학 좋아요"
 
 
+def test_attributed_item_skips_name_filter_and_stores_rating(db_session, academy):
+    # 플레이스형 소스: 학원명이 본문에 없어도(귀속이 자명) 수집하고 rating을 저장한다.
+    unmatched = ReviewItem(
+        title="정말 좋은 학원",
+        content="선생님이 친절해요",  # "가온수학" 문자열 없음
+        url="https://place.example/review/1",
+        source="naver_place",
+        published_at=None,
+        rating=5,
+        attributed=True,
+    )
+    source = FakeSource({"가온수학": [unmatched]})
+
+    report = review_ingest_service.ingest_reviews(db_session, source)
+
+    assert report.inserted == 1
+    assert report.skipped_unmatched == 0
+    rows = _reviews(db_session)
+    assert rows[0].rating == 5
+    assert rows[0].source == "naver_place"
+
+
+def test_unattributed_item_without_name_is_skipped(db_session, academy):
+    # 기본(attributed=False)은 이름 사후필터로 오귀속을 막는다.
+    unmatched = ReviewItem(
+        title="정말 좋은 학원",
+        content="선생님이 친절해요",
+        url="https://blog.example/2",
+        source="naver_blog",
+        published_at=None,
+    )
+    source = FakeSource({"가온수학": [unmatched]})
+
+    report = review_ingest_service.ingest_reviews(db_session, source)
+
+    assert report.inserted == 0
+    assert report.skipped_unmatched == 1
+
+
 def test_query_is_name_only(db_session, academy):
     source = FakeSource()
 

@@ -132,6 +132,83 @@ def test_subject_nonnull_mismatch_conflicts():
     assert result.conflicts == ["subject"]
 
 
+def test_subject_etc_label_matches_name():
+    from app.core.subjects import SubjectHit
+
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="뮤즈피아노교습소", subjects=["기타"], subject_detail=None),
+        req,
+        subjects=[SubjectHit("기타", "피아노")],
+    )
+    assert result.score == pytest.approx(WEIGHT_SUBJECT)
+    assert result.matched == ["subject"]
+
+
+def test_subject_etc_label_matches_detail():
+    from app.core.subjects import SubjectHit
+
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="가온학원", subjects=["기타"], subject_detail="피아노"),
+        req,
+        subjects=[SubjectHit("기타", "피아노")],
+    )
+    assert result.score == pytest.approx(WEIGHT_SUBJECT)
+    assert result.matched == ["subject"]
+
+
+def test_bare_etc_hit_never_matches_all_etc_academies():
+    from app.core.subjects import SubjectHit
+
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="미술학원", subjects=["기타"], subject_detail="미술"),
+        req,
+        subjects=[SubjectHit("기타", None)],
+    )
+    assert result.matched == []
+    assert result.unknown == []
+    assert result.conflicts == []
+    assert result.score == 0.0
+
+
+def test_subject_etc_without_detail_is_unknown_not_conflict():
+    from app.core.subjects import SubjectHit
+
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="가온학원", subjects=["기타"], subject_detail=None),
+        req,
+        subjects=[SubjectHit("기타", "피아노")],
+    )
+    assert result.unknown == ["subject"]
+    assert result.conflicts == []
+    assert result.score == 0.0
+
+
+def test_subject_etc_with_different_detail_conflicts():
+    from app.core.subjects import SubjectHit
+
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="가온학원", subjects=["기타"], subject_detail="미술"),
+        req,
+        subjects=[SubjectHit("기타", "피아노")],
+    )
+    assert result.conflicts == ["subject"]
+    assert result.score == pytest.approx(WEIGHT_CONDITION_FALSE)
+
+
+def test_name_patterns_uses_etc_label():
+    from app.core.subjects import SubjectHit
+
+    assert name_patterns([SubjectHit("기타", "피아노")]) == ("%피아노%",)
+    # 라벨 없는 기타 hit 은 패턴을 만들지 않는다.
+    assert name_patterns([SubjectHit("기타", None)]) == ()
+    assert name_patterns([SubjectHit("수학", None)]) == ("%수학%",)
+
+
 def test_no_subjects_in_query_skips_subject_lists():
     req = RecommendationRequest(limit=3)
     result = score_one(_academy(name="가온수학"), req, subjects=())
@@ -224,14 +301,23 @@ def test_freshness_boundary():
         ("영어 학원", ["영어"]),
         ("수학 영어", ["영어", "수학"]),
         ("숙제 적은 학원", []),
-        # scoring.extract_subjects → extract_subjects_from_text. "물리"/"화학"은
-        # taxonomy 버킷 "과학"으로 묶여, subjects=["과학"] 학원과 충돌하지 않는다.
-        ("물리화학", ["과학"]),
-        ("과학 좋아하는 아이", ["과학"]),
+        # taxonomy가 4종이라 과학은 "기타" 버킷으로 들어간다 (세부 라벨은 "과학").
+        ("물리화학", ["기타"]),
+        ("과학 좋아하는 아이", ["기타"]),
     ],
 )
 def test_extract_subjects(query, expected):
     assert extract_subjects(query) == expected
+
+
+def test_extract_subject_hits_carries_etc_label():
+    from app.core.subjects import SubjectHit
+    from app.services.scoring import extract_subject_hits
+
+    assert extract_subject_hits("과학 좋아하는 아이") == [SubjectHit("기타", "과학")]
+    assert extract_subject_hits("피아노 학원") == [SubjectHit("기타", "피아노")]
+    # 맨 "기타"는 라벨이 없어 신호를 만들지 않는다.
+    assert extract_subject_hits("기타 상담") == []
 
 
 def test_name_patterns():

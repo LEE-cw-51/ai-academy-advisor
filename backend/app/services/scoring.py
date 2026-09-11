@@ -13,7 +13,11 @@ from datetime import date, timedelta
 from typing import Mapping, Sequence
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
-from app.core.subjects import extract_subjects_from_text
+from app.core.subjects import (
+    SubjectHit,
+    extract_subject_hits as _extract_subject_hits,
+    extract_subjects_from_text,
+)
 from app.schemas.academy import AcademySummary, RecommendationRequest
 
 # --- 가중치 (모듈 상수) ---
@@ -28,9 +32,10 @@ EVIDENCE_CAP = 4
 WEIGHT_FRESHNESS = 0.2
 FRESHNESS_DAYS = 180
 
-# 질의 과목 추출은 app.core.subjects 와 같은 규칙을 쓴다. academy.subjects 가
-# 5종만 가질 수 있어서, "물리"를 잡지 않으면 subjects=["과학"] 학원이 매칭이
-# 아니라 충돌(감점)로 떨어진다.
+# 질의 과목 추출은 app.core.subjects 와 같은 규칙을 쓴다. academy.subjects 는
+# 4종(국어·영어·수학·기타)이고, 과학·피아노 등은 기타 버킷 + subject_detail 라벨로
+# 들어간다. 그래서 "물리"→기타/과학 hit 을 만들어 subject_detail="과학" 학원과
+# 라벨로 매칭한다 (버킷만 보면 피아노 학원까지 매칭되는 오류를 막는다).
 
 _LEVEL_ATTR = {
     SchoolLevel.ELEMENTARY: "level_elementary",
@@ -61,13 +66,28 @@ class ScoredAcademy:
 
 
 def extract_subjects(query: str) -> list[str]:
-    """질문에서 과목 키워드를 추출한다. taxonomy와 동일한 규칙을 쓴다."""
+    """질문에서 과목 버킷을 추출한다 (parsed_intent·relaxed 계약용, taxonomy 4종)."""
     return extract_subjects_from_text(query)
 
 
-def name_patterns(subjects: Sequence[str]) -> tuple[str, ...]:
+def extract_subject_hits(query: str) -> list[SubjectHit]:
+    """질문에서 과목 신호를 버킷+세부 라벨로 추출한다 (채점·정렬 힌트용)."""
+    return _extract_subject_hits(query)
+
+
+def _hit_term(hit: str | SubjectHit) -> str | None:
+    """정렬/매칭에 쓸 어휘. 기타 hit 은 라벨(없으면 스킵), 나머지는 버킷/문자열."""
+    if isinstance(hit, SubjectHit):
+        if hit.subject == "기타":
+            return hit.label
+        return hit.subject
+    return hit
+
+
+def name_patterns(subjects: Sequence[str | SubjectHit]) -> tuple[str, ...]:
     """list_candidates 정렬 힌트용 ilike 패턴. 과목 어휘는 scoring 에만 둔다."""
-    return tuple(f"%{s}%" for s in subjects)
+    terms = [_hit_term(hit) for hit in subjects]
+    return tuple(f"%{term}%" for term in terms if term)
 
 
 def _tri_state(
@@ -89,34 +109,64 @@ def _tri_state(
 
 def _subject_signal(
     academy: AcademySummary,
-    subjects: Sequence[str],
+    subjects: Sequence[str | SubjectHit],
     matched: list[str],
     unknown: list[str],
     conflicts: list[str],
 ) -> float:
-    if not subjects:
+    # 문자열은 국/영/수 버킷 hit 으로 승격. 라벨 없는 맨 "기타" hit 은 신호가
+    # 없으므로 버린다 (그것 하나로 모든 기타 학원이 매칭되면 안 된다).
+    hits = [h if isinstance(h, SubjectHit) else SubjectHit(h, None) for h in subjects]
+    hits = [h for h in hits if not (h.subject == "기타" and h.label is None)]
+    if not hits:
         return 0.0
 
-    name_hit = any(s in academy.name for s in subjects)
     listed = academy.subjects
-    list_hit = bool(listed) and any(s in listed for s in subjects)
-
-    if name_hit or list_hit:
-        matched.append("subject")
-        return WEIGHT_SUBJECT
+    for hit in hits:
+        term = hit.label if hit.subject == "기타" else hit.subject
+        if term is None:
+            continue
+        name_hit = term in academy.name
+        if hit.subject == "기타":
+            list_hit = academy.subject_detail == term
+        else:
+            list_hit = bool(listed) and term in listed
+        if name_hit or list_hit:
+            matched.append("subject")
+            return WEIGHT_SUBJECT
 
     if listed is None:
         unknown.append("subject")
         return 0.0
 
-    conflicts.append("subject")
-    return WEIGHT_CONDITION_FALSE
+    # subjects 는 확인됐고 매치는 없다. 기타 hit 은 학원의 세부 라벨이 미확인이면
+    # 감점하지 않고 unknown 으로 둔다 (확인된 다른 라벨일 때만 충돌).
+    any_conflict = False
+    any_unknown = False
+    for hit in hits:
+        if hit.subject == "기타":
+            if "기타" in listed:
+                if academy.subject_detail is None:
+                    any_unknown = True
+                else:
+                    any_conflict = True
+            else:
+                any_conflict = True
+        else:
+            any_conflict = True
+
+    if any_conflict:
+        conflicts.append("subject")
+        return WEIGHT_CONDITION_FALSE
+    if any_unknown:
+        unknown.append("subject")
+    return 0.0
 
 
 def score_one(
     academy: AcademySummary,
     request: RecommendationRequest,
-    subjects: Sequence[str] = (),
+    subjects: Sequence[str | SubjectHit] = (),
     evidence_count: int = 0,
     similarity: float | None = None,
     today: date | None = None,
@@ -200,7 +250,7 @@ def score_one(
 def rank(
     candidates: Sequence[AcademySummary],
     request: RecommendationRequest,
-    subjects: Sequence[str] = (),
+    subjects: Sequence[str | SubjectHit] = (),
     evidence_counts: Mapping[int, int] | None = None,
     similarity: Mapping[int, float] | None = None,
     today: date | None = None,

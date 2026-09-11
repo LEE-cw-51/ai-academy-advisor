@@ -2,6 +2,70 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-11 — 과목 4버킷 + subject_detail · 후보 풀/근거 상한 · 리뷰 수집 재개와 브라우저 수집 판단
+
+- **계기**: "검색이 어떤 조건이든 같은 학원만 낸다"는 Founder 보고. 원인은 리뷰
+  부재만이 아니라 **사실 데이터가 평평한 것**이었다. `/app`은 `region="하남 미사"`를
+  늘 넣고 411건 중 410건 주소에 "미사"가 있어 후보 풀이 사실상 전체이고,
+  `parse_intent`는 `q`를 세팅하지 않아 자유 텍스트가 SQL에 닿지 않는다.
+  `subjects`는 123/411만 채워졌고(기타 56·영어 32·수학 30·국어 5·과학 0) 나머지
+  bool 컬럼은 전부 null이라 점수면이 세 버킷으로 붕괴, `(-score, name, id)` 동점
+  정렬이 늘 같은 가나다순 앞 3개를 낸다. 리뷰는 0행이고 provider가 stub이라
+  근거는 구조적으로 비어 있다.
+- **결정 — 과목**:
+  - **taxonomy를 5종→4종(`국어·영어·수학·기타`)**. `과학`은 정본 0행이라 손실이 없고,
+    비-핵심 과목은 전부 `기타` 버킷 + **`subject_detail`(자유 라벨, `String(50)`)**로
+    원래 이름(피아노·미술·과학·무용…)을 보존한다. 2026-08-30의 5종 결정을 대체한다.
+  - `subject_detail`은 `subjects`에 `기타`가 있을 때만 채운다(Postgres CHECK
+    `ck_academies_subject_detail_requires_etc` + Pydantic model_validator). 어휘는
+    강제하지 않는다(느슨하게 시작 — 라벨이 늘 때마다 마이그레이션을 강요하지 않는다).
+  - 채점은 **라벨 인지형**이다(`scoring._subject_signal`). 기타 hit은 라벨이 학원
+    이름 또는 `subject_detail`과 맞을 때만 매치하고, 학원의 세부 라벨이 미확인이면
+    감점 없이 unknown이다. 맨 `기타`(라벨 없음)는 어떤 학원도 매치하지 않는다 —
+    그러지 않으면 "과학" 질의가 피아노 학원까지 끌어온다.
+  - 과목 오분류 수정: `("독서","국어")`가 **독서실·영어독서**를 국어로 오분류하던 것을
+    "긴 키워드 우선 + 매치 구간 소비" 매처로 구조적으로 없앴다(영수증·외국어·중국어
+    특례도 이 방식으로 통합). 무용·발레·바둑·바리스타 등 매핑에 없어 `[]`로 빠지던
+    카테고리도 이제 `기타`+라벨로 들어온다.
+  - 백필은 **신규 API 호출 없이** 기존 `data/raw/naver/enrich-proposals.csv`의
+    `category=` 근거를 재사용한다(`apply_enrich_csv` 폴백). dry-run 기준 80행이
+    `subject_detail`을 얻는다(기존 기타 61 + 매핑 확장분). 정본 반영은
+    export→0008→apply→import --force 순, Founder 승인 후.
+- **결정 — 랭킹 구조**: 후보 풀 상한 200→500(410 region 매치가 잘리지 않게),
+  근거 top-k 5→40 + **후보 풀 밖 학원의 리뷰 히트는 버린다**(전역 top-k가 무관한
+  학원에 근거를 뺏겨 채점에 반영 안 되던 낭비 제거).
+- **결정 — 리뷰 수집**:
+  - 기존 NAVER API HUB(`blog`+`cafearticle`) 경로를 실가동한다(Founder 승인 후
+    `REVIEW_SOURCE=naver`). 엔드포인트는 `naver_review_endpoints` 설정으로 확장
+    가능(`kin`·`webkr`은 HUB 노출을 `--dry-run`으로 확인한 뒤에만).
+  - **브라우저 수집은 "허용된 소스만" 구조로만 둔다.** 2026-07-31 결정(네이버 플레이스
+    크롤링 기각)을 재검토했고, 2026-09-11 직접 확인 결과 표적이 여전히 불가하다:
+    - `map.naver.com/robots.txt`·`map.kakao.com`·`place.map.kakao.com`: 첫 줄
+      `# BOT ACCESS FOR THE PURPOSES OF AI TRAINING AND RETRIEVAL-AUGMENTED
+      GENERATION (RAG) IS STRICTLY PROHIBITED.` + `User-agent: * / Disallow: /`
+      (홈만 `Allow: /$`). 우리 용도가 정확히 RAG다.
+    - `m.place.naver.com`·`pcmap.place.naver.com`: robots.txt 단순 GET에도 HTTP 429.
+  - 그래서 지금 만드는 것은 (1) 게이트 `app/cli/check_robots.py`(robots·상태 판정,
+    우회 없음), (2) 포트 이음새(`ReviewItem.rating/attributed`, `factory`의 미구현
+    `"browser"` 분기)뿐이다. robots·약관이 허용하는 소스가 나타나면 그때 **비-우회
+    렌더러**(순정 Playwright 또는 상용 Firecrawl) 어댑터를 붙인다.
+  - **봇 차단 우회 스킬은 채택하지 않는다.** skills.sh 조사 결과 존재는 확인했으나
+    (`greekr4/playwright-bot-bypass`·Camoufox·FlareSolverr·프록시 로테이션 등) 목적이
+    탐지 회피라 "허용된 소스만" 원칙과 배치된다. 로그인 담벼락 우회·캡차 해결·
+    프록시/IP 로테이션·핑거프린트 위장·robots 무시는 어떤 형태로도 구현하지 않는다.
+  - **Google Places API 기각**(이전까지 미기록): 리뷰의 30일 초과 저장·재사용을 약관이
+    금지해 DB+임베딩 보관 모델과 충돌한다. Kakao Daum 검색 API는 공식·무료지만 결과
+    저장 약관을 확인하기 전에는 붙이지 않는다.
+- **Founder 승인 필요**: (a) 0008을 Supabase에 적용(적용 전 `subjects @> '["과학"]'`
+  0행 확인), (b) 첫 실제 NAVER 수집 실행(DB 직접 쓰기, 822콜/일 3.3%), (c) OpenAI 키
+  발급 + Vercel 백엔드 환경변수(`EMBEDDING_PROVIDER=openai`·`VECTOR_STORE=pgvector`).
+- **바꾸지 않은 것**: 두 추천 API 분리, `q` 매칭 컬럼(이름·주소·전화, subjects 미포함),
+  `score` 비표시, 이름 휴리스틱으로 `subjects` 채우기 금지, 리뷰 원문 비커밋,
+  운영 정본=Supabase Studio·git JSON=시드.
+- **다음**: 실제 임베딩 후 유사도 하한·ANN 인덱스(ivfflat/hnsw), 카드가 리뷰 원문
+  스니펫을 그대로 렌더하는 문제(출처·시점 + LLM 요약으로 전환), `_fallback_reason`
+  동일 문장 완화.
+
 ## 2026-09-10 — Cloud Agent 병렬 작업 분리 (slice_between 후속 실행·랜딩 인계)
 
 - **계기**: 2026-09-09 「소스 텍스트 단정문 규칙 (`slice_between`)」 결정의 **후속 실행·인계**를
@@ -13,6 +77,65 @@
   - **문서 인계**(이 브랜치): 위 분리와 검증 기준을 `decision-log` 에 남긴다.
 - **검증**: `cd backend && uv run pytest ../tests`, `cd frontend && npm run build`.
   이 작업 범위만으로는 로컬 `.env` 가 필요하지 않다.
+
+## 2026-09-09 — 디자인 점검 중간 이슈 — 다음 세션
+
+- **계기**: 웹 디자인 가이드라인·퍼널/`/app` 감사에서 **높음**은 이번 커밋에서
+  처리했다. **중간**만 남겼고, 다음 세션이 같은 감사를 다시 돌리지 않도록
+  열린 항목만 적는다. (높음 재작업 금지.)
+- **이번 커밋에 이미 들어간 것 (다시 하지 말 것)**:
+  - AI `reason` 채점 덤프 가드 + stub 한국어 폴백 (`ai_recommendation_service` /
+    `stub` / `docs/api.md` `reason` 계약)
+  - 상세 모달 `source_note` 비공개 (`AcademyDetailModal`)
+  - 높음 터치·a11y: Modal `overscroll-contain`·닫기 44px, Chip/CTA `min-h-11`,
+    LandingHeader 로고 히트, LandingFooter 링크 `min-h-11`, SiteChrome 하단
+    scroll/safe 여유, Card `focus-visible`(onActivate), MapPanel 목록 카드는
+    Card를 통해 focus-visible 상속
+- **다음 세션 — 중간 (미해결, 중복 제거)**:
+  - `Modal.tsx`: `overscroll-contain`은 됨. 패널/닫기에 `safe-area-inset` 패딩
+    없음
+  - Skip link → `<main>` 없음 (`layout.tsx` / `SiteChrome.tsx` / 랜딩 페이지들)
+  - `PageHero.tsx:66` h1에 `text-wrap: balance`/`pretty` 없음
+  - `LandingFooter.tsx`·`LandingHeader.tsx`·`KakaoChannelModal.tsx:48` 개인정보·
+    텍스트 링크: 히트 영역은 고쳤으나 `focus-visible` 유틸 없음
+  - `checklists/page.tsx:41–50` 그룹 앵커 nav: `focus-visible` 없음
+  - `MiniAcademyCheck.tsx:199`「이전 질문」ghost CTA 높이; `:207–224`
+    progressbar는 `aria-hidden` 장식만 (role/valuenow 없음)
+  - `ServicePreviewSection.tsx:31`「왜 추천했나요?」vs `/app` 테마
+    `WHY_CANDIDATE_HEADING`「왜 이 후보를 보여드렸나요?」불일치
+  - `layout.tsx` / `globals.css`: `theme-color` 메타 없음; `touch-action:
+    manipulation` 없음
+  - `AppShell.tsx:180` 브랜드가 `span`(페이지 h1 아님); `:185–190` 개인정보
+    링크 focus-visible·히트; `:246–252` 검색 `autocomplete` 없음; `:273–279`
+    검색 해제 링크 focus-visible
+  - `ChatPanel.tsx`: 학교·학원 입력(`:378–399`) label/`htmlFor`·`autocomplete`
+    없음; `:445` 로딩에 `aria-live` 없음; 필터 행이 `fieldset` 아님; 헤딩
+    text-wrap; 「조건 수정」·「자세히」·「질문·후보 보기」등 텍스트 컨트롤
+    focus-visible
+  - `MapPanel.tsx:297`: 목록 카드 `onActivate`→상세 직행 vs 왼쪽 후보
+    선택(데스크톱 비대칭). 카드 focus-visible는 Card로 이미 처리
+  - `AcademyDetailModal.tsx:153` 로딩 문구에 `aria-live` 없음
+- **바꾸지 않은 것**: 중간 항목 구현, 감사 재실행, 낮음/니트픽.
+
+## 2026-09-09 — AI 추천 이유는 학부모용 문장만 (채점 덤프 금지)
+
+- **계기**: 후보 카드「왜 이 후보를 보여드렸나요?」에 `matched=['subject']`,
+  `[stub-llm]`, `적합도:` 같은 디버그 문자열이 그대로 나왔다. `_build_reason`이
+  채점 리스트를 LLM에 넣었고, 기본 `StubLLMProvider`가 user 메시지를 에코했다.
+  Groq여도 모델이 덤프를 따라 쓸 수 있다. 프론트는 `reason`을 가공하지 않는다.
+- **결정**:
+  - 프롬프트에는 한국어 조건 라벨만 넘긴다. `matched=`/`unknown=`/`conflicts=`
+    덤프와 주소 전문은 넣지 않는다.
+  - 시스템 프롬프트는 2–3문장, 확인된 사실만. 영문 키·`[]`·`적합도:`·필드명·
+    리뷰 원문 붙여넣기·점수 언급을 금지한다.
+  - LLM 출력이 덤프처럼 보이면(`matched=`, `[stub-llm]`, `적합도:`, 파이썬
+    리스트) `_fallback_reason`으로 교체한다. stub 성공 경로도 깨진 문장을 막는다.
+  - stub은 프롬프트를 에코하지 않고 폴백과 같은 짧은 한국어를 반환한다.
+- **바꾸지 않은 것**: `POST /recommendations`와 `/recommendations/ai` 분리,
+  `reason: str` 계약, `score`를 문장에 넣지 않음, 프론트의 `reason` 파싱 없음,
+  `matched_conditions` 등 투명성 필드.
+- **다음**: 상세 `source_note` 비공개는 같은 날 프론트 커밋에서 처리.
+    남은 중간 a11y는 위「디자인 점검 중간 이슈」항목.
 
 ## 2026-09-09 — 소스 텍스트 단정문 규칙 (가드하지 못하는 테스트 정리)
 

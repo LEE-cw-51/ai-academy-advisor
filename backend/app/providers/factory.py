@@ -113,13 +113,28 @@ def get_review_source() -> ReviewSource:
     if name == "stub":
         return StubReviewSource()
     if name == "naver":
+        endpoints = tuple(
+            part.strip()
+            for part in settings.naver_review_endpoints.split(",")
+            if part.strip()
+        ) or ("blog", "cafearticle")
         return NaverReviewSource(
             client_id=settings.naver_client_id,
             client_secret=settings.naver_client_secret,
             base_url=settings.naver_base_url,
+            endpoints=endpoints,
+        )
+    if name == "browser":
+        # 이음새만 있고 어댑터는 없다. robots·약관이 허용하는 소스가 나타났을 때만
+        # 비-우회 렌더러 어댑터를 여기 연결한다 (docs/decision-log.md 2026-09-11,
+        # app/cli/check_robots.py 로 먼저 확인). 봇 차단 우회는 붙이지 않는다.
+        raise NotImplementedError(
+            "browser review_source 는 아직 어댑터가 없다 — 허용 소스를 "
+            "check_robots 로 확인하고 Founder 승인 후 연결한다"
         )
     raise ValueError(
-        f"지원하지 않는 review_source: {name!r} (현재 'stub'/'naver'만 구현됨)"
+        f"지원하지 않는 review_source: {name!r} "
+        "(현재 'stub'/'naver' 구현, 'browser'는 이음새만)"
     )
 
 

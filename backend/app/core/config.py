@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     # 리뷰 소스 엔드포인트당 1회 호출에서 받아올 건수 (네이버 허용 범위 1~100).
     naver_display: int = 10
+    # NAVER API HUB 리뷰 수집 엔드포인트(쉼표 구분). 기본은 blog·cafearticle.
+    # kin(지식iN)·webkr 은 HUB가 노출하는지 --dry-run 으로 확인한 뒤에만 추가한다.
+    naver_review_endpoints: str = "blog,cafearticle"
     # 임베딩 차원. Review.embedding 의 Vector(dim)과 일치해야 하며,
     # 변경 시 마이그레이션이 필요하다 (docs/decision-log.md 참고).
     embedding_dim: int = 1024

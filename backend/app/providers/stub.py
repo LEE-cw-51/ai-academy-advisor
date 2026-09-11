@@ -45,17 +45,17 @@ class StubEmbeddingProvider:
 
 
 class StubLLMProvider:
-    """마지막 user 메시지를 요약·에코하는 결정적 응답을 만든다."""
+    """프롬프트를 에코하지 않고 폴백과 같은 짧은 한국어 문장을 반환한다.
+
+    기본 `LLM_PROVIDER=stub`에서도 학부모용 이유 문장이 나와야 한다. 입력 내용을
+    그대로 돌려주면 `matched=` 덤프가 카드에 노출된다.
+    """
 
     def chat(self, messages: list[dict]) -> str:
-        last_user = ""
-        for message in messages:
-            if message.get("role") == "user":
-                last_user = str(message.get("content", ""))
-        preview = last_user.strip().replace("\n", " ")
-        if len(preview) > 200:
-            preview = preview[:200] + "…"
-        return f"[stub-llm] 입력을 받았습니다: {preview}"
+        del messages
+        return (
+            "입력하신 조건과 맞는 등록 정보가 있어 확인해 볼 후보로 정리했습니다."
+        )
 
 
 class StubVectorStore:

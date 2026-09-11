@@ -7,6 +7,7 @@ P2(POST /chat SSE)는 세션이 닫힌 뒤 스트리밍하므로 이 전제가 �
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -20,7 +21,9 @@ from app.services.scoring import ScoredAcademy
 
 logger = logging.getLogger(__name__)
 
-_EVIDENCE_TOP_K = 5
+# 후보 풀(~410행)에 걸친 근거를 실제로 분산시키려면 전역 top-5로는 부족하다.
+# 후보 밖 학원의 히트는 _load_review_evidence 에서 버린다.
+_EVIDENCE_TOP_K = 40
 
 
 @dataclass(frozen=True)
@@ -59,7 +62,7 @@ def _to_summaries(rows) -> list[AcademySummary]:
 def _candidate_pool(
     db: Session,
     req: RecommendationRequest,
-    subjects: list[str],
+    subject_hits: Sequence[object],
     pool_limit: int,
 ) -> tuple[list[AcademySummary], list[str]]:
     """완화 사다리: 원본 → q 제거 → region 제거. 풀이 비지 않는 첫 단계에서 멈춘다.
@@ -70,7 +73,7 @@ def _candidate_pool(
     parse_intent 는 q 를 세팅하지 않으므로 q 단계는 prev_filters(P2 멀티턴)로만
     도달한다 — 죽은 코드가 아니다.
     """
-    name_like = scoring.name_patterns(subjects)
+    name_like = scoring.name_patterns(subject_hits)
     rows = academy_repository.list_candidates(db, req, pool_limit, name_like)
     if rows:
         return _to_summaries(rows), []
@@ -121,7 +124,7 @@ def _similar_review_ids(db: Session, query: str) -> dict[int, float] | None:
 
 
 def _load_review_evidence(
-    db: Session, query: str
+    db: Session, query: str, candidate_ids: set[int]
 ) -> tuple[
     dict[int, list[ReviewEvidence]],
     dict[int, float],
@@ -131,6 +134,9 @@ def _load_review_evidence(
 
     Hit.score 는 id 로 lookup 한다. get_reviews_by_ids 가 없는 id 를 조용히
     버리므로 위치 zip 은 어긋날 수 있다. 후보 풀·SearchHistory 는 여기서 감싸지 않는다.
+
+    후보 풀 밖 학원(다른 지역 등)의 히트는 버린다 — 전역 top-k 라 후보와 무관한
+    학원이 근거를 가로채면 채점에 반영되지 않고 낭비되기 때문이다.
     """
     similarity_by_id = _similar_review_ids(db, query)
     if not similarity_by_id:
@@ -143,6 +149,8 @@ def _load_review_evidence(
         db, list(similarity_by_id)
     )
     for review in reviews:
+        if review.academy_id not in candidate_ids:
+            continue
         sim = similarity_by_id[review.id]
         evidence_by_academy.setdefault(review.academy_id, []).append(
             ReviewEvidence.model_validate(review)
@@ -161,7 +169,7 @@ def build_context(
     query: str,
     prev_filters: dict | None = None,
     limit: int = 3,
-    pool_limit: int = 200,
+    pool_limit: int = 500,
 ) -> PipelineContext:
     """순서 계약: history → merge → subjects → pool → evidence → rank."""
     # 1. 질문 기록 — 완화 루프 밖에서 정확히 1회
@@ -171,22 +179,24 @@ def build_context(
     req = _merge_prev_filters(prev_filters, intent.parse_intent(query, limit))
 
     # 3. 과목 (런타임 휴리스틱 — SQL WHERE 로 새어나가지 않음)
+    #    subjects: 버킷(계약용) / subject_hits: 세부 라벨 포함(채점·정렬 힌트용)
     subjects = scoring.extract_subjects(query)
+    subject_hits = scoring.extract_subject_hits(query)
 
     # 4. 후보 풀 (ORM→Pydantic 은 세션 살아있을 때)
-    candidates, relaxed = _candidate_pool(db, req, subjects, pool_limit)
+    candidates, relaxed = _candidate_pool(db, req, subject_hits, pool_limit)
     academies_by_id = {a.id: a for a in candidates}
 
     # 5. RAG 근거 + 학원별 최고 유사도 (실패 시 빈 근거로 사실 채점만 이어감)
     evidence_by_academy, similarity_by_academy, evidence_counts = (
-        _load_review_evidence(db, query)
+        _load_review_evidence(db, query, set(academies_by_id))
     )
 
     # 6. 원본 req 로 채점 (완화해도 conflicts 에 region 등이 남는다)
     scored = scoring.rank(
         candidates,
         req,
-        subjects=subjects,
+        subjects=subject_hits,
         evidence_counts=evidence_counts,
         similarity=similarity_by_academy,
     )

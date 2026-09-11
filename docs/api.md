@@ -49,6 +49,7 @@ Boolean 필드의 `null`은 '미확인'을 뜻하며 어떤 필터에도 매치�
       "phone": "031-000-0001",
       "tagline": "초·중등 대상 소수정예 수학 전문학원(예시 데이터).",
       "subjects": ["수학"],
+      "subject_detail": null,
       "level_elementary": true,
       "level_middle": true,
       "level_high": false,
@@ -132,6 +133,10 @@ POST /recommendations
 파이프라인: 질문 기록 → 의도 분석 → 소프트 후보 풀(완화 사다리) → RAG 근거 검색 →
 적합도 채점 → 상위 `limit`건만 추천 이유 생성.
 
+후보 풀 상한은 500(2026-09-11, region 매치가 잘리지 않게), RAG 근거는 전역 상위 40건
+중 **후보 풀 안** 학원만 채점에 반영한다. 요약 필드에는 `subject_detail`(기타 버킷의
+세부 이름)이 포함되며, 과목 질의는 이름·`subjects`·`subject_detail` 라벨로 매칭한다.
+
 현재 provider 기본값은 **stub**이며(키·비용 0), 의도 분석은 규칙 기반이다.
 `EMBEDDING_PROVIDER=openai` + `VECTOR_STORE=pgvector`로 전환하면 실제 임베딩(OpenAI
 `text-embedding-3-small`)과 pgvector 코사인 검색이 동작한다 (config만 바꿔 교체,
@@ -164,7 +169,7 @@ POST /recommendations/ai
   "items": [
     {
       "academy": { "id": 1, "name": "가온수학(예시)", "...": "..." },
-      "reason": "추천 이유 (AI 생성)",
+      "reason": "입력하신 조건 중 4개 항목이 등록 정보와 맞아 확인해 볼 후보로 정리했습니다.",
       "score": 6.0,
       "matched_conditions": ["subject", "level_high", "curriculum_naesin", "region"],
       "unknown_conditions": [],
@@ -176,6 +181,11 @@ POST /recommendations/ai
   ]
 }
 ```
+
+**`reason`**: 학부모용 짧은 한국어 문장(2–3문장). 확인된 사실만 말한다.
+`matched=`·`unknown=`·`[stub-llm]`·`적합도:` 같은 채점 덤프는 반환하지 않는다.
+기본 stub과, 덤프처럼 보이는 LLM 출력은 규칙 기반 폴백 문장으로 바꾼다.
+`score`는 이유 문장에 넣지 않는다.
 
 **`score`**: 무한대 상대 랭킹 점수(대략 0–12). 절대값에 의미가 없으므로 별점·신뢰도(%)처럼
 렌더링하면 안 된다. 같은 응답 안에서의 순서 비교에만 쓴다.

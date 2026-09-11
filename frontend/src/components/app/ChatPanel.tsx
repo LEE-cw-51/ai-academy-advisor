@@ -32,6 +32,9 @@ import {
   RESUBMIT_LABEL,
   SUBJECT_FORM_HELPER,
   SUBJECT_HELPER,
+  SUBJECT_DETAIL_LABEL,
+  SUBJECT_DETAIL_HELPER,
+  SUBJECT_DETAIL_PLACEHOLDER,
   SUBMIT_LABEL,
   TAGS_HEADING,
   TAGS_HELPER,
@@ -67,6 +70,7 @@ interface SubmittedConditions {
   intent: ConsultationIntent;
   grade: string;
   subject: string;
+  subjectDetail: string;
   school: string;
   currentAcademy: string;
   tags: string[];
@@ -90,13 +94,19 @@ function buildQuery(parts: {
   grade: string | null;
   school: string;
   subject: string | null;
+  subjectDetail: string;
   note: string;
 }): string {
   const chunks: string[] = [];
   if (parts.region) chunks.push(parts.region);
   if (parts.grade) chunks.push(parts.grade);
   if (parts.school.trim()) chunks.push(parts.school.trim());
-  if (parts.subject) chunks.push(parts.subject);
+  // "기타"를 고르고 실제 과목을 적었으면 그 이름을 쓴다 — "기타"만으론 신호가 없다.
+  const subjectTerm =
+    parts.subject === "기타" && parts.subjectDetail.trim()
+      ? parts.subjectDetail.trim()
+      : parts.subject;
+  if (subjectTerm) chunks.push(subjectTerm);
   if (parts.note.trim()) chunks.push(parts.note.trim());
   return chunks.join(" · ");
 }
@@ -111,6 +121,7 @@ export function ChatPanel({
   const [grade, setGrade] = useState<string | null>("중2");
   const [school, setSchool] = useState("");
   const [subject, setSubject] = useState<string | null>("수학");
+  const [subjectDetail, setSubjectDetail] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [currentAcademy, setCurrentAcademy] = useState("");
@@ -135,9 +146,10 @@ export function ChatPanel({
         grade,
         school,
         subject,
+        subjectDetail,
         note,
       }),
-    [grade, school, subject, note],
+    [grade, school, subject, subjectDetail, note],
   );
 
   const canSubmit = Boolean(grade && subject && note.trim());
@@ -148,10 +160,14 @@ export function ChatPanel({
   // 사실인지 잘못 알린다 (docs/decision-log.md 2026-09-08 사실 우선).
   const conditionSummary = useMemo(() => {
     if (!submitted) return "";
+    const subjectText =
+      submitted.subject === "기타" && submitted.subjectDetail
+        ? submitted.subjectDetail
+        : submitted.subject;
     return [
       INTENT_SUMMARY[submitted.intent],
       submitted.grade,
-      submitted.subject,
+      subjectText,
     ].join(" · ");
   }, [submitted]);
 
@@ -165,13 +181,24 @@ export function ChatPanel({
       submitted.intent !== intent ||
       submitted.grade !== grade ||
       submitted.subject !== subject ||
+      submitted.subjectDetail !== subjectDetail.trim() ||
       submitted.school !== school.trim() ||
       submitted.currentAcademy !== currentAcademy.trim() ||
       submitted.note !== note.trim() ||
       submitted.tags.length !== tags.length ||
       submitted.tags.some((t) => !tags.includes(t))
     );
-  }, [submitted, intent, grade, subject, school, currentAcademy, note, tags]);
+  }, [
+    submitted,
+    intent,
+    grade,
+    subject,
+    subjectDetail,
+    school,
+    currentAcademy,
+    note,
+    tags,
+  ]);
 
   const relaxedSentences = useMemo(() => relaxedNotes(relaxed), [relaxed]);
 
@@ -189,6 +216,7 @@ export function ChatPanel({
       intent,
       grade,
       subject,
+      subjectDetail: subjectDetail.trim(),
       school: school.trim(),
       currentAcademy: currentAcademy.trim(),
       tags: [...tags],
@@ -210,7 +238,10 @@ export function ChatPanel({
       const [questionsResult, recsResult] = await Promise.allSettled([
         requestConsultationQuestions({
           grade: snapshot.grade,
-          subject: snapshot.subject,
+          subject:
+            snapshot.subject === "기타" && snapshot.subjectDetail
+              ? snapshot.subjectDetail
+              : snapshot.subject,
           school: snapshot.school,
           current_academy: snapshot.currentAcademy,
           style_tags: snapshot.tags,
@@ -328,6 +359,29 @@ export function ChatPanel({
                 </Chip>
               ))}
             </FilterRow>
+            {subject === "기타" ? (
+              <div className="space-y-1 pl-[3.25rem]">
+                <label
+                  className="text-xs text-ink-subtle"
+                  htmlFor="explore-subject-detail"
+                >
+                  {SUBJECT_DETAIL_LABEL}
+                </label>
+                <input
+                  id="explore-subject-detail"
+                  name="subject_detail"
+                  type="text"
+                  disabled={loading}
+                  value={subjectDetail}
+                  onChange={(e) => setSubjectDetail(e.target.value)}
+                  placeholder={SUBJECT_DETAIL_PLACEHOLDER}
+                  className="w-full rounded-card border border-border bg-surface px-3 py-2 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                />
+                <p className="text-xs text-ink-subtle">
+                  {SUBJECT_DETAIL_HELPER}
+                </p>
+              </div>
+            ) : null}
             <p className="pl-[3.25rem] text-xs text-ink-subtle">
               {SUBJECT_FORM_HELPER}
             </p>
@@ -357,7 +411,7 @@ export function ChatPanel({
               type="button"
               disabled={loading || !canSubmit}
               onClick={() => void runQuery()}
-              className="w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? LOADING_LABEL : SUBMIT_LABEL}
             </button>

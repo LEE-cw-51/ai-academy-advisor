@@ -35,10 +35,14 @@ DB (SQLAlchemy models / PostgreSQL)
 AI 구성요소(LLM·임베딩·벡터 스토어)는 벤더/모델 교체가 잦으므로 구체 구현이 아니라
 **포트(Protocol)** 에만 의존한다.
 
-- **base.py**: `EmbeddingProvider` / `LLMProvider` / `VectorStore` Protocol (서비스와의 계약)
+- **base.py**: `EmbeddingProvider` / `LLMProvider` / `VectorStore` / `ReviewSource` /
+  `LocalSearchProvider` Protocol (서비스와의 계약). `ReviewItem`은 `rating`·`attributed`
+  필드를 갖는다(플레이스형 소스는 `attributed=True`로 이름 사후필터를 건너뛴다).
 - **stub.py**: 결정적 기본 구현 (실제 호출·키 없이 동작, 테스트/개발용)
-- **factory.py**: config(`llm_provider`/`embedding_provider`/`vector_store`)로 구현 선택,
-  `@lru_cache`. 새 어댑터(openai/bge-m3/pgvector)는 이 파일과 config만 수정해 교체한다.
+- **factory.py**: config(`llm_provider`/`embedding_provider`/`vector_store`/`review_source`/
+  `local_search_provider`)로 구현 선택, `@lru_cache`. 새 어댑터(openai/bge-m3/pgvector/
+  naver)는 이 파일과 config만 수정해 교체한다. `review_source="browser"`는 이음새만 있고
+  구현은 없다 — 허용 소스 확인(`app.cli.check_robots`) 후 비-우회 렌더러를 연결한다.
 
 서비스 계층은 `factory.get_*()`로 포트를 주입받아 사용한다.
 

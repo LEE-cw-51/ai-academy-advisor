@@ -64,6 +64,30 @@ def test_export_roundtrip_reimports(tmp_path, db_session):
     assert record.subjects == ["수학"]
 
 
+def test_export_roundtrip_subject_detail(tmp_path, db_session):
+    import_dir = tmp_path / "import"
+    export_dir = tmp_path / "export"
+    import_dir.mkdir()
+    write_record(
+        import_dir,
+        "a.json",
+        registration_number="R-detail",
+        subjects=["기타"],
+        subject_detail="피아노",
+    )
+    load = academy_import_service.load_records(import_dir)
+    academy_import_service.import_records(
+        db_session, [record for _, record in load.records]
+    )
+
+    academy_export_service.export_records(db_session, export_dir)
+    reloaded = academy_import_service.load_records(export_dir)
+    assert reloaded.errors == []
+    record = reloaded.records[0][1]
+    assert record.subjects == ["기타"]
+    assert record.subject_detail == "피아노"
+
+
 def test_export_deletes_stale_json(tmp_path, db_session):
     """재export 시 DB에 없는 orphan *.json은 삭제한다."""
     import_dir = tmp_path / "import"

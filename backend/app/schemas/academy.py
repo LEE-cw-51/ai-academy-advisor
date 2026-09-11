@@ -1,9 +1,9 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
-from app.core.subjects import normalize_subjects
+from app.core.subjects import normalize_subject_detail, normalize_subjects
 
 _STRING_FIELDS = (
     "registration_number",
@@ -13,6 +13,7 @@ _STRING_FIELDS = (
     "website_url",
     "blog_url",
     "instagram_url",
+    "subject_detail",
     "operating_hours",
     "tagline",
     "source_note",
@@ -35,6 +36,7 @@ class AcademyRecord(BaseModel):
     blog_url: str | None = Field(default=None, max_length=300)
     instagram_url: str | None = Field(default=None, max_length=300)
     subjects: list[str] | None = None
+    subject_detail: str | None = Field(default=None, max_length=50)
     level_elementary: bool | None = None
     level_middle: bool | None = None
     level_high: bool | None = None
@@ -75,6 +77,17 @@ class AcademyRecord(BaseModel):
             raise ValueError("subjects에 빈 문자열이 있습니다")
         return normalize_subjects(cleaned)
 
+    @model_validator(mode="after")
+    def _check_subject_detail(self) -> "AcademyRecord":
+        self.subject_detail = normalize_subject_detail(self.subject_detail)
+        if self.subject_detail is not None and (
+            self.subjects is None or "기타" not in self.subjects
+        ):
+            raise ValueError(
+                "subject_detail은 subjects에 '기타'가 있을 때만 채울 수 있습니다"
+            )
+        return self
+
 
 class AcademySummary(BaseModel):
     """목록 응답용 요약 (필터 판단에 필요한 사실 + 신뢰 신호 포함)."""
@@ -87,6 +100,7 @@ class AcademySummary(BaseModel):
     phone: str | None
     tagline: str | None
     subjects: list[str] | None
+    subject_detail: str | None = None
     level_elementary: bool | None
     level_middle: bool | None
     level_high: bool | None

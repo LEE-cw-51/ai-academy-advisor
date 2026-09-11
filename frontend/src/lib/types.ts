@@ -21,6 +21,7 @@ export interface AcademySummary {
   phone: string | null;
   tagline: string | null;
   subjects: string[] | null;
+  subject_detail: string | null;
   level_elementary: boolean | null;
   level_middle: boolean | null;
   level_high: boolean | null;

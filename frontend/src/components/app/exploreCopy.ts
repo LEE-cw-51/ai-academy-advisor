@@ -19,6 +19,12 @@ export const FORM_SUPPORT =
 export const SUBJECT_FORM_HELPER =
   "선택한 과목은 상담 질문과 후보 정리에 쓰여요.";
 export const SUBJECT_HELPER = "과목 정보가 확인된 학원만 배지로 표시돼요.";
+// 국어·영어·수학은 버킷으로 확정 분류하고, 그 외 과목은 "기타"를 고른 뒤 실제
+// 이름을 적게 한다 — "기타"만으로는 후보를 좁힐 신호가 없기 때문이다.
+export const SUBJECT_DETAIL_LABEL = "어떤 과목인가요?";
+export const SUBJECT_DETAIL_HELPER =
+  "국어·영어·수학이 아니면 실제 과목을 적어 주세요. 후보 정리에 쓰여요.";
+export const SUBJECT_DETAIL_PLACEHOLDER = "피아노, 미술, 코딩 등";
 export const TAGS_HEADING = "상담에서 확인하고 싶은 것";
 export const TAGS_HELPER =
   "선택하면 상담 질문에 반영돼요. 후보를 거르는 조건은 아니에요.";
@@ -126,6 +132,18 @@ export const CONDITION_LABELS: Record<string, string> = {
 
 export function conditionLabel(key: string): string {
   return CONDITION_LABELS[key] ?? key;
+}
+
+/** 배지 표시용 과목 목록. 버킷 "기타"는 세부 라벨(subject_detail)이 있으면
+ *  그 이름으로 바꿔 보여 준다 — "기타" 배지 대신 "피아노"·"미술"이 보이게. */
+export function subjectBadges(
+  subjects: string[] | null,
+  subjectDetail: string | null,
+): string[] {
+  if (!subjects) return [];
+  return subjects.map((s) =>
+    s === "기타" && subjectDetail ? subjectDetail : s,
+  );
 }
 
 export const INTENTS = [

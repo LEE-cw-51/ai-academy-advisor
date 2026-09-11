@@ -249,6 +249,149 @@ def test_apply_writes_json_on_apply(tmp_path):
     assert "A3 반영" in updated["source_note"]
 
 
+def _write_csv_with_detail(path: Path, rows: list[dict[str, str]]) -> None:
+    fields = [
+        "name",
+        "address",
+        "proposed_subjects",
+        "proposed_subject_detail",
+        "website_url",
+        "blog_url",
+        "proposed_phone",
+        "confidence",
+        "evidence",
+        "source_note",
+        "file_name",
+        "matched_local_title",
+    ]
+    with path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_apply_fills_subject_detail_from_column(tmp_path):
+    json_dir = tmp_path / "academies"
+    json_dir.mkdir()
+    _write_academy(
+        json_dir / "piano.json",
+        {"name": "뮤즈피아노교습소", "subjects": None, "subject_detail": None},
+    )
+    csv_path = tmp_path / "proposals.csv"
+    _write_csv_with_detail(
+        csv_path,
+        [
+            {
+                "name": "뮤즈피아노교습소",
+                "proposed_subjects": "기타",
+                "proposed_subject_detail": "피아노",
+                "confidence": "high",
+                "file_name": "piano.json",
+            }
+        ],
+    )
+
+    report = apply_enrich_csv(csv_path, json_dir, dry_run=False)
+    assert report.applied == 1
+    updated = json.loads((json_dir / "piano.json").read_text(encoding="utf-8"))
+    assert updated["subjects"] == ["기타"]
+    assert updated["subject_detail"] == "피아노"
+
+
+def test_apply_derives_subject_detail_from_evidence_category(tmp_path):
+    json_dir = tmp_path / "academies"
+    json_dir.mkdir()
+    _write_academy(
+        json_dir / "art.json",
+        {"name": "소년공방미술학원", "subjects": None, "subject_detail": None},
+    )
+    # 기존 CSV에는 proposed_subject_detail 컬럼이 없다 — evidence의 category=에서 파생.
+    csv_path = tmp_path / "proposals.csv"
+    _write_csv(
+        csv_path,
+        [
+            _row(
+                name="소년공방미술학원",
+                proposed_subjects="기타",
+                evidence="subjects_from=category; category=미술교육 | local title=소년공방미술학원",
+                confidence="high",
+                file_name="art.json",
+            )
+        ],
+    )
+
+    report = apply_enrich_csv(csv_path, json_dir, dry_run=False)
+    assert report.applied == 1
+    updated = json.loads((json_dir / "art.json").read_text(encoding="utf-8"))
+    assert updated["subjects"] == ["기타"]
+    assert updated["subject_detail"] == "미술"
+
+
+def test_apply_skips_subject_detail_when_no_etc_bucket(tmp_path):
+    json_dir = tmp_path / "academies"
+    json_dir.mkdir()
+    _write_academy(
+        json_dir / "math.json",
+        {"name": "가온수학", "subjects": None, "subject_detail": None},
+    )
+    csv_path = tmp_path / "proposals.csv"
+    _write_csv_with_detail(
+        csv_path,
+        [
+            {
+                "name": "가온수학",
+                "proposed_subjects": "수학",
+                "proposed_subject_detail": "피아노",
+                "confidence": "high",
+                "file_name": "math.json",
+            }
+        ],
+    )
+
+    report = apply_enrich_csv(csv_path, json_dir, dry_run=False)
+    assert report.applied == 1
+    updated = json.loads((json_dir / "math.json").read_text(encoding="utf-8"))
+    assert updated["subjects"] == ["수학"]
+    # subjects에 기타가 없으므로 subject_detail은 채우지 않는다 (결합 규칙).
+    assert updated.get("subject_detail") is None
+
+
+def test_apply_today_and_note_override(tmp_path):
+    from datetime import date
+
+    json_dir = tmp_path / "academies"
+    json_dir.mkdir()
+    _write_academy(
+        json_dir / "piano.json",
+        {"name": "뮤즈피아노교습소", "subjects": None, "subject_detail": None},
+    )
+    csv_path = tmp_path / "proposals.csv"
+    _write_csv_with_detail(
+        csv_path,
+        [
+            {
+                "name": "뮤즈피아노교습소",
+                "proposed_subjects": "기타",
+                "proposed_subject_detail": "피아노",
+                "confidence": "high",
+                "file_name": "piano.json",
+            }
+        ],
+    )
+
+    report = apply_enrich_csv(
+        csv_path,
+        json_dir,
+        dry_run=False,
+        source_note="세부 라벨 반영 2026-09-11",
+        verified_at=date(2026, 9, 11),
+    )
+    assert report.applied == 1
+    updated = json.loads((json_dir / "piano.json").read_text(encoding="utf-8"))
+    assert updated["last_verified_at"] == "2026-09-11"
+    assert "세부 라벨 반영 2026-09-11" in updated["source_note"]
+
+
 def test_rollback_clears_bad_urls_and_name_mismatch_subjects(tmp_path):
     json_dir = tmp_path / "academies"
     json_dir.mkdir()

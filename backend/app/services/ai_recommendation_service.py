@@ -2,13 +2,14 @@
 
 DB→Pydantic 코어는 recommendation_pipeline 에 있고, 여기서는 limit truncate 후
 LLM 추천 이유만 붙인다. `_build_reason` 호출 **전에** 자르는 것이 load-bearing —
-학원 1건당 LLM 1회인데 풀이 200건이므로, 순서를 뒤집으면 stub 이 아닌
-LLM_PROVIDER 에서 동기 200회 순차 호출이 난다.
+학원 1건당 LLM 1회인데 풀이 최대 pool_limit(현재 500)건이므로, 순서를 뒤집으면
+stub 이 아닌 LLM_PROVIDER 에서 동기 수백 회 순차 호출이 난다.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Sequence
 
@@ -33,15 +34,38 @@ logger = logging.getLogger(__name__)
 _REQUEST_DEADLINE_SECONDS = 28.0
 _MIN_REASON_CALL_SECONDS = 8.0
 
+# 프론트 CONDITION_LABELS 와 같은 학부모용 이름. 영문 키를 프롬프트에 넣지 않는다.
+_CONDITION_LABELS = {
+    "subject": "과목",
+    "level_elementary": "초등",
+    "level_middle": "중등",
+    "level_high": "고등",
+    "class_small_group": "소수정예",
+    "class_group": "그룹수업",
+    "class_one_on_one": "1:1",
+    "curriculum_seonhaeng": "선행",
+    "curriculum_naesin": "내신",
+    "curriculum_suneung": "수능",
+    "shuttle_available": "셔틀",
+    "budget_max": "수강료",
+    "region": "지역",
+}
+
 _REASON_SYSTEM_PROMPT = (
-    "학부모의 질문에 맞춰 학원을 추천하는 이유를 근거 리뷰에 기반해 설명한다. "
+    "학부모에게 이 학원을 확인해 볼 후보로 정리한 이유를 2–3문장으로 쓴다. "
     "확인된 사실만 근거로 삼고 미확인 항목은 단정하지 마라. "
     "근거 리뷰는 검색 결과 스니펫(발췌)이지 리뷰 전문이 아니다 — "
-    "잘린 문장에서 단정적인 결론을 끌어내지 마라. "
-    "relaxed에 포함된 조건(특히 region)은 사용자가 원한 조건이 완화됐다는 "
-    "뜻이므로, 그 지역에 있다고 쓰지 마라. "
+    "잘린 문장에서 단정적인 결론을 끌어내지 말고, 리뷰 원문을 붙여넣지 마라. "
+    "지역 조건이 완화됐다면 그 지역에 있다고 쓰지 마라. "
     "전화번호나 URL을 지어내지 마라. 연락처는 화면에 표시된 등록 학원 사실만 "
-    "쓰며, 이유 문장에 전화·웹사이트를 넣지 마라."
+    "쓰며, 이유 문장에 전화·웹사이트를 넣지 마라. "
+    "영문 키, 대괄호 리스트([]), '적합도:', 필드명, 주소 전문을 쓰지 마라. "
+    "점수나 별점처럼 말하지 마라."
+)
+
+_DUMP_MARKERS = ("matched=", "unknown=", "[stub-llm]", "적합도:")
+_PYTHON_LIST_RE = re.compile(
+    r"\[\s*(?:'[^']*'|\"[^\"]*\"|\w+)(?:\s*,\s*(?:'[^']*'|\"[^\"]*\"|\w+))*\s*\]"
 )
 
 
@@ -72,6 +96,47 @@ def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
     return " ".join(parts)
 
 
+def _condition_labels(keys: Sequence[str]) -> str:
+    """알려진 조건 키만 한국어 라벨로. 모르는 키는 영문 누수를 막기 위해 버린다."""
+    return ", ".join(
+        _CONDITION_LABELS[key] for key in keys if key in _CONDITION_LABELS
+    )
+
+
+def _looks_like_reason_dump(text: str) -> bool:
+    """LLM이 디버그 덤프·프롬프트 에코를 그대로 돌려준 경우."""
+    stripped = text.strip()
+    if not stripped:
+        return True
+    if any(marker in stripped for marker in _DUMP_MARKERS):
+        return True
+    return _PYTHON_LIST_RE.search(stripped) is not None
+
+
+def _reason_user_prompt(
+    academy: AcademySummary,
+    scored: ScoredAcademy,
+    evidence: list[ReviewEvidence],
+    query: str,
+    relaxed: Sequence[str],
+) -> str:
+    evidence_snippets = [
+        (e.content[:500] + "…") if len(e.content) > 500 else e.content
+        for e in evidence
+    ]
+    evidence_text = " / ".join(evidence_snippets) or "(근거 리뷰 없음)"
+    matched_labels = _condition_labels(scored.matched)
+    lines = [
+        f"질문: {query}",
+        f"학원명: {academy.name}",
+        f"확인된 조건: {matched_labels or '없음'}",
+    ]
+    if "region" in relaxed:
+        lines.append("지역 조건이 완화되었습니다. 그 지역에 있다고 쓰지 마세요.")
+    lines.append(f"근거 리뷰(발췌, 원문 붙여넣기 금지): {evidence_text}")
+    return "\n".join(lines)
+
+
 def _build_reason(
     academy: AcademySummary,
     scored: ScoredAcademy,
@@ -80,9 +145,10 @@ def _build_reason(
     relaxed: Sequence[str] = (),
     deadline: float | None = None,
 ) -> str:
-    """후보 사실 + 채점 투명성 + 근거 리뷰로 LLM 추천 이유를 생성한다.
+    """후보 이름 + 한국어 조건 라벨 + 근거 리뷰로 LLM 추천 이유를 생성한다.
 
-    LLM 준비/호출 실패는 항목별로 삼키고 `_fallback_reason`으로 대체한다 —
+    채점 덤프(`matched=` 등)는 프롬프트에 넣지 않는다. LLM 준비/호출 실패와
+    덤프처럼 보이는 출력은 항목별로 삼키고 `_fallback_reason`으로 대체한다 —
     consultation_service의 used_fallback 패턴 준용 (응답 스키마는 그대로).
 
     `deadline`(`time.monotonic()` 기준)이 임박했으면 LLM을 아예 호출하지 않고
@@ -93,16 +159,6 @@ def _build_reason(
         logger.info("LLM 추천 이유 시간 예산 소진 — fallback으로 대체")
         return _fallback_reason(scored, relaxed)
 
-    facts = f"학원명: {academy.name}, 주소: {academy.address or '미상'}"
-    evidence_snippets = [
-        (e.content[:500] + "…") if len(e.content) > 500 else e.content
-        for e in evidence
-    ]
-    evidence_text = " / ".join(evidence_snippets) or "(근거 리뷰 없음)"
-    transparency = (
-        f"matched={scored.matched}, unknown={scored.unknown}, "
-        f"conflicts={scored.conflicts}, relaxed={list(relaxed)}"
-    )
     messages = [
         {
             "role": "system",
@@ -110,20 +166,23 @@ def _build_reason(
         },
         {
             "role": "user",
-            "content": (
-                f"질문: {query}\n{facts}\n적합도: {transparency}\n"
-                f"근거 리뷰: {evidence_text}"
+            "content": _reason_user_prompt(
+                academy, scored, evidence, query, relaxed
             ),
         },
     ]
     try:
         llm = get_llm_provider()
-        return llm.chat(messages)
+        text = llm.chat(messages)
     except Exception:
         logger.warning(
             "LLM 추천 이유 생성 실패 — 규칙 기반 fallback으로 대체", exc_info=True
         )
         return _fallback_reason(scored, relaxed)
+    if _looks_like_reason_dump(text):
+        logger.info("LLM 추천 이유가 덤프처럼 보여 fallback으로 대체")
+        return _fallback_reason(scored, relaxed)
+    return text.strip()
 
 
 def recommend(db: Session, query: str, limit: int) -> AiRecommendationResponse:

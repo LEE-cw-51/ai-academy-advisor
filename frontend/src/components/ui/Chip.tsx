@@ -26,7 +26,7 @@ export function Chip({
       aria-pressed={selected}
       disabled={disabled}
       className={[
-        "inline-flex shrink-0 items-center justify-center rounded-full border px-3.5 py-1.5 text-sm transition-colors",
+        "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-3.5 py-1.5 text-sm transition-colors",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         disabled && !selected ? "cursor-not-allowed opacity-50" : "",
         disabled && selected ? "cursor-default" : "",

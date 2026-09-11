@@ -201,17 +201,21 @@ export function AppShell() {
       ) : null}
 
       {/* DOM 순서 = 모바일 순서: 상황 입력 → 질문·후보 → 지도·검색.
-          제출 전에는 폼이 주인공(단열), 제출·검색 후에만 2열. */}
+          제출 전에는 폼이 주인공(단열), 제출·검색 후에만 2열.
+          lg+ 2열에서는 그리드를 뷰포트에 맞춰 높이 제한해 왼쪽만 스크롤하고
+          오른쪽 지도는 계속 보이게 한다. */}
       <div
         className={[
           "mx-auto grid w-full max-w-6xl flex-1 gap-4 p-4 sm:p-6",
-          dualColumn ? "lg:grid-cols-2 lg:gap-6" : "lg:max-w-2xl",
+          dualColumn
+            ? "lg:h-[calc(100dvh-7.5rem)] lg:min-h-0 lg:grid-cols-2 lg:gap-6 lg:overflow-hidden"
+            : "lg:max-w-2xl",
         ].join(" ")}
       >
         <section
           className={[
-            "rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
-            dualColumn ? "min-h-[420px]" : "",
+            "flex min-h-0 flex-col rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
+            dualColumn ? "min-h-[420px] lg:min-h-0 lg:overflow-hidden" : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -226,8 +230,8 @@ export function AppShell() {
         </section>
         <section
           className={[
-            "rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
-            dualColumn ? "min-h-[420px]" : "min-h-[280px]",
+            "flex min-h-0 flex-col rounded-card border border-border-soft bg-surface p-4 shadow-card sm:p-5",
+            dualColumn ? "min-h-[420px] lg:min-h-0 lg:overflow-hidden" : "min-h-[280px]",
           ].join(" ")}
         >
           <MapPanel
@@ -245,12 +249,12 @@ export function AppShell() {
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder={SEARCH_PLACEHOLDER}
                 aria-label={SEARCH_LABEL}
-                className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                className="min-h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
               />
               <button
                 type="submit"
                 disabled={searching}
-                className="rounded-full bg-surface-subtle px-4 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-brand hover:text-ink-strong disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-11 rounded-full bg-surface-subtle px-4 text-sm font-bold text-ink transition-colors hover:bg-brand hover:text-ink-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {SEARCH_LABEL}
               </button>

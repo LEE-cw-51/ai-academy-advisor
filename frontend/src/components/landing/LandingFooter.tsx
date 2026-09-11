@@ -23,25 +23,37 @@ export function LandingFooter() {
         <p className="text-xs text-ink-muted">
           학원콕 · 하남 미사 AI 학원 추천 (정식 출시 준비 중)
         </p>
-        <p className="text-xs text-ink-muted">
-          문의:{" "}
+        <p className="flex flex-wrap items-center gap-x-1 text-xs text-ink-muted">
+          <span className="inline-flex min-h-11 items-center">문의:</span>
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="underline underline-offset-2"
+            className="inline-flex min-h-11 items-center underline underline-offset-2"
           >
             {CONTACT_EMAIL}
           </a>
         </p>
-        <p className="text-xs text-ink-muted">
-          <Link href="/privacy" className="underline underline-offset-2">
+        {/* 스크롤 끝·포커스 시 StickyKakaoBar(~69–72px+safe) 아래로 밀리도록
+            scroll-margin. SiteChrome pb(8rem)와 맞춘다. */}
+        <p className="flex flex-wrap items-center gap-x-1 text-xs text-ink-muted scroll-mb-[calc(6rem+env(safe-area-inset-bottom))]">
+          <Link
+            href="/privacy"
+            className="inline-flex min-h-11 items-center underline underline-offset-2"
+          >
             개인정보처리방침
           </Link>
-          {" · "}
-          <Link href="/app" className="underline underline-offset-2">
+          <span className="inline-flex min-h-11 items-center" aria-hidden>
+            ·
+          </span>
+          <Link
+            href="/app"
+            className="inline-flex min-h-11 items-center underline underline-offset-2"
+          >
             {APP_EXPLORE_LINK_LABEL}
           </Link>
-          {" · "}
-          <KakaoChannelCta className="underline underline-offset-2">
+          <span className="inline-flex min-h-11 items-center" aria-hidden>
+            ·
+          </span>
+          <KakaoChannelCta className="inline-flex min-h-11 items-center underline underline-offset-2">
             카카오톡 채널
           </KakaoChannelCta>
         </p>

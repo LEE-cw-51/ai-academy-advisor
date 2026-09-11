@@ -53,16 +53,19 @@ def test_factory_embedding_dim_matches_settings():
     assert embedder.dimension == 1024
 
 
-def test_stub_llm_returns_str_echoing_last_user_message():
+def test_stub_llm_returns_short_korean_without_echoing_prompt():
     llm = StubLLMProvider()
     out = llm.chat(
         [
             {"role": "system", "content": "너는 학원 추천 도우미"},
-            {"role": "user", "content": "숙제 적은 수학학원"},
+            {"role": "user", "content": "숙제 적은 수학학원 matched=['subject']"},
         ]
     )
     assert isinstance(out, str)
-    assert "숙제 적은 수학학원" in out
+    assert "확인해 볼 후보" in out
+    assert "matched=" not in out
+    assert "[stub-llm]" not in out
+    assert "숙제 적은 수학학원" not in out
 
 
 def test_stub_vector_store_returns_nearest_first():

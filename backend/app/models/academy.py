@@ -47,6 +47,8 @@ class Academy(Base):
 
     # 과목 리스트 (예: ["수학"]). 표시 전용 — cross-dialect 필터 불가, 필터가 필요해지면 junction table로 이관.
     subjects: Mapped[list[str] | None] = mapped_column(SubjectsJSON)
+    # 기타 버킷의 세부 이름 (예: "피아노"·"미술"·"과학"). subjects에 "기타"가 있을 때만 채운다.
+    subject_detail: Mapped[str | None] = mapped_column(String(50))
 
     level_elementary: Mapped[bool | None] = mapped_column(Boolean)  # 초등부
     level_middle: Mapped[bool | None] = mapped_column(Boolean)  # 중등부
