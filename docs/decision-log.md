@@ -2,6 +2,125 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-12 — 리뷰 수집·라벨 데이터 경로까지 완료, 임베딩/UI 일시 중단
+
+- **계기**: Stage 1 리뷰 수집 → Stage 4c/4d 라벨·커리큘럼 제안까지 끝났고, Stage 2
+  (임베딩) 전에 세션을 멈춘다. 아래 4c·4d·런북 항목의 요약 인계다.
+- **완료 (사실)**:
+  - 리뷰 ~1146행 적재 (`blog` + `cafearticle`, NAVER API HUB). 원문은 gitignored
+    `data/raw/naver/`. `cafearticle`은 NCP Search API 활성화 후 401 해소.
+  - `academy_trait_labels`(Alembic `0009`): candidate 146행. `curriculum_*`는
+    여전히 null. UI·상담 미배선.
+  - Stage 4d 제안 CSV는 `data/raw/curriculum-4d/`(gitignored). Founder Studio
+    검토용이며 DB 미기입.
+  - 원격 DB에서 stub 수집 가드 + blog/cafearticle 수율 리포트 반영.
+- **중단 지점**: Stage 2(`OPENAI_API_KEY` 비어 있음) · Stage 3(Vercel
+  `EMBEDDING`/`VECTOR`) · trait-label UI 노출 전.
+- **Founder 다음**: `OPENAI_API_KEY` 설정 → `ingest_review_embeddings` → Vercel
+  env → 그다음 UI에 trait labels 노출.
+- **바꾸지 않은 것**: 학원 사실 정본=Studio, 공개 쓰기 API, scoring·추천 계약.
+
+## 2026-09-12 — Stage 4c: academy_trait_labels 테이블 + 리뷰 배치 (데이터만)
+
+- **계기**: Stage 4b 파일럿이 닫힌 키워드로 제안을 냈고 `academies` 사실 컬럼은
+  0변경. UI·상담 노출은 Stage 3(런타임 RAG) 전이므로 **테이블·배치만** 추가한다.
+- **스키마**: Alembic `0009` — `academy_trait_labels` (`academy_id` FK, `label`,
+  `source_type` review|homepage|blog, `source_url`, `snippet`, `observed_at`,
+  `status` candidate|published). Dedup `(academy_id, label, source_url)`.
+  Postgres: 정책 없는 RLS + `REVOKE … FROM anon, authenticated` (`0007`과 동일
+  Data API 잠금).
+- **적용**: session pooler **5432** (`DATABASE_URL`)로
+  `cd backend && uv run alembic upgrade head` (또는 `.venv` python `-m alembic`).
+  transaction 6543은 CLI에 쓰지 않는다.
+- **배치**: `uv run python -m app.cli.ingest_trait_labels` — reviews → candidate
+  upsert, idempotent. `mentions_qna`는 bare `질문` 제외·질문대응/질문 가능/질문하기
+  등 안전한 복합어만 (`trait_label_matcher`). **`academies.curriculum_*` 미기입.**
+  첫 전체 실행: reviews 1146 스캔 → **146행** inserted (candidate), 학원 49곳;
+  재실행 dup=146. 라벨 분포: naesin 84 · suneung 28 · homework 13 · clinic 11 ·
+  seonhaeng 9 · qna 1. curriculum_* 여전히 전부 null.
+- **바꾸지 않은 것**: RecommendationCard·consultation_service·scoring·공개 쓰기 API.
+- **다음**: Stage 2 임베딩 → Stage 3 Vercel env 후 UI/상담 배선.
+
+## 2026-09-12 — Stage 4d: 커리큘럼 사실은 제안 CSV만 (DB 미갱신)
+
+- **계기**: 운영 `curriculum_*`는 411행 전부 null. 리뷰 문구로 채우지 않기로 한
+  뒤, 공개 `website_url`/`blog_url`이 있는 82곳만 학원 스스로 선행/내신/수능을
+  적었는지 본다.
+- **방법**: `app.cli.check_robots` 허용 URL만. 플레이스·카카오·로그인·
+  `PostList.naver`(robots Disallow)는 열지 않음. 데스크톱 네이버 블로그 홈은
+  프레임셋이라 본문이 없어, 같은 블로그 id의 `m.blog.naver.com` 소개문만
+  사용(해당 경로 `allowed`). 이름 휴리스틱·후기 문장 없음. null만 제안
+  (`true`만, 미확인은 그대로 null).
+- **결과**: 제안 15행 / 학원 8곳. CSV는 gitignored
+  `data/raw/curriculum-4d/curriculum-proposals.csv`.
+  robots로 전 URL이 막힌 학원 4곳(솔루니·미술로생각하기·영렘브란트미사·
+  버츄잉글리시)과 카카오/밴드/예약/뉴스 URL은 Studio 수동. **`academies.curriculum_*`
+  는 쓰지 않음** — Founder가 검토 후 Studio.
+- **바꾸지 않은 것**: 리뷰→사실 컬럼 금지, 공개 쓰기 API, Place/Kakao 크롤.
+
+## 2026-09-12 — 리뷰 수집 런북: 공개 cafearticle·blog만
+
+- **계기**: 운영 `reviews`는 0행이다. 수집 CLI는 이미 있고, 맘카페 후기가 필요하지만
+  회원 전용 담벼락을 로그인으로 열 수는 없다 (2026-07-31). 첫 실수집 전에 채널·가드·
+  CLI 접속 방식을 고정한다.
+- **수집 채널**: NAVER API HUB Search의 **로그인 없이 색인된** `cafearticle`(공개
+  카페글, 맘카페 공개글 포함) + `blog` 스니펫만. `cafearticle`이 곧 "로그인 안 해도
+  보이는 맘카페 글"이다. 미사·하남 맘카페 대부분은 회원 전용이라 학원당 0건이 많아도
+  정상이다. 그때 로그인해서 채우지 않는다.
+- **하지 않음**: 회원제 맘카페 로그인 크롤·세션 쿠키·등업 게시판 전문, 네이버
+  플레이스·카카오맵 별점 스크랩(robots RAG 금지), 당근 게시글 스크랩(공식 API 없음),
+  카페 원문 전체. `kin`/`webkr`은 HUB 노출 `--dry-run` 후에만, 전체 수집과 동시에
+  켜지 않음.
+- **CLI**: 로컬에서 session pooler **5432**만 (`DATABASE_URL`). transaction 6543은
+  prepared statement 때문에 CLI에 쓰지 않는다. 실수집은 `REVIEW_SOURCE=naver`.
+  운영 URL + `REVIEW_SOURCE=stub` 은 가짜 후기 적재를 막기 위해 거부
+  (`stub_review_ingest_allowed`, `import_academies`와 같은 원격 DB 판별).
+- **리포트**: `naver_blog` vs `naver_cafearticle` 건수(API fetched, 삽입 전)를 나눠
+  출력해 공개 카페 수율을 파일럿에서 바로 본다.
+- **바꾸지 않은 것**: 학원 사실 정본=Studio, 리뷰는 DB 직접 쓰기·원문 비커밋,
+  브라우저 우회 스킬 미채택, Vercel에 `REVIEW_SOURCE=naver`를 넣을 필요 없음
+  (수집 CLI 전용). 이 항목은 수집을 실행하지 않는다 — Founder 승인 후 Stage 1a
+  `--dry-run --limit 5`.
+- **다음**: `docs/data-strategy.md` 리뷰 런북. 실수집은 dry-run 합격 후.
+
+## 2026-09-12 — 학원 특징 라벨: 닫힌 어휘·카드/상담만 (사실 컬럼·scoring 비연결)
+
+- **계기**: `curriculum_*`·`level_*`·`class_*`는 운영 411행 전부 null이다. 리뷰·공개
+  문구로 학원 특징을 붙이면 평평한 점수면을 상담·비교로 보완할 수 있다. 다만 리뷰의
+  "내신"을 `academies.curriculum_naesin=true`로 쓰면 주관적 경험을 학원 공개 사실로
+  위장한다 (`docs/data-strategy.md` Phase 2: 요약은 별도 테이블).
+- **어휘 (닫힌 집합, 자유 태그 금지)**:
+  - 커리큘럼 언급: `mentions_seonhaeng` / `mentions_naesin` / `mentions_suneung`
+  - 운영 경험 언급: `mentions_homework` / `mentions_clinic` / `mentions_qna`
+  - 넣지 않음: 좋음/나쁨, 가성비, 별점, "최고", 반 정원 추론
+- **행 스키마 (아직 테이블 없음)**: `academy_id`, `label`,
+  `source_type`(`review` | `homepage` | `blog`), `source_url`, `snippet`,
+  `observed_at`, `status`(`candidate` | `published`). 공개 전 `candidate`.
+- **사용처**: 후보 카드·상세의 주관 신호(출처·시점 포함) +
+  `POST /consultation/questions` 보강.
+- **금지**: `academies.curriculum_*` / `level_*` / `class_*` 자동 기입,
+  `services/scoring.py` 가산, 별점·품질 판정, 두 추천 API 점수 공식 변경.
+  학원이 공개 URL에 선행/내신/수능을 명시한 경우만 제안 CSV → Founder Studio
+  (리뷰 근거로는 사실 컬럼을 채우지 않음).
+- **바꾸지 않은 것**: Alembic 새 테이블 없음, 추출 CLI 없음, UI 없음. 어휘가
+  흔들리면 마이그레이션이 반복되므로 구현 전에 여기와 data-strategy에 고정한다.
+- **다음**: 파일럿 리뷰가 생긴 뒤 읽기 전용 추출(4b). `academies` 0변경 확인 후에만
+  테이블(4c).
+
+## 2026-09-12 — 운영 DB에 Alembic 0008 적용 (검색 500 해소)
+
+- **계기**: 배포된 `/app` 탐색·키워드 검색이 `요청 실패 (500)`. 코드는
+  `academies.subject_detail`을 SELECT하는데 운영 Alembic이 `0007`에 남아
+  `UndefinedColumn`이 났다. 2026-09-11 항목의 Founder 승인 (a)를 이 세션에서 실행.
+- **적용**: Session pooler(5432)로 `alembic upgrade 0007 → 0008`. 적용 전
+  `subjects @> '["과학"]'` 0행 확인. 컬럼 `subject_detail VARCHAR(50)` +
+  과목 CHECK 4종 + `ck_academies_subject_detail_requires_etc`.
+- **검증**: `alembic current` = `0008 (head)`. `GET /academies?q=미사`·
+  `POST /recommendations/ai`가 백엔드·프론트 프록시 모두 200.
+- **바꾸지 않은 것**: 앱 코드, 두 추천 API 분리, enrich CSV 백필·JSON `--force`
+  임포트(데이터 채움은 별도). Vercel 재배포 없음 — 스키마만 맞춤.
+- **다음**: 세부 과목 라벨이 필요하면 기존 enrich CSV 백필(신규 API 호출 없음).
+
 ## 2026-09-11 — 과목 4버킷 + subject_detail · 후보 풀/근거 상한 · 리뷰 수집 재개와 브라우저 수집 판단
 
 - **계기**: "검색이 어떤 조건이든 같은 학원만 낸다"는 Founder 보고. 원인은 리뷰

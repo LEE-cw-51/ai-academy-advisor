@@ -76,7 +76,7 @@ JSON 키(정본 파일)와 DB 컬럼은 1:1로 같다.
 | `subject_detail` | string \| null | 과목 세부 | `기타` 버킷의 실제 이름(예: `피아노`·`미술`·`과학`·`무용`). `subjects`에 `기타`가 있을 때만 채운다(결합 CHECK). 어휘는 강제하지 않는다. 검색 근거(지역검색 category) 없이 기입하지 않는다. |
 | `level_elementary` / `level_middle` / `level_high` | bool \| null | 초/중/고 | 개설 과정을 확인한 뒤에만 기입 |
 | `class_small_group` / `class_group` / `class_one_on_one` | bool \| null | 소수정예/그룹/1:1 | 학원이 공개한 수업 형태 |
-| `curriculum_seonhaeng` / `curriculum_naesin` / `curriculum_suneung` | bool \| null | 선행/내신/수능 | 학원이 공개한 커리큘럼 |
+| `curriculum_seonhaeng` / `curriculum_naesin` / `curriculum_suneung` | bool \| null | 선행/내신/수능 | 학원이 **스스로 공개한** 커리큘럼만. 리뷰·특징 라벨(`mentions_*`)로 자동 기입하지 않는다. |
 | `shuttle_available` | bool \| null | 차량운행 | |
 | `operating_hours` | string \| null | 운영시간 | 자유 서술 |
 | `established_year` | int \| null | 개원년도 | |
@@ -178,17 +178,94 @@ website_url 16.5%, blog_url 23.6%; phone·주소·좌표는 건드리지 않음)
 | P0 | `subjects`+`subject_detail` | 카드·지도 목록 배지, 소프트 랭킹. 기타 버킷은 세부 라벨로 구분(피아노·미술·과학…) | `enrich_academy_from_search` → CSV(`proposed_subject_detail` 포함) → Founder가 **high** 행 검토 → `apply_enrich_csv --apply --today 2026-09-11`(null만; 컬럼 없으면 evidence의 `category=`에서 파생) 또는 Studio → `export_academies` 백업. 지역검색 `category`만 근거. 이름에 "수학"이 있어도 채우지 않음 |
 | P1 | `website_url` / `blog_url` | 상세 CTA | enrich high + `is_homepage_url`·이름 일치 가드 유지(2026-09-01 롤백 교훈) |
 | P1 | `registration_number` | 자연키. gg만 쓰면 0% | neis 하남시 변환 후 `(name, address)` 매칭 `--enrich`. 강제 덮어쓰기 없음 |
-| P2 | `level_*` / `class_*` / `curriculum_*` | 하드 필터·태그 매칭 | 공개 출처가 있을 때만. 채워지기 전에는 UI에 필터를 열지 않음 |
+| P2 | `level_*` / `class_*` / `curriculum_*` | 하드 필터·태그 매칭 | 학원 공개 URL·공식 문구가 있을 때만 Founder가 Studio에서 null만 채움. 리뷰에 "내신"이 있다고 true로 쓰지 않음. 채워지기 전에는 UI에 필터를 열지 않음 |
 | 하지 않음 | 수강료·셔틀·강사 수·수업 품질 | 0%이거나 학원 전체 값으로 품질 추론 금지 | 상담 질문으로만 |
 
 ## 리뷰·engagement 테이블 (DB 직접 쓰기)
 
-`reviews`(임베딩 포함) / `search_history` / `click_logs` / `feedback` / `waitlist`는
+`reviews`(임베딩 포함) / `academy_trait_labels` / `search_history` / `click_logs` /
+`feedback` / `waitlist`는
 학원 사실(Fact) 테이블과 **저장 경로가 다르다** — git 정본을 거치지 않는 DB 직접 쓰기다.
 `reviews`는 위 3단계 로드맵의 Phase 2(AI 요약)·Phase 3(리뷰·사용자 경험)에 해당한다.
 리뷰 탐색 결과는 객관적 학원 사실과 분리하고, 출처·시점·한계를 갖춘 주관적 경험
 근거로만 상담 보조와 후보 비교에 활용한다. engagement 로그는 KPI 측정을 위한
 런타임 기록이다. 사실 DB의 data-as-git 원칙과 분리해 운영한다.
+
+### 리뷰 수집 런북 (공개 검색만)
+
+로그인 없이 네이버가 색인한 글만 모은다. 크롤이 아니라 NAVER API HUB Search다.
+응답 `description`은 ~200자 스니펫이며 카페 전문은 수집하지 않는다.
+
+| 소스 | 엔드포인트 | 이번 범위 |
+|---|---|---|
+| 공개 카페글 (맘카페 공개글 포함) | `cafearticle` | 한다. 검색에 안 뜨면 로그인 벽 뒤이므로 버린다. 학원당 0건이 많아도 정상 |
+| 공개 블로그 | `blog` | 한다. 학원명이 제목/본문에 있는 스니펫만 |
+| 지식iN·웹문서 | `kin` / `webkr` | HUB 노출을 `--dry-run`으로 확인한 뒤에만. 전체 수집과 동시에 켜지 않음 |
+| 회원제 맘카페 본문 | 카페 로그인·세션 쿠키 | **하지 않음** (본인인증·거주확인·등업 담벼락, 약관·개인정보) |
+| 네이버 플레이스·카카오맵 별점 | 브라우저 | **하지 않음** (robots상 RAG 금지 + 429) |
+| 당근 게시글 | 스크랩 | **하지 않음** (공식 검색 API 없음) |
+
+질의는 학원명 단독이다. `"미사 맘카페"`를 붙이면 네이버가 AND로 걸어 공개 후기까지
+떨어진다. 학원명이 제목/본문에 없으면 오귀속 방지로 버린다. 원문은 git에 커밋하지
+않는다 (`data/raw/`, gitignored).
+
+**실행 (로컬 CLI만, 운영 정본에 DB 직접 쓰기):**
+
+```bash
+cd backend
+# DATABASE_URL = Supabase session pooler 5432 (transaction 6543 금지)
+# REVIEW_SOURCE=naver, NAVER_CLIENT_ID / NAVER_CLIENT_SECRET (API HUB)
+uv run python -m app.cli.ingest_reviews --dry-run --limit 5
+uv run python -m app.cli.ingest_reviews --limit 5   # 파일럿 합격 후에만 전체
+```
+
+리포트의 `naver_blog` / `naver_cafearticle` 건수는 API가 돌려준 수(삽입 전)다.
+공개 카페 0건 학원이 많아도 실패가 아니다. 로그인해서 채우지 않는다.
+
+운영 URL + `REVIEW_SOURCE=stub` 은 가짜 후기 적재를 막기 위해 거부한다. stub은
+로컬·테스트 DB에서만 허용한다. `REVIEW_SOURCE`는 수집 CLI 전용이며 Vercel 런타임
+추천 경로가 쓰지 않는다.
+
+### 학원 특징 라벨 (닫힌 어휘 — `academy_trait_labels`)
+
+리뷰·공개 문구에서 뽑는 언급은 **별도 테이블** `academy_trait_labels`에만 둔다.
+사실 컬럼과 섞지 않는다. Phase 2 "요약은 별도 테이블"과 같다.
+
+**닫힌 집합** (자유 태그 금지):
+
+- 커리큘럼 언급: `mentions_seonhaeng` / `mentions_naesin` / `mentions_suneung`
+- 운영 경험 언급: `mentions_homework` / `mentions_clinic` / `mentions_qna` (질문 대응)
+- 넣지 않음: 좋음/나쁨, 가성비, 별점, "최고", 반 정원·강사 수 추론
+- `mentions_qna`: bare `질문`은 매칭하지 않는다. 질문대응·질문 가능·질문하기·
+  질의응답·QnA 등 복합어만 (`app.services.trait_label_matcher`).
+
+각 행: `academy_id`, `label`, `source_type`(`review` | `homepage` | `blog`),
+`source_url`, `snippet`, `observed_at`, `status`(`candidate` | `published`).
+공개 전에는 `candidate`. 원문 재게시가 아니라 라벨+짧은 근거 메타만 노출한다.
+Dedup `(academy_id, label, source_url)`. Data API는 `0009`에서 RLS+REVOKE로 잠근다.
+
+**배치 CLI** (session pooler 5432):
+
+```bash
+cd backend
+uv run alembic upgrade head   # 0009
+uv run python -m app.cli.ingest_trait_labels [--dry-run] [--limit N]
+```
+
+**쓰는 곳 (배선은 Stage 3 이후):** 후보 카드·상세의 주관 신호(출처·시점 포함)와
+`POST /consultation/questions` 보강.
+
+**쓰지 않는 곳:**
+
+- `academies.curriculum_*` / `level_*` / `class_*` 자동 기입 (리뷰에 "내신"이 있어도
+  학원이 공개한 커리큘럼이 아니다)
+- `services/scoring.py` 가산, 별점·품질·가성비 판정
+- `POST /recommendations` · `/recommendations/ai` 점수 공식
+
+소프트 랭킹 재검토는 라벨 커버리지가 생긴 뒤 별도 결정. 학원이 홈페이지/블로그에
+선행·내신·수능을 **스스로 적은** 경우만 제안 CSV → Founder가 Studio에서 null 필드만
+채운다 (`source_note`·`last_verified_at`). URL이 없는 학원은 사실 커리큘럼을
+미확인(`null`)으로 둔다.
 
 ## 확장 경로 (비파괴적)
 

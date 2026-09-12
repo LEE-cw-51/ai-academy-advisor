@@ -94,7 +94,7 @@ Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프�
 `category` 근거만). `subjects`는 4종(`국어`·`영어`·`수학`·`기타`), 세부 이름은
 `subject_detail`(`기타`일 때만). 가능하면 `source_note`·`last_verified_at`을 남긴다.
 리뷰 원문·원시 수집 데이터는 커밋하지 않는다. → [docs/data-strategy.md](docs/data-strategy.md)
-(`reviews`/`search_history`/`click_logs`/`feedback`/`waitlist`는 DB 직접 쓰기가 허용된 예외다.)
+(`reviews`/`academy_trait_labels`/`search_history`/`click_logs`/`feedback`/`waitlist`는 DB 직접 쓰기가 허용된 예외다.)
 
 **추천 경로 두 개는 일부러 분리돼 있다** — `POST /recommendations`는 하드 필터(AND, null 제외),
 `POST /recommendations/ai`는 넓은 후보 + 소프트 랭킹이다. NULL이 많은 실데이터에서 결과가

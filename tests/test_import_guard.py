@@ -7,6 +7,7 @@ from app.core.import_guard import (
     academy_import_allowed,
     is_local_database_url,
     is_operational_database_url,
+    stub_review_ingest_allowed,
 )
 from app.services import academy_import_service
 from app.services.academy_import_service import ImportRefusedError
@@ -84,6 +85,53 @@ def test_allow_academy_import_kwarg_overrides_settings(monkeypatch):
     assert allowed
     blocked, _ = academy_import_allowed(url, allow_academy_import=False)
     assert not blocked
+
+
+_OPERATIONAL_URL = (
+    "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
+)
+_POOLER_SESSION_URL = (
+    "postgresql+psycopg://postgres.abc:pass@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres"
+)
+
+
+def test_stub_review_ingest_blocked_on_operational():
+    for url in (_OPERATIONAL_URL, _POOLER_SESSION_URL):
+        allowed, reason = stub_review_ingest_allowed(url, "stub")
+        assert not allowed
+        assert "stub" in reason
+        assert "naver" in reason
+
+
+def test_stub_review_ingest_allowed_on_local():
+    allowed, reason = stub_review_ingest_allowed(
+        "sqlite+pysqlite:///:memory:", "stub"
+    )
+    assert allowed
+    assert reason == ""
+
+
+def test_naver_review_ingest_allowed_on_operational():
+    allowed, reason = stub_review_ingest_allowed(_OPERATIONAL_URL, "naver")
+    assert allowed
+    assert reason == ""
+
+
+def test_cli_ingest_reviews_refuses_stub_on_operational(monkeypatch, capsys):
+    """가드가 SessionLocal 임포트 전에 끝나 운영 접속을 열지 않는다."""
+    from app.cli import ingest_reviews
+
+    class _Settings:
+        database_url = _OPERATIONAL_URL
+        review_source = "stub"
+        naver_display = 10
+
+    monkeypatch.setattr("app.core.config.get_settings", lambda: _Settings())
+    exit_code = ingest_reviews.main(["--dry-run", "--limit", "1"])
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "거부" in captured.err
+    assert "stub" in captured.err
 
 
 def test_cli_refuses_operational_without_force(tmp_path, monkeypatch, capsys):
