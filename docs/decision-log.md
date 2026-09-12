@@ -8,9 +8,11 @@
   411건 전부 통과했지만, 통과하는 테스트가 못 보던 세 종류가 있었다.
 - **라벨 매처 (사용자에게 보이는 데이터)**: bare 키워드를 부분 문자열로 찾아
   존댓말 어미와 복합어를 삼켰다 — `보내신`·`안내신청`·`지내신`(naesin),
-  `보강공사`(clinic), `수능시계`(suneung), `과제물`(homework). candidate 146행 중
-  naesin 84행은 이 오염과 일치한다. 스니펫은 Stage 3 배선 시 카드 근거로 노출되므로
-  오탐은 없는 것보다 나쁘다 (`matches_academy`의 귀속 원칙과 같다).
+  `보강공사`(clinic), `수능시계`(suneung), `과제물`(homework). 스니펫은 Stage 3 배선
+  시 카드 근거로 노출되므로 오탐은 없는 것보다 나쁘다 (`matches_academy`의 귀속
+  원칙과 같다). **실제 오염 규모는 146행 중 17행**이었다 — 리뷰 초안이 "naesin 84행"을
+  오염 규모처럼 읽었지만, 재적재 결과 naesin은 84→77로 7행만 줄었다. 오탐 패턴 자체는
+  재현되므로 수정은 유효하고, 데이터 피해는 12% 수준으로 제한적이었다.
   - **결정**: bare 키워드는 앞뒤 문맥이 맞을 때만 센다. 앞은 한글이 아니거나 허용
     접두사, 뒤는 한글이 아니거나 조사 또는 허용 복합어. 명사 뒤 대부분이 조사·공백이라
     재현율 손실은 명사+명사 복합어로 한정된다. **정밀도 우선** 트레이드오프이며,
@@ -44,8 +46,16 @@
   엔진을 만들고 있었다 — 임포트를 가드 뒤로 옮겼다.
 - **바꾸지 않은 것**: `services/scoring.py`, 두 추천 API 계약, `academies` 사실 컬럼,
   공개 쓰기 API, 카드·상담 배선. trait label UI 노출은 여전히 Stage 3 이후다.
-- **다음**: `0010` 적용 → `--dry-run`으로 새 매처 수율 확인 → `--purge-candidates`
-  재적재 → Stage 2 임베딩.
+- **운영 적용 (2026-09-12 완료)**:
+  - `0010` 적용 — CHECK 3종이 `ck_academy_trait_labels_{label,source_type,status}`로
+    바뀌었고 중복 인덱스가 사라졌다. `alembic_version` = `0010`.
+  - `--purge-candidates` 재적재 — candidate **146 → 129행**, 학원 49 → 46곳.
+    라벨 분포: naesin 84→77 · suneung 28→22 · homework 13→9 · clinic 11 · seonhaeng 9
+    · qna 1. 제거된 17행은 전부 경계 오탐이다. 남은 129행 중 오탐 패턴
+    (`보내신|안내신|지내신|보강공사|수능시계|과제물`) 스니펫은 **0건**.
+  - 재실행 dry-run이 `inserted=0 dup=129`로 멱등 확인. `reviews` 1146행 불변,
+    `academies` 411행의 `curriculum_*`는 여전히 전부 null.
+- **다음**: Stage 2 임베딩(`OPENAI_API_KEY`) → Stage 3 Vercel env → trait label UI 배선.
 
 ## 2026-09-12 — 리뷰 수집·라벨 데이터 경로까지 완료, 임베딩/UI 일시 중단
 
