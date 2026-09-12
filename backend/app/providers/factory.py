@@ -17,6 +17,7 @@ from app.providers.base import (
     VectorStore,
 )
 from app.providers.groq import GroqLLMProvider
+from app.providers.huggingface_embedding import HuggingFaceEmbeddingProvider
 from app.providers.naver_local import NaverLocalSearch
 from app.providers.naver_review import NaverReviewSource
 from app.providers.openai_embedding import OpenAIEmbeddingProvider
@@ -43,9 +44,19 @@ def get_embedding_provider() -> EmbeddingProvider:
             base_url=settings.openai_embedding_base_url,
             dim=settings.embedding_dim,
         )
-    # 다음 단계에서 추가: "bge-m3"(local HF).
+    if name == "huggingface":
+        return HuggingFaceEmbeddingProvider(
+            api_key=settings.hf_api_key,
+            model=settings.embedding_model,
+            base_url=settings.hf_embedding_base_url,
+            dim=settings.embedding_dim,
+            timeout=settings.hf_embedding_timeout,
+            max_retries=settings.hf_embedding_max_retries,
+        )
+    # Groq은 임베딩 모델이 없다 — 채팅·음성·가드뿐이라 여기에 분기가 생길 일은 없다.
     raise ValueError(
-        f"지원하지 않는 embedding_provider: {name!r} (현재 'stub'/'openai'만 구현됨)"
+        f"지원하지 않는 embedding_provider: {name!r} "
+        "(현재 'stub'/'openai'/'huggingface'만 구현됨)"
     )
 
 

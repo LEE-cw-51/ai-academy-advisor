@@ -2,6 +2,48 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-12 — 임베딩은 BGE-M3 + HuggingFace (Groq에는 임베딩 모델이 없다)
+
+- **계기**: Stage 2가 `OPENAI_API_KEY` 때문에 막혀 있고, 이미 있는 Groq으로 대체할 수
+  있는지 물었다. 비용이 가장 적게 드는 경로를 고르는 것이 조건이었다.
+- **Groq 불가 (확인한 근거 3가지)**:
+  - 공식 API 레퍼런스에 embeddings 엔드포인트가 없다 (chat·responses·audio·batch·
+    files·fine-tuning 20개뿐).
+  - 계정 키로 `GET /openai/v1/models` → 14개 전부 채팅·음성·가드
+    (`openai/gpt-oss-*`, `qwen/qwen3.*`, `whisper-*`, `groq/compound*`).
+  - `POST /openai/v1/embeddings` + `nomic-embed-text-v1_5` → `model_not_found`.
+  - 일부 3자 집계 사이트가 "Groq에 nomic-embed가 있다"고 하지만 오정보다. 같은 질문이
+    반복될 것이므로 `.env.example`에도 한 줄로 못 박았다.
+- **결정 — `BAAI/bge-m3` + HuggingFace Inference**:
+  - `EMBEDDING_MODEL` 기본값이 처음부터 이 모델이었고 **네이티브 1024차원**이라
+    `Review.embedding`의 `Vector(1024)`와 그대로 맞는다 — **마이그레이션 없음**.
+    OpenAI `text-embedding-3-*`는 `dimensions`로 1024로 자르던 임시 경로였다.
+  - 한국어 검색에서 검증된 모델이고 `hf-inference`에서 live 상태다.
+  - 배치와 질의를 **같은 API로 통일**한다. 색인과 질의가 다른 벡터 공간을 쓰는 사고를
+    구조적으로 막는다.
+- **비용 (실측 기준)**: 리뷰 1146건 165,570자 = 약 0.2M 토큰. 이 규모에서 단가 차이는
+  무의미하다 — OpenAI 3-small 기준으로도 배치 전체가 $0.004다. 갈리는 건 **실지출**이다.
+  HF는 무료 크레딧(월 $0.10)으로 카드도 선불도 없이 $0, OpenAI는 사용액이 1센트
+  미만이어도 잔액을 먼저 충전해야 한다. Jina는 무료 토큰에 비상업 표기가 붙어 상용
+  MVP에 위험하고, Gemini는 1024차원이 없어 스키마 변경이 생긴다. 로컬 BGE-M3가
+  유일하게 더 싸지만 2GB torch와 로컬·호스팅 벡터 일치 검증이 붙어 몇 센트 때문에
+  복잡도를 사지 않았다.
+- **운영 제약과 대응**:
+  - HF는 토큰이 아니라 **CPU 시간**으로 과금해 전체 비용을 사전 계산할 수 없다.
+    백필 CLI에 `--limit`을 넣어 소량을 먼저 돌리고 소모액을 확인한 뒤 잇는다.
+    `embedding IS NULL`만 집으므로 중단·재개는 원래 안전하다.
+  - 콜드 스타트 503은 `HF_EMBEDDING_MAX_RETRIES`로만 재시도한다. 기본 0인 이유는
+    요청 경로가 Vercel `maxDuration=30` 예산을 공유하기 때문이다 — 배치를 돌리는
+    로컬 `.env`에서만 올린다. 코드가 아니라 env로 환경을 가른다.
+  - 요청 경로는 임베딩이 죽어도 200이다 (`_similar_review_ids`가 예외를 삼키고 사실
+    만으로 채점). 콜드 스타트가 사용자 장애가 되지 않는다.
+  - 응답이 토큰 단위로 오는 모델을 대비해 provider가 평균 풀링을 한다. 차원이
+    `EMBEDDING_DIM`과 다르면 예외 — SQLite는 길이가 틀린 벡터도 받아주므로 여기서
+    막지 않으면 조용히 오염된다.
+- **바꾸지 않은 것**: `EMBEDDING_DIM=1024`, `Review.embedding` 스키마, 두 추천 API
+  계약, scoring, OpenAI provider(폴백으로 유지 — 키가 생기면 env만 바꾼다).
+- **다음**: HF 토큰 발급 → 응답 shape 확인 → `--limit`으로 나눠 배치 → Vercel env.
+
 ## 2026-09-12 — 코드 리뷰 수정: 라벨 매처 경계·제약 이름 드리프트·4b 파일럿 제거
 
 - **계기**: 직전 커밋(리뷰 수집·trait-label 데이터 경로) 코드 리뷰 14건. 테스트는

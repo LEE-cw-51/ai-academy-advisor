@@ -46,6 +46,13 @@ AI 구성요소(LLM·임베딩·벡터 스토어)는 벤더/모델 교체가 잦
 
 서비스 계층은 `factory.get_*()`로 포트를 주입받아 사용한다.
 
+**LLM과 임베딩은 벤더가 갈린다.** Groq은 채팅·음성 모델만 제공하고 임베딩 모델이
+없어서, LLM은 `groq`(`groq.py`), 임베딩은 `huggingface`(`huggingface_embedding.py`,
+`BAAI/bge-m3`)를 쓴다. 포트를 둔 이유가 정확히 이런 경우다 — 서비스 코드는 어느 쪽도
+모른다. BGE-M3는 네이티브 1024차원이라 `Review.embedding`의 `Vector(1024)`와 맞는다.
+`openai_embedding.py`는 폴백으로 남아 있으며 `dimensions=1024` truncate로 같은 차원을
+맞춘다. HF 무료 한도가 부족해지면 base_url만 바꿔 TEI 호환 엔드포인트로 옮긴다.
+
 ## 향후 AI 기능 확장 고려사항
 - `services/` 하위에 `recommendation_service.py`(존재), `ai_service.py` 등을 추가하며 확장
 - 실제 RAG(Phase 4b)는 **LlamaIndex 기반 `RagEngine`을 하나의 포트로 감싸** providers/에 추가 —

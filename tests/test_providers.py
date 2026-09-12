@@ -12,6 +12,8 @@ from app.providers.factory import (
     get_vector_store,
 )
 from app.providers.groq import GroqLLMProvider
+from app.providers import huggingface_embedding
+from app.providers.huggingface_embedding import HuggingFaceEmbeddingProvider
 from app.providers.openai_embedding import OpenAIEmbeddingProvider
 from app.providers.pgvector_store import PgVectorStore
 from app.providers.stub import (
@@ -199,6 +201,172 @@ def test_openai_embedding_provider_raises_on_http_error(monkeypatch):
     )
     with pytest.raises(httpx.HTTPStatusError):
         embedder.embed(["hi"])
+
+
+# --- HuggingFace 임베딩 (BGE-M3). Groq은 임베딩 모델이 없어 이쪽으로 간다. ---
+
+_HF_URL = (
+    "https://router.huggingface.co/hf-inference"
+    "/models/BAAI/bge-m3/pipeline/feature-extraction"
+)
+
+
+def _hf_provider(dim=2, max_retries=0):
+    return HuggingFaceEmbeddingProvider(
+        api_key="test-key",
+        model="BAAI/bge-m3",
+        base_url="https://router.huggingface.co/hf-inference",
+        dim=dim,
+        timeout=1.0,
+        max_retries=max_retries,
+    )
+
+
+def test_hf_embedding_provider_sends_request_and_parses_response(monkeypatch):
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["json"] = json
+        return httpx.Response(
+            status_code=200,
+            json=[[0.0, 0.1], [0.2, 0.3]],
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _hf_provider().embed(["첫 텍스트", "둘째 텍스트"])
+
+    # OpenAI 와 달리 index 필드가 없다 — 응답 순서가 곧 입력 순서다.
+    assert result == [[0.0, 0.1], [0.2, 0.3]]
+    assert captured["url"] == _HF_URL
+    assert captured["headers"] == {"Authorization": "Bearer test-key"}
+    assert captured["json"] == {
+        "inputs": ["첫 텍스트", "둘째 텍스트"],
+        "normalize": True,
+        "truncate": True,
+    }
+
+
+def test_hf_embedding_provider_raises_on_dimension_mismatch(monkeypatch):
+    """차원이 틀리면 죽어야 한다 — SQLite는 길이가 틀린 벡터도 그대로 받는다."""
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=200,
+            json=[[0.1, 0.2, 0.3]],
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(ValueError, match="차원 불일치"):
+        _hf_provider(dim=2).embed(["hi"])
+
+
+def test_hf_embedding_provider_raises_on_count_mismatch(monkeypatch):
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=200,
+            json=[[0.0, 0.1]],
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(ValueError, match="결과 수 불일치"):
+        _hf_provider().embed(["하나", "둘"])
+
+
+def test_hf_embedding_provider_mean_pools_token_level_output(monkeypatch):
+    """풀링 설정이 없는 모델은 토큰 단위 2차원을 준다 — 평균으로 맞춘다."""
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=200,
+            json=[[[0.0, 1.0], [1.0, 3.0]]],
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    assert _hf_provider().embed(["hi"]) == [[0.5, 2.0]]
+
+
+def test_hf_embedding_provider_raises_on_http_error(monkeypatch):
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=401,
+            json={"error": "invalid token"},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        _hf_provider().embed(["hi"])
+
+
+def test_hf_embedding_provider_retries_cold_start(monkeypatch):
+    """503(model loading)은 max_retries 만큼만 다시 친다."""
+    calls = {"n": 0}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                status_code=503,
+                json={"error": "Model is currently loading"},
+                request=httpx.Request("POST", url),
+            )
+        return httpx.Response(
+            status_code=200,
+            json=[[0.0, 0.1]],
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    monkeypatch.setattr(huggingface_embedding, "_RETRY_WAIT_SECONDS", 0)
+
+    assert _hf_provider(max_retries=1).embed(["hi"]) == [[0.0, 0.1]]
+    assert calls["n"] == 2
+
+
+def test_hf_embedding_provider_does_not_retry_by_default(monkeypatch):
+    """요청 경로는 Vercel maxDuration 예산을 공유한다 — 기본은 한 번만 친다."""
+    calls = {"n": 0}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls["n"] += 1
+        return httpx.Response(
+            status_code=503,
+            json={"error": "Model is currently loading"},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        _hf_provider().embed(["hi"])
+    assert calls["n"] == 1
+
+
+def test_factory_returns_hf_embedding_provider_when_configured(monkeypatch):
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "huggingface")
+    monkeypatch.setenv("HF_API_KEY", "test-key")
+    get_settings.cache_clear()
+    get_embedding_provider.cache_clear()
+    try:
+        embedder = get_embedding_provider()
+        assert isinstance(embedder, HuggingFaceEmbeddingProvider)
+        # BGE-M3 는 네이티브 1024 — EMBEDDING_DIM 과 맞아 마이그레이션이 없다.
+        assert embedder.dimension == 1024
+        assert embedder.url == _HF_URL
+    finally:
+        get_settings.cache_clear()
+        get_embedding_provider.cache_clear()
 
 
 def test_factory_returns_openai_embedding_provider_when_configured(monkeypatch):

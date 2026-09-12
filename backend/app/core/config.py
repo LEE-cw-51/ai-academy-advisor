@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     openai_embedding_base_url: str = "https://api.openai.com/v1"
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
+    # HuggingFace Inference (임베딩). Groq은 임베딩 모델을 제공하지 않아 LLM(Groq)과
+    # 임베딩(HF)이 갈린다. 토큰은 huggingface.co/settings/tokens 에서 발급하며
+    # "Inference Providers" 권한이 필요하다.
+    hf_api_key: str = ""
+    hf_embedding_base_url: str = "https://router.huggingface.co/hf-inference"
+    hf_embedding_timeout: float = 10.0
+    # 503(콜드 스타트) 재시도. 기본 0 — 요청 경로가 Vercel maxDuration 예산을
+    # 공유하기 때문이다. 배치를 돌리는 로컬 .env 에서만 올린다(예: 3).
+    hf_embedding_max_retries: int = 0
     # NAVER API HUB Search (콘솔에서 앱 등록). 무료 25,000회/일.
     naver_client_id: str = ""
     naver_client_secret: str = ""

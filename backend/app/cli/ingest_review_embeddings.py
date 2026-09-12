@@ -2,7 +2,7 @@
 
 사용:
     cd backend
-    uv run python -m app.cli.ingest_review_embeddings [--batch-size 100] [--dry-run]
+    uv run python -m app.cli.ingest_review_embeddings [--batch-size 100] [--limit N] [--dry-run]
 
 `embedding IS NULL`인 `Review` 행을 대상으로 embedding_provider/vector_store 설정에
 따라 임베딩을 계산해 채운다. 대상 DB는 DATABASE_URL 환경변수(.env)를 따른다.
@@ -18,6 +18,12 @@ def main(argv: list[str] | None = None) -> int:
         description="embedding이 비어 있는 리뷰 행을 배치로 임베딩해 채운다."
     )
     parser.add_argument("--batch-size", type=int, default=100)
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="이번 실행에서 처리할 행 수 상한 (비용을 먼저 확인하려 나눠 돌릴 때)",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -35,9 +41,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         report = review_embedding_service.backfill_missing_embeddings(
-            db, batch_size=args.batch_size
+            db, batch_size=args.batch_size, limit=args.limit
         )
-        print(f"완료: processed={report.processed}")
+        remaining = review_embedding_service.count_missing_embeddings(db)
+        print(f"완료: processed={report.processed} 남은 대상={remaining}건")
         return 0
     finally:
         db.close()
