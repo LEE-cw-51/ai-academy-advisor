@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import re
 
+from app.core.trait_labels import CLOSED_LABELS, SOURCE_TYPES, STATUSES
+
 _HANGUL = "가-힣"
 
 # 키워드 앞에 붙어도 뜻이 같은 말 — 과목·학년·운영 수식어.
@@ -151,12 +153,17 @@ LABEL_KEYWORDS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# Closed vocabulary (docs/data-strategy.md Stage 4a). 손으로 쓴 사본을 두지 않는다 —
-# 모델 CHECK(`app.models.academy_trait_label`)가 이 값을 그대로 쓴다.
-CLOSED_LABELS: tuple[str, ...] = tuple(LABEL_KEYWORDS)
-
-SOURCE_TYPES: tuple[str, ...] = ("review", "homepage", "blog")
-STATUSES: tuple[str, ...] = ("candidate", "published")
+# 어휘 자체는 `app.core.trait_labels` 가 정본이다 (모델 CHECK 도 거기서 만든다).
+# 여기서는 라벨마다 키워드를 붙일 뿐이며, 둘이 같은 집합인지는 테스트가 강제한다.
+__all__ = [
+    "CLOSED_LABELS",
+    "LABEL_KEYWORDS",
+    "SOURCE_TYPES",
+    "STATUSES",
+    "match_labels",
+    "snippet_around",
+    "source_type_from_review_source",
+]
 
 # 키워드 자체가 이미 복합어라 경계 규칙을 적용하지 않는 라벨.
 # `질문을 받` 처럼 어절 중간에서 끝나는 패턴이 있어 뒤 문맥을 강제할 수 없다.

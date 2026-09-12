@@ -19,15 +19,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.trait_labels import CLOSED_LABELS, SOURCE_TYPES, STATUSES, sql_in_list
 from app.db.session import Base
 
-# Keep in sync with app.services.trait_label_matcher + Alembic 0009.
-_LABEL_IN = (
-    "'mentions_seonhaeng', 'mentions_naesin', 'mentions_suneung', "
-    "'mentions_homework', 'mentions_clinic', 'mentions_qna'"
-)
-_SOURCE_TYPE_IN = "'review', 'homepage', 'blog'"
-_STATUS_IN = "'candidate', 'published'"
+# 손으로 쓴 사본을 두지 않는다 — 어휘 정본은 `app.core.trait_labels` 하나다.
+_LABEL_IN = sql_in_list(CLOSED_LABELS)
+_SOURCE_TYPE_IN = sql_in_list(SOURCE_TYPES)
+_STATUS_IN = sql_in_list(STATUSES)
 
 
 class AcademyTraitLabel(Base):
@@ -51,9 +49,8 @@ class AcademyTraitLabel(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    academy_id: Mapped[int] = mapped_column(
-        ForeignKey("academies.id"), nullable=False, index=True
-    )
+    # 단독 인덱스를 두지 않는다 — 위 유니크 제약의 선두 컬럼이 같은 조회를 커버한다.
+    academy_id: Mapped[int] = mapped_column(ForeignKey("academies.id"), nullable=False)
     label: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source_type: Mapped[str] = mapped_column(String(20), nullable=False)
     # Dedup 키. 실제 URL 또는 review:{id} 센티널.

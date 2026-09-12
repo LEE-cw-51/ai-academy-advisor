@@ -67,21 +67,16 @@ def upgrade() -> None:
             "source_url",
             name="uq_academy_trait_labels_academy_id_label_source_url",
         ),
-        sa.CheckConstraint(f"label IN ({label_in})", name="ck_academy_trait_labels_label"),
-        sa.CheckConstraint(
-            f"source_type IN ({source_in})",
-            name="ck_academy_trait_labels_source_type",
-        ),
-        sa.CheckConstraint(
-            f"status IN ({status_in})",
-            name="ck_academy_trait_labels_status",
-        ),
+        # 이름은 짧게 넘긴다 — Alembic 이 `Base.metadata` 의 naming_convention
+        # (`ck_%(table_name)s_%(constraint_name)s`)을 여기에 한 번 더 씌우므로,
+        # 완성된 이름을 넘기면 `ck_academy_trait_labels_ck_academy_trait_labels_label`
+        # 처럼 접두사가 겹쳐 모델이 만드는 이름과 갈라진다.
+        sa.CheckConstraint(f"label IN ({label_in})", name="label"),
+        sa.CheckConstraint(f"source_type IN ({source_in})", name="source_type"),
+        sa.CheckConstraint(f"status IN ({status_in})", name="status"),
     )
-    op.create_index(
-        "ix_academy_trait_labels_academy_id",
-        "academy_trait_labels",
-        ["academy_id"],
-    )
+    # academy_id 단독 인덱스는 두지 않는다 — 유니크 제약
+    # `(academy_id, label, source_url)` 의 선두 컬럼이 같은 조회를 이미 커버한다.
     op.create_index(
         "ix_academy_trait_labels_label",
         "academy_trait_labels",
@@ -105,7 +100,4 @@ def downgrade() -> None:
         op.execute("ALTER TABLE academy_trait_labels DISABLE ROW LEVEL SECURITY")
 
     op.drop_index("ix_academy_trait_labels_label", table_name="academy_trait_labels")
-    op.drop_index(
-        "ix_academy_trait_labels_academy_id", table_name="academy_trait_labels"
-    )
     op.drop_table("academy_trait_labels")

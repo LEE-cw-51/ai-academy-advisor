@@ -1,16 +1,19 @@
 """Closed trait-label matcher + review ingest idempotency tests."""
 
+import importlib.util
 from datetime import date
+from pathlib import Path
 
 import pytest
+from sqlalchemy import CheckConstraint
 
+from app.core.trait_labels import CLOSED_LABELS, SOURCE_TYPES, STATUSES
 from app.models.academy import Academy
 from app.models.academy_trait_label import AcademyTraitLabel
 from app.models.review import Review
 from app.repositories import trait_label_repository
 from app.services import trait_label_ingest_service
 from app.services.trait_label_matcher import (
-    CLOSED_LABELS,
     LABEL_KEYWORDS,
     match_labels,
     snippet_around,
@@ -157,9 +160,102 @@ def test_closed_vocab_covers_six_labels():
     }
 
 
-def test_closed_labels_is_derived_not_copied():
-    """어휘 사본을 따로 두지 않는다 — 모델 CHECK 가 이 값을 그대로 쓴다."""
-    assert CLOSED_LABELS == tuple(LABEL_KEYWORDS)
+# --- schema ↔ vocabulary ---
+
+
+def _load_migration(filename: str):
+    """alembic/versions 는 패키지가 아니라 파일 경로로 읽는다."""
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "backend"
+        / "alembic"
+        / "versions"
+        / filename
+    )
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_matcher_keywords_cover_the_closed_vocabulary():
+    """어휘 정본(core)과 키워드 사전(services)이 같은 집합이어야 한다."""
+    assert tuple(LABEL_KEYWORDS) == CLOSED_LABELS
+
+
+def test_model_check_uses_the_closed_vocabulary():
+    """모델 CHECK 가 어휘 정본에서 생성되는지 — 사본이 다시 생기면 깨진다."""
+    checks = {
+        constraint.name: str(constraint.sqltext)
+        for constraint in AcademyTraitLabel.__table__.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    # 이름은 naming_convention 이 붙인 완성형이어야 한다 — 운영 DB 와 같은 이름.
+    assert set(checks) == {
+        "ck_academy_trait_labels_label",
+        "ck_academy_trait_labels_source_type",
+        "ck_academy_trait_labels_status",
+    }
+    assert all(
+        label in checks["ck_academy_trait_labels_label"] for label in CLOSED_LABELS
+    )
+    assert all(
+        source_type in checks["ck_academy_trait_labels_source_type"]
+        for source_type in SOURCE_TYPES
+    )
+    assert all(
+        status in checks["ck_academy_trait_labels_status"] for status in STATUSES
+    )
+
+
+def test_migration_0009_matches_current_vocabulary():
+    """마이그레이션은 동결 사본을 갖는다. 어휘를 의도적으로 바꾸는 날, 이 단언은
+    어휘를 바꾼 새 마이그레이션으로 옮긴다 — 0009 는 그때의 값을 유지해야 한다."""
+    migration = _load_migration("0009_academy_trait_labels.py")
+    assert migration._LABELS == CLOSED_LABELS
+    assert migration._SOURCE_TYPES == SOURCE_TYPES
+    assert migration._STATUSES == STATUSES
+
+
+def test_check_constraint_names_survive_the_naming_convention():
+    """0009 는 짧은 이름을 넘겨야 한다.
+
+    Alembic 이 `Base.metadata` 의 `ck_%(table_name)s_%(constraint_name)s` 를 한 번
+    더 씌우므로, 완성된 이름을 넘기면 운영 DB 에
+    `ck_academy_trait_labels_ck_academy_trait_labels_label` 이 들어가 모델과 갈라진다.
+    테스트는 `create_all` 로 스키마를 만들어 마이그레이션 경로를 타지 않으므로,
+    소스에서 직접 확인한다.
+    """
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "backend"
+        / "alembic"
+        / "versions"
+        / "0009_academy_trait_labels.py"
+    ).read_text(encoding="utf-8")
+    assert 'name="ck_academy_trait_labels_' not in source
+    assert 'name="label"' in source
+    assert 'name="source_type"' in source
+    assert 'name="status"' in source
+
+
+def test_academy_id_has_no_standalone_index():
+    """유니크 제약 `(academy_id, label, source_url)` 의 선두 컬럼이 커버한다."""
+    index_columns = [
+        tuple(column.name for column in index.columns)
+        for index in AcademyTraitLabel.__table__.indexes
+    ]
+    assert ("academy_id",) not in index_columns
+
+    for filename in ("0009_academy_trait_labels.py", "0010_trait_label_constraint_names.py"):
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "backend"
+            / "alembic"
+            / "versions"
+            / filename
+        ).read_text(encoding="utf-8")
+        assert "create_index(\n        \"ix_academy_trait_labels_academy_id\"" not in source
 
 
 # --- ingest ---
