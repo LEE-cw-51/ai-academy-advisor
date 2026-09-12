@@ -40,10 +40,22 @@ class IngestReport:
     by_source: dict[str, int] = field(default_factory=dict)
 
     def source_yield_line(self) -> str:
-        """공개 블로그 vs 공개 카페글 수율을 실행 직후에 보이게 한다."""
-        blog = self.by_source.get("naver_blog", 0)
-        cafe = self.by_source.get("naver_cafearticle", 0)
-        return f"소스: naver_blog={blog} naver_cafearticle={cafe}"
+        """소스별 수율을 실행 직후에 보이게 한다.
+
+        blog·cafearticle 은 0건이어도 자리를 지킨다 — 공개 카페 수율이 이 배치의
+        판단 근거라 "안 찍혔다"와 "0건이다"가 구분돼야 한다. 나머지 소스는 있는
+        것만 덧붙인다. `NAVER_REVIEW_ENDPOINTS` 가 설정값이고 provider 가 미지
+        엔드포인트를 `naver_{endpoint}` 로 라벨하므로, 고정 2종만 찍으면
+        `kin`/`webkr` 을 켰을 때 수집된 행이 리포트에서 사라진다.
+        """
+        primary = ("naver_blog", "naver_cafearticle")
+        parts = [f"{name}={self.by_source.get(name, 0)}" for name in primary]
+        parts += [
+            f"{name}={count}"
+            for name, count in sorted(self.by_source.items())
+            if name not in primary
+        ]
+        return "소스: " + " ".join(parts)
 
     def coverage_histogram(self) -> dict[str, int]:
         """학원별 수집 건수 분포. 커버리지를 실행 직후에 보이게 하는 용도다.

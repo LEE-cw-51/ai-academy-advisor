@@ -117,6 +117,29 @@ def test_naver_review_ingest_allowed_on_operational():
     assert reason == ""
 
 
+def test_cli_ingest_reviews_defers_db_imports_until_after_the_guard():
+    """가드가 DB 를 끌어오는 임포트보다 먼저 끝나야 한다.
+
+    `app.services.review_ingest_service` 는 `app.models.academy` → `app.db.session`
+    을 타고 모듈 로드 시점에 엔진을 만든다. 그래서 서비스 임포트도 `app.db.session`
+    임포트와 같이 가드 뒤에 있어야 한다. 실행 결과로는 이 순서를 볼 수 없어
+    (NullPool 이라 접속이 늦게 열린다) 소스에서 확인한다.
+    """
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "backend"
+        / "app"
+        / "cli"
+        / "ingest_reviews.py"
+    ).read_text(encoding="utf-8")
+
+    guard_at = source.index("stub_review_ingest_allowed(\n")
+    assert guard_at < source.index("from app.db.session import SessionLocal")
+    assert guard_at < source.index("from app.services import review_ingest_service")
+
+
 def test_cli_ingest_reviews_refuses_stub_on_operational(monkeypatch, capsys):
     """가드가 SessionLocal 임포트 전에 끝나 운영 접속을 열지 않는다."""
     from app.cli import ingest_reviews

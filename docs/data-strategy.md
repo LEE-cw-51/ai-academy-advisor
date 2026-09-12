@@ -239,6 +239,21 @@ uv run python -m app.cli.ingest_reviews --limit 5   # 파일럿 합격 후에만
 - `mentions_qna`: bare `질문`은 매칭하지 않는다. 질문대응·질문 가능·질문하기·
   질의응답·QnA 등 복합어만 (`app.services.trait_label_matcher`).
 
+어휘 정본은 `app.core.trait_labels` 하나다. 모델 CHECK가 거기서 생성되고, 키워드
+사전이 같은 집합인지는 테스트가 강제한다. 어휘를 바꾸면 새 마이그레이션이 필요하다.
+
+**어절 경계 규칙 (bare 키워드 전체에 적용).** 한국어엔 어절 경계가 없어 부분 문자열
+매칭은 반드시 오탐한다. 첫 실행이 그대로 걸렸다 — `보내신`·`안내신청`·`지내신`이
+`mentions_naesin`으로, `보강공사`가 `mentions_clinic`, `수능시계`가 `mentions_suneung`
+으로 잡혔다. 그래서 bare 키워드는 앞뒤 문맥이 맞을 때만 센다:
+
+- 앞: 한글이 아니거나(문장 시작·공백·문장부호·영숫자) 허용 접두사(`중등`·`수학`…)
+- 뒤: 한글이 아니거나 조사(`은`·`이랑`…) 또는 허용 복합어(`대비`·`관리`…)
+
+bare 키워드 금지는 `질문` 한정 규칙이 아니라 **전 라벨 규칙**이다. 정밀도를 재현율
+앞에 둔 선택이며(스니펫이 카드 근거로 노출되므로 오탐은 없는 것보다 나쁘다),
+놓친 복합어는 매처의 `_SUFFIXES`에 추가한다.
+
 각 행: `academy_id`, `label`, `source_type`(`review` | `homepage` | `blog`),
 `source_url`, `snippet`, `observed_at`, `status`(`candidate` | `published`).
 공개 전에는 `candidate`. 원문 재게시가 아니라 라벨+짧은 근거 메타만 노출한다.
@@ -248,9 +263,13 @@ Dedup `(academy_id, label, source_url)`. Data API는 `0009`에서 RLS+REVOKE로 
 
 ```bash
 cd backend
-uv run alembic upgrade head   # 0009
+uv run alembic upgrade head   # 0009, 0010
 uv run python -m app.cli.ingest_trait_labels [--dry-run] [--limit N]
 ```
+
+매처 규칙이 바뀌면 dedup 만으로는 옛 행이 남는다. 그때만
+`--purge-candidates`로 기존 candidate 를 지우고 다시 뽑는다 (`published`는 그대로).
+`--dry-run`과 같이 주면 지울 건수만 센다. 규칙이 그대로면 재실행은 dedup 으로 충분하다.
 
 **쓰는 곳 (배선은 Stage 3 이후):** 후보 카드·상세의 주관 신호(출처·시점 포함)와
 `POST /consultation/questions` 보강.

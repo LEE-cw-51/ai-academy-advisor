@@ -2,6 +2,51 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-12 — 코드 리뷰 수정: 라벨 매처 경계·제약 이름 드리프트·4b 파일럿 제거
+
+- **계기**: 직전 커밋(리뷰 수집·trait-label 데이터 경로) 코드 리뷰 14건. 테스트는
+  411건 전부 통과했지만, 통과하는 테스트가 못 보던 세 종류가 있었다.
+- **라벨 매처 (사용자에게 보이는 데이터)**: bare 키워드를 부분 문자열로 찾아
+  존댓말 어미와 복합어를 삼켰다 — `보내신`·`안내신청`·`지내신`(naesin),
+  `보강공사`(clinic), `수능시계`(suneung), `과제물`(homework). candidate 146행 중
+  naesin 84행은 이 오염과 일치한다. 스니펫은 Stage 3 배선 시 카드 근거로 노출되므로
+  오탐은 없는 것보다 나쁘다 (`matches_academy`의 귀속 원칙과 같다).
+  - **결정**: bare 키워드는 앞뒤 문맥이 맞을 때만 센다. 앞은 한글이 아니거나 허용
+    접두사, 뒤는 한글이 아니거나 조사 또는 허용 복합어. 명사 뒤 대부분이 조사·공백이라
+    재현율 손실은 명사+명사 복합어로 한정된다. **정밀도 우선** 트레이드오프이며,
+    놓친 복합어는 `_SUFFIXES`에 추가한다. `mentions_qna`는 `질문을 받` 처럼 어절
+    중간에서 끝나는 패턴이라 규칙 밖에 둔다.
+  - **운영**: `--purge-candidates`로 기존 candidate 를 지우고 재적재한다
+    (`published`는 건드리지 않는다). 실행은 Founder 승인 후 별도 단계.
+- **제약 이름 드리프트**: `0009`가 `op.create_table` 안의 `sa.CheckConstraint(name=…)`
+  에 완성된 이름을 넘겨서, Alembic이 `Base.metadata`의
+  `ck_%(table_name)s_%(constraint_name)s`를 한 번 더 씌웠다. 운영에는
+  `ck_academy_trait_labels_ck_academy_trait_labels_label`이 들어갔고 모델은
+  `ck_academy_trait_labels_label`을 만든다. 테스트가 `create_all`로 스키마를 만들어
+  마이그레이션 경로를 한 번도 타지 않아 드러나지 않았다.
+  - **결정**: `0009`는 짧은 이름을 넘기도록 고치고(새 DB는 처음부터 맞다), `0010`이
+    이미 적용된 DB만 존재 검사 후 rename 한다. 중복 인덱스
+    `ix_academy_trait_labels_academy_id`도 제거 — 유니크 제약의 선두 컬럼이 커버한다.
+  - 어휘 사본이 매처·모델·마이그레이션 셋으로 갈라져 있었다. 정본을
+    `app.core.trait_labels`에 둔다 (계층이 `api → services → repositories → models/DB`
+    라 모델이 서비스를 import 할 수 없다). `0008`이 `studio_guards`를 쓰는 것과 같은 자리다.
+- **4b 파일럿 삭제**: `app.cli.pilot_trait_labels`(296줄, 테스트·참조 0)를 지운다.
+  `facts_unchanged`는 쓰기 경로가 없는 구간의 앞뒤를 비교해 항상 참이었고(이 값이
+  "academies 0변경 확인"의 근거로 인용됐다), `stage_4c_unblocked`는 4c가 적재할 수
+  없는 tagline 제안(`source_url` None인데 NOT NULL)을 분자에 넣었고,
+  `--include-tagline`은 `store_true`+`default=True`라 무동작이었다. 4b는 완료로
+  기록됐고 4c가 대체했다.
+- **운영 안정성**: 트레이트 적재를 청크 커밋으로 바꿔 `ingest_reviews`와 같은 재개
+  가능 계약을 갖게 했다(끊기면 전량 롤백되던 것). 스캔을 컬럼 지정으로 바꿔 1024차원
+  임베딩을 끌어오지 않는다. 수율 리포트가 `blog`/`cafearticle` 2종만 찍어 `kin`/`webkr`
+  을 켜면 적재된 행이 리포트에서 사라지던 것을 전 소스 출력으로 고쳤다.
+  `ingest_reviews`는 서비스 import 가 `app.db.session`을 끌어와 stub 가드보다 먼저
+  엔진을 만들고 있었다 — 임포트를 가드 뒤로 옮겼다.
+- **바꾸지 않은 것**: `services/scoring.py`, 두 추천 API 계약, `academies` 사실 컬럼,
+  공개 쓰기 API, 카드·상담 배선. trait label UI 노출은 여전히 Stage 3 이후다.
+- **다음**: `0010` 적용 → `--dry-run`으로 새 매처 수율 확인 → `--purge-candidates`
+  재적재 → Stage 2 임베딩.
+
 ## 2026-09-12 — 리뷰 수집·라벨 데이터 경로까지 완료, 임베딩/UI 일시 중단
 
 - **계기**: Stage 1 리뷰 수집 → Stage 4c/4d 라벨·커리큘럼 제안까지 끝났고, Stage 2

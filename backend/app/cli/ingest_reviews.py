@@ -27,8 +27,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from app.services import review_ingest_service
-
 _DEFAULT_RAW_DIR = Path("../data/raw/naver")
 
 
@@ -66,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # app.db.session 임포트는 DATABASE_URL로 엔진을 만드는 부작용이 있다.
     # stub+운영 URL 거부는 그 전에 끝낸다 — 가짜 후기를 넣지도, 접속을 열지도 않는다.
+    # 서비스 임포트도 가드 뒤에 둔다: app.services.review_ingest_service 는
+    # app.models.academy → app.db.session 을 끌어오므로, 모듈 최상단에 두면 가드가
+    # 돌기 전에 이미 엔진이 만들어진다.
     from app.core.config import get_settings
     from app.core.import_guard import stub_review_ingest_allowed
 
@@ -81,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     # (모듈 최상단으로 올리지 말 것 — import 만으로 DB 접속이 생긴다).
     from app.db.session import SessionLocal
     from app.providers.factory import get_review_source
+    from app.services import review_ingest_service
 
     display = args.display if args.display is not None else settings.naver_display
 

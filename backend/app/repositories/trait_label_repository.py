@@ -1,6 +1,6 @@
 """academy_trait_labels 데이터 접근."""
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.academy_trait_label import AcademyTraitLabel
@@ -41,3 +41,15 @@ def count_by_status(db: Session, status: str) -> int:
         )
         or 0
     )
+
+
+def delete_by_status(db: Session, status: str) -> int:
+    """해당 status 행만 지운다. 커밋은 호출자가 한다.
+
+    매처 규칙이 바뀌어 candidate 를 다시 뽑을 때 쓴다. `published` 를 지우는 경로는
+    여기 말고 어디에도 두지 않는다 — 공개된 라벨은 배치가 건드리지 않는다.
+    """
+    result = db.execute(
+        delete(AcademyTraitLabel).where(AcademyTraitLabel.status == status)
+    )
+    return int(result.rowcount or 0)

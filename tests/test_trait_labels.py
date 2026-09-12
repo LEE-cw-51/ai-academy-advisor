@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, event
 
 from app.core.trait_labels import CLOSED_LABELS, SOURCE_TYPES, STATUSES
 from app.models.academy import Academy
@@ -327,6 +327,140 @@ def test_ingest_does_not_touch_curriculum_columns(db_session, academy):
     assert academy.curriculum_naesin is None
     assert academy.curriculum_seonhaeng is None
     assert academy.curriculum_suneung is None
+
+
+def test_ingest_rejects_unknown_status(db_session, academy):
+    """CHECK 제약이 커밋 때 터지게 두지 않고 호출 시점에 막는다."""
+    with pytest.raises(ValueError):
+        trait_label_ingest_service.ingest_trait_labels_from_reviews(
+            db_session, status="draft"
+        )
+
+
+def test_purge_candidates_keeps_published_rows(db_session, academy):
+    """매처 규칙이 바뀌어 다시 뽑을 때 candidate 만 지운다."""
+    db_session.add_all(
+        [
+            AcademyTraitLabel(
+                academy_id=academy.id,
+                label="mentions_naesin",
+                source_type="blog",
+                source_url="https://blog.example/old",
+                status="candidate",
+            ),
+            AcademyTraitLabel(
+                academy_id=academy.id,
+                label="mentions_suneung",
+                source_type="blog",
+                source_url="https://blog.example/published",
+                status="published",
+            ),
+        ]
+    )
+    db_session.commit()
+    _add_review(
+        db_session,
+        academy,
+        content="내신 대비 좋아요",
+        url="https://blog.example/new",
+    )
+
+    report = trait_label_ingest_service.ingest_trait_labels_from_reviews(
+        db_session, purge_candidates=True
+    )
+
+    assert report.purged == 1
+    assert report.inserted == 1
+    remaining = {
+        (row.label, row.status, row.source_url)
+        for row in db_session.query(AcademyTraitLabel).all()
+    }
+    assert remaining == {
+        ("mentions_suneung", "published", "https://blog.example/published"),
+        ("mentions_naesin", "candidate", "https://blog.example/new"),
+    }
+
+
+def test_purge_candidates_dry_run_deletes_nothing(db_session, academy):
+    db_session.add(
+        AcademyTraitLabel(
+            academy_id=academy.id,
+            label="mentions_naesin",
+            source_type="blog",
+            source_url="https://blog.example/old",
+            status="candidate",
+        )
+    )
+    db_session.commit()
+
+    report = trait_label_ingest_service.ingest_trait_labels_from_reviews(
+        db_session, purge_candidates=True, dry_run=True
+    )
+
+    assert report.purged == 1
+    assert trait_label_repository.count_all(db_session) == 1
+
+
+def test_ingest_commits_in_chunks(db_session, academy, monkeypatch):
+    """중간에 끊겨도 앞선 적재가 남아야 한다 (ingest_reviews 와 같은 계약).
+
+    청크 경계를 1로 낮추고 두 번째 flush 에서 죽여, 첫 청크가 커밋돼 있는지 본다.
+    """
+    for index in range(3):
+        _add_review(
+            db_session,
+            academy,
+            content="내신 대비 좋아요",
+            url=f"https://blog.example/chunk-{index}",
+        )
+
+    monkeypatch.setattr(trait_label_ingest_service, "_COMMIT_CHUNK", 1)
+    real_commit = db_session.commit
+    calls = {"n": 0}
+
+    def exploding_commit():
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise RuntimeError("연결이 끊긴 상황")
+        real_commit()
+
+    monkeypatch.setattr(db_session, "commit", exploding_commit)
+
+    with pytest.raises(RuntimeError):
+        trait_label_ingest_service.ingest_trait_labels_from_reviews(db_session)
+
+    monkeypatch.undo()
+    db_session.rollback()
+    assert trait_label_repository.count_all(db_session) == 1
+
+
+def test_ingest_does_not_load_embeddings(db_session, academy):
+    """스캔이 1024차원 임베딩을 끌어오지 않는다 — 쓰는 컬럼만 읽는다."""
+    row = Review(
+        academy_id=academy.id,
+        content="내신 대비 좋아요",
+        source="naver_blog",
+        source_url="https://blog.example/embed",
+        embedding=[0.0] * 4,
+    )
+    db_session.add(row)
+    db_session.commit()
+    db_session.expunge_all()
+
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, *rest):
+        statements.append(statement)
+
+    event.listen(db_session.bind, "before_cursor_execute", record)
+    try:
+        trait_label_ingest_service.ingest_trait_labels_from_reviews(db_session)
+    finally:
+        event.remove(db_session.bind, "before_cursor_execute", record)
+
+    scans = [s for s in statements if "FROM reviews" in s]
+    assert scans, "리뷰 스캔 쿼리가 없다"
+    assert all("reviews.embedding" not in s for s in scans)
 
 
 def test_ingest_uses_review_id_when_url_missing(db_session, academy):

@@ -237,6 +237,20 @@ def test_source_yield_line_zeros_when_empty():
     )
 
 
+def test_source_yield_line_reports_every_configured_source():
+    """NAVER_REVIEW_ENDPOINTS 는 설정값이다 — kin/webkr 을 켜면 그 수율도 보여야 한다.
+
+    고정 2종만 찍으면 운영자는 "아무것도 안 들어왔다"로 읽지만 실제로는 적재된다.
+    """
+    report = review_ingest_service.IngestReport(
+        by_source={"naver_blog": 1, "naver_kin": 5, "naver_webkr": 2}
+    )
+    line = report.source_yield_line()
+    assert line.startswith("소스: naver_blog=1 naver_cafearticle=0")
+    assert "naver_kin=5" in line
+    assert "naver_webkr=2" in line
+
+
 def test_report_counts_blog_and_cafearticle_yield(db_session, academy):
     """수율은 삽입 전 fetched. 이름 필터에 걸린 카페글도 cafearticle 건수에 남긴다."""
     cafe_hit = ReviewItem(

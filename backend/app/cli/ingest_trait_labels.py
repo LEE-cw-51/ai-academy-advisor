@@ -7,6 +7,11 @@
 
 idempotent: (academy_id, label, source_url) 가 있으면 건너뛴다.
 기본 status=candidate. academies.curriculum_* 는 쓰지 않는다.
+
+`--purge-candidates` 는 **매처 규칙이 바뀐 뒤 다시 뽑을 때만** 쓴다. 기존 candidate
+행을 전부 지우고 새로 적재한다 (`published` 는 건드리지 않는다). 규칙이 그대로면
+재실행은 dedup 으로 충분하므로 이 플래그가 필요 없다. `--dry-run` 과 같이 주면
+지울 건수만 센다.
 """
 
 from __future__ import annotations
@@ -38,6 +43,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="특정 학원만",
     )
+    parser.add_argument(
+        "--purge-candidates",
+        action="store_true",
+        help="기존 candidate 행을 지우고 다시 적재한다 (매처 규칙이 바뀐 뒤에만)",
+    )
     args = parser.parse_args(argv)
 
     from app.db.session import SessionLocal
@@ -49,9 +59,11 @@ def main(argv: list[str] | None = None) -> int:
             academy_id=args.academy_id,
             limit=args.limit,
             dry_run=args.dry_run,
+            purge_candidates=args.purge_candidates,
         )
         payload = {
             "dry_run": args.dry_run,
+            "purged": report.purged,
             "reviews_scanned": report.reviews_scanned,
             "inserted": report.inserted,
             "skipped_duplicate": report.skipped_duplicate,
