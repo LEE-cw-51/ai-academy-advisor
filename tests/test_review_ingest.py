@@ -230,6 +230,56 @@ def test_coverage_histogram_buckets():
     assert report.coverage_histogram() == {"0건": 2, "1-4건": 1, "5건+": 1}
 
 
+def test_source_yield_line_zeros_when_empty():
+    assert (
+        review_ingest_service.IngestReport().source_yield_line()
+        == "소스: naver_blog=0 naver_cafearticle=0"
+    )
+
+
+def test_source_yield_line_reports_every_configured_source():
+    """NAVER_REVIEW_ENDPOINTS 는 설정값이다 — kin/webkr 을 켜면 그 수율도 보여야 한다.
+
+    고정 2종만 찍으면 운영자는 "아무것도 안 들어왔다"로 읽지만 실제로는 적재된다.
+    """
+    report = review_ingest_service.IngestReport(
+        by_source={"naver_blog": 1, "naver_kin": 5, "naver_webkr": 2}
+    )
+    line = report.source_yield_line()
+    assert line.startswith("소스: naver_blog=1 naver_cafearticle=0")
+    assert "naver_kin=5" in line
+    assert "naver_webkr=2" in line
+
+
+def test_report_counts_blog_and_cafearticle_yield(db_session, academy):
+    """수율은 삽입 전 fetched. 이름 필터에 걸린 카페글도 cafearticle 건수에 남긴다."""
+    cafe_hit = ReviewItem(
+        title="가온수학 공개 카페",
+        content="가온수학 다녀왔어요",
+        url="https://cafe.example/1",
+        source="naver_cafearticle",
+        published_at=None,
+    )
+    cafe_unmatched = ReviewItem(
+        title="옆집 후기",
+        content="영어 잘 가르쳐요",
+        url="https://cafe.example/2",
+        source="naver_cafearticle",
+        published_at=None,
+    )
+    source = FakeSource(
+        {"가온수학": [_item("https://blog.example/1"), cafe_hit, cafe_unmatched]}
+    )
+
+    report = review_ingest_service.ingest_reviews(db_session, source)
+
+    assert report.by_source["naver_blog"] == 1
+    assert report.by_source["naver_cafearticle"] == 2
+    assert report.inserted == 2
+    assert report.skipped_unmatched == 1
+    assert report.source_yield_line() == "소스: naver_blog=1 naver_cafearticle=2"
+
+
 def test_stub_source_drives_full_path(db_session, academy):
     """키 없이 stub 만으로 수집 → 사후필터 → dedup 전 구간이 돌아야 한다."""
     first = review_ingest_service.ingest_reviews(db_session, StubReviewSource())

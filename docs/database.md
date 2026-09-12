@@ -89,6 +89,39 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
   dialect), Postgres 전용: `과학` 등 4종 밖 subjects·기타 없는 subject_detail 사전
   검사(위반 시 중단) → 과목 CHECK 4종 재생성 + subject_detail 결합 CHECK. downgrade는
   옛 5종을 하드코딩.
+- `0009_academy_trait_labels.py` — `academy_trait_labels` 생성(닫힌 라벨·
+  source_type·status CHECK, `(academy_id, label, source_url)` 유니크). Postgres:
+  정책 없는 RLS + REVOKE(Data API 잠금, `0007`과 동일). 배치 CLI
+  `app.cli.ingest_trait_labels` (reviews → candidate, 사실 컬럼 미기입).
+- `0010_trait_label_constraint_names.py` — `0009`의 CHECK 이름이 모델과 갈라진 것을
+  맞춘다. `op.create_table` 안의 `sa.CheckConstraint(name=...)`에 완성된 이름을
+  넘겨서 Alembic이 `Base.metadata`의 `ck_%(table_name)s_%(constraint_name)s`를 한 번
+  더 씌웠고, 운영에 `ck_academy_trait_labels_ck_academy_trait_labels_label`이 들어갔다.
+  `0009`는 짧은 이름을 넘기도록 고쳤으므로 새 DB는 처음부터 맞고, 이 리비전은 이미
+  적용된 DB만 존재 검사 후 rename 한다(신규 DB에서는 no-op). 중복 인덱스
+  `ix_academy_trait_labels_academy_id`도 제거 — 유니크 제약
+  `(academy_id, label, source_url)`의 선두 컬럼이 같은 조회를 커버한다.
+
+### academy_trait_labels (Postgres, 주관 언급 메타)
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | integer PK | |
+| academy_id | integer FK → academies | |
+| label | text | 닫힌 6종 `mentions_*` |
+| source_type | text | `review` \| `homepage` \| `blog` |
+| source_url | text | dedup 키 (URL 없으면 `review:{id}`) |
+| snippet | text | 짧은 근거 창 |
+| observed_at | date | 원문 시점(있으면) |
+| status | text | `candidate` \| `published` (기본 candidate) |
+| created_at | timestamptz | |
+
+카드/상담 노출은 Stage 3 이후. scoring·`curriculum_*`와 연결하지 않는다.
+
+닫힌 어휘(라벨 6종·source_type·status)의 정본은 `app.core.trait_labels` 하나다.
+모델 CHECK가 거기서 생성되고, 키워드 사전(`app.services.trait_label_matcher`)이
+같은 집합인지는 테스트가 강제한다. 어휘를 바꾸면 새 마이그레이션이 필요하다.
+인덱스는 `label` 단독과 유니크 제약 두 개뿐이다.
 
 ### academy_fact_revisions (Postgres, Studio 이력)
 

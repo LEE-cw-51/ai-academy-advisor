@@ -36,6 +36,26 @@ class IngestReport:
     skipped_unmatched: int = 0  # 학원명이 본문에 없어 귀속 실패
     failed: int = 0  # 소스 호출 자체가 실패한 학원 수
     per_academy: dict[int, int] = field(default_factory=dict)
+    # API가 돌려준 항목 수(삽입 전). 공개 카페 수율은 cafearticle 쪽을 본다.
+    by_source: dict[str, int] = field(default_factory=dict)
+
+    def source_yield_line(self) -> str:
+        """소스별 수율을 실행 직후에 보이게 한다.
+
+        blog·cafearticle 은 0건이어도 자리를 지킨다 — 공개 카페 수율이 이 배치의
+        판단 근거라 "안 찍혔다"와 "0건이다"가 구분돼야 한다. 나머지 소스는 있는
+        것만 덧붙인다. `NAVER_REVIEW_ENDPOINTS` 가 설정값이고 provider 가 미지
+        엔드포인트를 `naver_{endpoint}` 로 라벨하므로, 고정 2종만 찍으면
+        `kin`/`webkr` 을 켰을 때 수집된 행이 리포트에서 사라진다.
+        """
+        primary = ("naver_blog", "naver_cafearticle")
+        parts = [f"{name}={self.by_source.get(name, 0)}" for name in primary]
+        parts += [
+            f"{name}={count}"
+            for name, count in sorted(self.by_source.items())
+            if name not in primary
+        ]
+        return "소스: " + " ".join(parts)
 
     def coverage_histogram(self) -> dict[str, int]:
         """학원별 수집 건수 분포. 커버리지를 실행 직후에 보이게 하는 용도다.
@@ -187,6 +207,9 @@ def ingest_reviews(
                 _write_raw(raw_dir, academy.id, items, ref_date)
 
         report.fetched += len(items)
+        for item in items:
+            key = item.source or "unknown"
+            report.by_source[key] = report.by_source.get(key, 0) + 1
         inserted_here = _ingest_one(db, academy, items, report, dry_run=dry_run)
         report.per_academy[academy.id] = inserted_here
 

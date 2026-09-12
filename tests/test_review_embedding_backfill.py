@@ -86,6 +86,36 @@ def test_backfill_processes_all_when_lengths_match(db_session, db_engine, monkey
     assert review_embedding_service.count_missing_embeddings(db_session) == 0
 
 
+def test_backfill_limit_stops_early_and_resumes(db_session, db_engine, monkeypatch):
+    """비용을 먼저 확인하려 나눠 돌린다 — limit 에서 멈추고 재실행이 이어받는다.
+
+    HuggingFace 는 토큰이 아니라 CPU 시간으로 과금해서 전체 비용을 사전에 계산할 수
+    없다. 소량을 돌려 실제 소모액을 본 뒤 나머지를 잇는 경로가 필요하다.
+    """
+    _seed_reviews(db_session, n=5)
+    factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    store = PgVectorStore(session_factory=factory)
+
+    monkeypatch.setattr(
+        review_embedding_service, "get_embedding_provider", lambda: _FullEmbedder()
+    )
+    monkeypatch.setattr(review_embedding_service, "get_vector_store", lambda: store)
+
+    first = review_embedding_service.backfill_missing_embeddings(
+        db_session, batch_size=2, limit=3
+    )
+    assert first.processed == 3
+    db_session.expire_all()
+    assert review_embedding_service.count_missing_embeddings(db_session) == 2
+
+    second = review_embedding_service.backfill_missing_embeddings(
+        db_session, batch_size=2
+    )
+    assert second.processed == 2
+    db_session.expire_all()
+    assert review_embedding_service.count_missing_embeddings(db_session) == 0
+
+
 def test_backfill_raises_when_store_makes_no_progress(db_session, db_engine, monkeypatch):
     _seed_reviews(db_session, n=2)
     factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)

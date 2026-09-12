@@ -6,6 +6,8 @@
     uv run python -m app.cli.ingest_reviews --from-raw ../data/raw/naver
 
 REVIEW_SOURCE 환경변수로 소스를 고른다 (stub/naver). 대상 DB는 DATABASE_URL(.env)을 따른다.
+운영 URL + REVIEW_SOURCE=stub 은 가짜 후기 적재를 막기 위해 거부한다. 실수집은
+REVIEW_SOURCE=naver 와 session pooler(5432)만 쓴다.
 
 플래그 조합별 부작용:
 
@@ -24,8 +26,6 @@ REVIEW_SOURCE 환경변수로 소스를 고른다 (stub/naver). 대상 DB는 DAT
 import argparse
 import sys
 from pathlib import Path
-
-from app.services import review_ingest_service
 
 _DEFAULT_RAW_DIR = Path("../data/raw/naver")
 
@@ -62,14 +62,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # app.db.session 임포트는 DATABASE_URL로 엔진을 만드는 부작용이 있다. 이 CLI는
-    # dry-run 에서도 학원 목록과 중복 판정에 DB가 필요하므로 여기서 임포트한다
-    # (모듈 최상단으로 올리지 말 것 — import 만으로 DB 접속이 생긴다).
+    # app.db.session 임포트는 DATABASE_URL로 엔진을 만드는 부작용이 있다.
+    # stub+운영 URL 거부는 그 전에 끝낸다 — 가짜 후기를 넣지도, 접속을 열지도 않는다.
+    # 서비스 임포트도 가드 뒤에 둔다: app.services.review_ingest_service 는
+    # app.models.academy → app.db.session 을 끌어오므로, 모듈 최상단에 두면 가드가
+    # 돌기 전에 이미 엔진이 만들어진다.
     from app.core.config import get_settings
-    from app.db.session import SessionLocal
-    from app.providers.factory import get_review_source
+    from app.core.import_guard import stub_review_ingest_allowed
 
     settings = get_settings()
+    allowed, reason = stub_review_ingest_allowed(
+        settings.database_url, settings.review_source
+    )
+    if not allowed:
+        print(f"ERROR: {reason}", file=sys.stderr)
+        return 1
+
+    # dry-run 에서도 학원 목록과 중복 판정에 DB가 필요하므로 여기서 임포트한다
+    # (모듈 최상단으로 올리지 말 것 — import 만으로 DB 접속이 생긴다).
+    from app.db.session import SessionLocal
+    from app.providers.factory import get_review_source
+    from app.services import review_ingest_service
+
     display = args.display if args.display is not None else settings.naver_display
 
     from_raw = None
@@ -103,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 커버리지를 즉시 보이게 한다 — 회원 전용 카페 글은 색인되지 않아 0건 학원이
     # 많이 나오는 게 정상이고, 그 사실을 RAG 결과가 빈약해진 뒤에 알면 늦다.
+    print(report.source_yield_line())
     histogram = report.coverage_histogram()
     print("커버리지: " + " / ".join(f"{k} {v}개 학원" for k, v in histogram.items()))
 

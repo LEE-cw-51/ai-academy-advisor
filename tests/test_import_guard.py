@@ -7,6 +7,7 @@ from app.core.import_guard import (
     academy_import_allowed,
     is_local_database_url,
     is_operational_database_url,
+    stub_review_ingest_allowed,
 )
 from app.services import academy_import_service
 from app.services.academy_import_service import ImportRefusedError
@@ -84,6 +85,76 @@ def test_allow_academy_import_kwarg_overrides_settings(monkeypatch):
     assert allowed
     blocked, _ = academy_import_allowed(url, allow_academy_import=False)
     assert not blocked
+
+
+_OPERATIONAL_URL = (
+    "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
+)
+_POOLER_SESSION_URL = (
+    "postgresql+psycopg://postgres.abc:pass@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres"
+)
+
+
+def test_stub_review_ingest_blocked_on_operational():
+    for url in (_OPERATIONAL_URL, _POOLER_SESSION_URL):
+        allowed, reason = stub_review_ingest_allowed(url, "stub")
+        assert not allowed
+        assert "stub" in reason
+        assert "naver" in reason
+
+
+def test_stub_review_ingest_allowed_on_local():
+    allowed, reason = stub_review_ingest_allowed(
+        "sqlite+pysqlite:///:memory:", "stub"
+    )
+    assert allowed
+    assert reason == ""
+
+
+def test_naver_review_ingest_allowed_on_operational():
+    allowed, reason = stub_review_ingest_allowed(_OPERATIONAL_URL, "naver")
+    assert allowed
+    assert reason == ""
+
+
+def test_cli_ingest_reviews_defers_db_imports_until_after_the_guard():
+    """가드가 DB 를 끌어오는 임포트보다 먼저 끝나야 한다.
+
+    `app.services.review_ingest_service` 는 `app.models.academy` → `app.db.session`
+    을 타고 모듈 로드 시점에 엔진을 만든다. 그래서 서비스 임포트도 `app.db.session`
+    임포트와 같이 가드 뒤에 있어야 한다. 실행 결과로는 이 순서를 볼 수 없어
+    (NullPool 이라 접속이 늦게 열린다) 소스에서 확인한다.
+    """
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "backend"
+        / "app"
+        / "cli"
+        / "ingest_reviews.py"
+    ).read_text(encoding="utf-8")
+
+    guard_at = source.index("stub_review_ingest_allowed(\n")
+    assert guard_at < source.index("from app.db.session import SessionLocal")
+    assert guard_at < source.index("from app.services import review_ingest_service")
+
+
+def test_cli_ingest_reviews_refuses_stub_on_operational(monkeypatch, capsys):
+    """가드가 SessionLocal 임포트 전에 끝나 운영 접속을 열지 않는다."""
+    from app.cli import ingest_reviews
+
+    class _Settings:
+        database_url = _OPERATIONAL_URL
+        review_source = "stub"
+        naver_display = 10
+
+    monkeypatch.setattr("app.core.config.get_settings", lambda: _Settings())
+    exit_code = ingest_reviews.main(["--dry-run", "--limit", "1"])
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "거부" in captured.err
+    assert "stub" in captured.err
 
 
 def test_cli_refuses_operational_without_force(tmp_path, monkeypatch, capsys):
