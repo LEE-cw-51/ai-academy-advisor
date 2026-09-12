@@ -10,6 +10,7 @@ from app.models.review import Review
 from app.repositories import trait_label_repository
 from app.services import trait_label_ingest_service
 from app.services.trait_label_matcher import (
+    CLOSED_LABELS,
     LABEL_KEYWORDS,
     match_labels,
     snippet_around,
@@ -79,6 +80,52 @@ def test_bare_question_does_not_match_qna():
     assert match_labels("오늘 질문했습니다") == []
 
 
+@pytest.mark.parametrize(
+    ("text", "over_matched"),
+    [
+        ("아이를 보내신 학부모님들 후기입니다", "보내신"),
+        ("자세한 내용은 전화로 안내신청 하세요", "안내신청"),
+        ("잘 지내신 것 같아요", "지내신"),
+        ("건물 보강공사 중이라 시끄러워요", "보강공사"),
+        ("수능시계 판매점 옆 건물", "수능시계"),
+        ("과제물 배송 문의드려요", "과제물"),
+    ],
+)
+def test_bare_keyword_does_not_match_across_word_boundary(text, over_matched):
+    """어미·복합어에 묻힌 키워드는 잡지 않는다 (운영 146행 오염의 원인).
+
+    한국어엔 어절 경계가 없어 부분 문자열 매칭이 존댓말 어미를 통째로 삼켰다.
+    이 스니펫은 후보 카드 근거로 노출되므로 오탐은 없는 것보다 나쁘다.
+    """
+    assert match_labels(text) == [], over_matched
+
+
+@pytest.mark.parametrize(
+    ("text", "label"),
+    [
+        ("내신 대비 잘해줘요", "mentions_naesin"),
+        ("중등내신 전문입니다", "mentions_naesin"),
+        ("내신은 확실히 챙겨줍니다", "mentions_naesin"),
+        ("선행이랑 같이 나가요", "mentions_seonhaeng"),
+        ("수학 보강해주세요", "mentions_clinic"),
+        ("클리닉·보강 있어요", "mentions_clinic"),
+        ("수능 대비반 운영", "mentions_suneung"),
+        ("숙제가 많아요", "mentions_homework"),
+    ],
+)
+def test_bare_keyword_still_matches_real_mentions(text, label):
+    """조사·공백·허용 복합어가 뒤에 오는 정상 언급은 그대로 잡는다."""
+    assert label in {found for found, _ in match_labels(text)}
+
+
+def test_snippet_points_at_accepted_occurrence():
+    """거부된 occurrence 가 앞서도 창은 매칭된 자리에 잡힌다."""
+    text = "아이를 보내신 학부모님들, " + ("가" * 60) + " 내신 대비가 좋아요"
+    snip = snippet_around(text, "내신")
+    assert "내신 대비" in snip
+    assert "보내신" not in snip
+
+
 def test_at_most_one_hit_per_label():
     hits = match_labels("숙제와 과제가 많아요")
     assert len([h for h in hits if h[0] == "mentions_homework"]) == 1
@@ -108,6 +155,11 @@ def test_closed_vocab_covers_six_labels():
         "mentions_clinic",
         "mentions_qna",
     }
+
+
+def test_closed_labels_is_derived_not_copied():
+    """어휘 사본을 따로 두지 않는다 — 모델 CHECK 가 이 값을 그대로 쓴다."""
+    assert CLOSED_LABELS == tuple(LABEL_KEYWORDS)
 
 
 # --- ingest ---
