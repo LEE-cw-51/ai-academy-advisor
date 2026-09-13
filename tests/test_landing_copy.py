@@ -158,6 +158,16 @@ def test_check_intro_reuses_home_hero():
     assert 'tone="warn"' not in mini
 
 
+def test_check_meta_frames_consultation_questions_not_launch_news():
+    """`/check` 메타는 출시 소식 대신 상담 질문 프레이밍을 쓴다."""
+    page = CHECK_PAGE.read_text(encoding="utf-8")
+    # metadata 블록은 description 한 줄 + `};` 로 끝난다 — 콤마 슬라이스는 본문 쉼표에 끊긴다.
+    description = slice_between(page, "description:", "\n};")
+    assert "상담" in description
+    assert "질문" in description
+    assert "출시 소식" not in description
+
+
 def test_result_disclaimer_badge_is_not_brand_colored():
     """면책 고지는 AI·차별점 강조용 브랜드 오렌지와 의미가 다르다."""
     mini = MINI_CHECK.read_text(encoding="utf-8")
@@ -235,7 +245,7 @@ def test_home_explains_the_service_around_the_situation_choice():
 
 
 def test_planned_features_are_marked_as_planned():
-    """없는 기능을 현재형으로 단정하지 못하게 강제한다."""
+    """없는 기능을 현재형으로 단정하지 못하게 강제한다. 추천 언어 대신 후보 톤."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     section = PLANNED_FEATURES_SECTION.read_text(encoding="utf-8")
 
@@ -246,31 +256,60 @@ def test_planned_features_are_marked_as_planned():
     assert features_block.count("예정입니다.") == 2
     assert "추천해드립니다" not in features_block
     assert "보내드립니다" not in features_block
+    assert "3개 학원을 추천" not in features_block
+    assert "후보" in features_block
     assert "PLANNED_FEATURES" in section
     assert "PLANNED_BADGE_LABEL" in section
     assert 'tone="neutral"' in section
 
 
 def test_service_preview_says_example_before_the_cards():
-    """예시 고지가 카드보다 먼저 오고, 배지·Disclaimer·카드 3개가 남아 있는지."""
+    """예시 고지가 카드보다 먼저 오고, 배지·Disclaimer·카드 3개가 남아 있는지.
+    순위·추천 언어 대신 후보 톤(`/app` exploreCopy)과 맞춘다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     section = SERVICE_PREVIEW_SECTION.read_text(encoding="utf-8")
+    section_code = _strip_comments(section)
 
     # 렌더 블록으로 경계를 준다 — 파일 전체에서 찾으면 알파벳순 import 목록의
     # PREVIEW_NOTICE 가 항상 먼저라 이 순서 비교는 절대 실패할 수 없다.
     render = slice_between(section, "return (", "\n}")
     assert render.index("PREVIEW_NOTICE") < render.index("EXAMPLE_ITEMS.map")
-    assert "AI 추천 예시" in section
+    assert "PREVIEW_CANDIDATE_BADGE" in section
+    assert "PREVIEW_WHY_HEADING" in section
+    assert "순위" not in section_code
+    assert "왜 추천했나요?" not in section_code
+    assert "AI 추천" not in section_code
     assert "Disclaimer" in section
     assert "PREVIEW_DISCLAIMER" in section
 
     items_block = slice_between(
         facts, "export const EXAMPLE_ITEMS = [", "] as const;"
     )
-    assert items_block.count("rank:") == 3
+    assert items_block.count("id:") == 3
+    assert "rank:" not in items_block
     assert "OO수학학원" in items_block
     assert "△△영어학원" in items_block
     assert "□□국어학원" in items_block
+    assert 'PREVIEW_CANDIDATE_BADGE = "후보 정보"' in facts
+    assert 'PREVIEW_WHY_HEADING = "왜 이 후보를 보여드렸나요?"' in facts
+    notice = slice_between(facts, "PREVIEW_NOTICE =", '";')
+    assert "후보" in notice
+    assert "추천 결과" not in notice
+
+
+def test_landing_pages_do_not_link_to_app():
+    """소개 퍼널 푸터·사실에 `/app` href를 두지 않는다 — 상황 카드 CTA만 유지."""
+    footer = LANDING_FOOTER.read_text(encoding="utf-8")
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    footer_code = _strip_comments(footer)
+    facts_code = _strip_comments(facts)
+
+    assert 'href="/app"' not in footer_code
+    assert "APP_EXPLORE_LINK_LABEL" not in footer_code
+    assert 'href: "/app"' not in facts_code
+    assert "APP_EXPLORE_LINK_LABEL" not in facts_code
+    assert "AI 학원 추천" not in footer_code
+    assert "학원 후보 가이드" in footer_code
 
 
 def test_home_has_no_sticky_cta_bar():

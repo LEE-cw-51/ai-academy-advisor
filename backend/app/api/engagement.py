@@ -1,7 +1,9 @@
 """engagement 쓰기 엔드포인트 (클릭 추적 / 피드백 / 대기자 등록).
 
-학원 데이터의 정본은 git이지만(읽기 전용), 사용자 행동 데이터는 DB 직접 쓰기다
-(docs/data-strategy.md). KPI(외부 행동률·대기자 등록률 등) 측정을 위한 엔드포인트.
+학원 사실의 운영 정본은 Supabase Postgres `academies`(Studio Table Editor)다.
+사용자 행동 데이터(`click_logs`/`feedback`/`waitlist`/`search_history`)는
+DB 직접 쓰기가 허용된 예외다 (`docs/data-strategy.md`). KPI(외부 행동률·대기자
+등록률 등) 측정을 위한 엔드포인트.
 """
 
 from typing import Annotated
@@ -25,8 +27,10 @@ router = APIRouter(tags=["engagement"])
 @router.post("/events", response_model=CreatedResponse, status_code=status.HTTP_201_CREATED)
 def track_click(
     payload: ClickEventCreate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> CreatedResponse:
+    enforce_waitlist_rate_limit(request)
     if payload.academy_id is not None and not engagement_service.academy_exists(
         db, payload.academy_id
     ):
@@ -38,8 +42,10 @@ def track_click(
 @router.post("/feedback", response_model=CreatedResponse, status_code=status.HTTP_201_CREATED)
 def submit_feedback(
     payload: FeedbackCreate,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ) -> CreatedResponse:
+    enforce_waitlist_rate_limit(request)
     row = engagement_service.record_feedback(db, payload)
     return CreatedResponse.model_validate(row)
 

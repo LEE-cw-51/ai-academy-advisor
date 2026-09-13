@@ -40,7 +40,15 @@ def count_missing_embeddings(db: Session) -> int:
     return int(missing or 0)
 
 
-def backfill_missing_embeddings(db: Session, batch_size: int = 100) -> BackfillReport:
+def backfill_missing_embeddings(
+    db: Session, batch_size: int = 100, limit: int | None = None
+) -> BackfillReport:
+    """미임베딩 리뷰를 배치로 채운다. `limit`은 이번 실행에서 처리할 행 수 상한.
+
+    `limit`이 필요한 이유: HuggingFace는 토큰이 아니라 CPU 시간으로 과금해서 전체
+    비용을 사전에 계산할 수 없다. 소량을 먼저 돌려 실제 소모액을 확인한 뒤 나머지를
+    이어 돌린다. `embedding IS NULL`만 집으므로 중단·재개는 원래 안전하다.
+    """
     report = BackfillReport()
     embedder = get_embedding_provider()
     store = get_vector_store()
@@ -53,9 +61,14 @@ def backfill_missing_embeddings(db: Session, batch_size: int = 100) -> BackfillR
             "VECTOR_STORE=pgvector 로 설정하세요."
         )
     while True:
+        if limit is not None and report.processed >= limit:
+            break
+        take = batch_size
+        if limit is not None:
+            take = min(batch_size, limit - report.processed)
         missing_before = count_missing_embeddings(db)
         rows = db.scalars(
-            select(Review).where(_missing_embedding_clause()).limit(batch_size)
+            select(Review).where(_missing_embedding_clause()).limit(take)
         ).all()
         if not rows:
             break

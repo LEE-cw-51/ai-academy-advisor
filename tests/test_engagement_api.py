@@ -17,6 +17,7 @@ def _seed_academy(db) -> Academy:
 
 
 def test_track_click_creates_log(client, db_session):
+    reset_waitlist_rate_limit()
     academy = _seed_academy(db_session)
     response = client.post(
         "/events", json={"academy_id": academy.id, "event": "phone"}
@@ -32,12 +33,14 @@ def test_track_click_creates_log(client, db_session):
 
 
 def test_track_click_without_academy_id_allowed(client, db_session):
+    reset_waitlist_rate_limit()
     response = client.post("/events", json={"event": "detail"})
     assert response.status_code == 201
     assert db_session.query(ClickLog).count() == 1
 
 
 def test_track_click_kakao_channel_event(client, db_session):
+    reset_waitlist_rate_limit()
     response = client.post("/events", json={"event": "kakao_channel"})
     assert response.status_code == 201
     rows = db_session.query(ClickLog).all()
@@ -61,6 +64,7 @@ def test_track_click_kakao_channel_event(client, db_session):
     ],
 )
 def test_track_landing_funnel_events(client, db_session, event):
+    reset_waitlist_rate_limit()
     response = client.post("/events", json={"event": event})
     assert response.status_code == 201
     rows = db_session.query(ClickLog).all()
@@ -70,6 +74,7 @@ def test_track_landing_funnel_events(client, db_session, event):
 
 
 def test_track_click_invalid_event_returns_422(client):
+    reset_waitlist_rate_limit()
     response = client.post("/events", json={"event": "share"})
     assert response.status_code == 422
 
@@ -80,11 +85,13 @@ def test_click_event_values_fit_string_50_column():
 
 
 def test_track_click_unknown_academy_returns_404(client, db_session):
+    reset_waitlist_rate_limit()
     response = client.post("/events", json={"academy_id": 999, "event": "phone"})
     assert response.status_code == 404
 
 
 def test_submit_feedback_creates_row(client, db_session):
+    reset_waitlist_rate_limit()
     response = client.post("/feedback", json={"rating": "😀", "comment": "좋아요"})
     assert response.status_code == 201
     rows = db_session.query(Feedback).all()
@@ -174,3 +181,41 @@ def test_join_waitlist_rate_limited(client):
     blocked = client.post("/waitlist", json={"email": "rate-overflow@example.com"})
     assert blocked.status_code == 429
     assert "너무 많습니다" in blocked.json()["detail"]
+
+
+def test_events_rate_limited(client):
+    reset_waitlist_rate_limit()
+    for _ in range(10):
+        response = client.post("/events", json={"event": "detail"})
+        assert response.status_code == 201, response.text
+    blocked = client.post("/events", json={"event": "detail"})
+    assert blocked.status_code == 429
+
+
+def test_feedback_rate_limited(client):
+    reset_waitlist_rate_limit()
+    for i in range(10):
+        response = client.post(
+            "/feedback", json={"rating": "😀", "comment": f"c{i}"}
+        )
+        assert response.status_code == 201, response.text
+    blocked = client.post("/feedback", json={"rating": "😐", "comment": "overflow"})
+    assert blocked.status_code == 429
+
+
+def test_xff_rotation_does_not_bypass_rate_limit(client):
+    """X-Forwarded-For 첫 hop은 클라이언트 조작 가능 — 신뢰하지 않는다."""
+    reset_waitlist_rate_limit()
+    for i in range(10):
+        response = client.post(
+            "/waitlist",
+            json={"email": f"xff{i}@example.com"},
+            headers={"X-Forwarded-For": f"203.0.113.{i}"},
+        )
+        assert response.status_code == 201, response.text
+    blocked = client.post(
+        "/waitlist",
+        json={"email": "xff-overflow@example.com"},
+        headers={"X-Forwarded-For": "198.51.100.1"},
+    )
+    assert blocked.status_code == 429

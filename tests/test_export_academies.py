@@ -88,8 +88,33 @@ def test_export_roundtrip_subject_detail(tmp_path, db_session):
     assert record.subject_detail == "피아노"
 
 
-def test_export_deletes_stale_json(tmp_path, db_session):
-    """재export 시 DB에 없는 orphan *.json은 삭제한다."""
+def test_export_keeps_orphan_json_by_default(tmp_path, db_session):
+    """기본 export는 orphan *.json을 삭제하지 않는다."""
+    import_dir = tmp_path / "import"
+    export_dir = tmp_path / "export"
+    import_dir.mkdir()
+    export_dir.mkdir()
+    write_record(import_dir, "a.json", registration_number="R-keep")
+    load = academy_import_service.load_records(import_dir)
+    academy_import_service.import_records(
+        db_session, [record for _, record in load.records]
+    )
+
+    stale = export_dir / "gone.json"
+    stale.write_text('{"name": "남을학원"}', encoding="utf-8")
+    assert stale.exists()
+
+    report = academy_export_service.export_records(db_session, export_dir)
+    assert report.written == 1
+    assert report.pruned == 0
+    assert stale.exists()
+    names = {p.name for p in export_dir.glob("*.json")}
+    assert "gone.json" in names
+    assert "registry-R-keep.json" in names
+
+
+def test_export_prune_deletes_stale_json(tmp_path, db_session):
+    """--prune 시에만 DB에 없는 orphan *.json을 삭제한다."""
     import_dir = tmp_path / "import"
     export_dir = tmp_path / "export"
     import_dir.mkdir()
@@ -104,8 +129,11 @@ def test_export_deletes_stale_json(tmp_path, db_session):
     stale.write_text('{"name": "삭제될학원"}', encoding="utf-8")
     assert stale.exists()
 
-    report = academy_export_service.export_records(db_session, export_dir)
+    report = academy_export_service.export_records(
+        db_session, export_dir, prune=True
+    )
     assert report.written == 1
+    assert report.pruned == 1
     assert not stale.exists()
     names = {p.name for p in export_dir.glob("*.json")}
     assert names == {"registry-R-keep.json"}

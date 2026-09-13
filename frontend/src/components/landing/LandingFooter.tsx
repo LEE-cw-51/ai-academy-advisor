@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Disclaimer } from "@/components/ui";
 import { CONTACT_EMAIL } from "@/lib/contact";
 import { KakaoChannelCta } from "./KakaoChannelCta";
-import { APP_EXPLORE_LINK_LABEL, FOOTER_STATUS_COPY } from "./landingFacts";
+import { FOOTER_STATUS_COPY } from "./landingFacts";
 
 export function LandingFooter() {
   return (
@@ -10,7 +10,8 @@ export function LandingFooter() {
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:px-6">
         {/* `/`와 `/privacy`·`/check`·`/checklists`가 공유하는 푸터다.
             본문 섹션의 유보 문구를 여기로 통합했으므로, 고지를 지울 때는 이 블록에
-            같은 내용이 남아 있는지 먼저 확인한다. */}
+            같은 내용이 남아 있는지 먼저 확인한다.
+            `/app` 링크는 두지 않는다 — 상황 카드 CTA(/checklists·/check)만 유지. */}
         <Disclaimer>
           <p>
             {FOOTER_STATUS_COPY}
@@ -21,7 +22,7 @@ export function LandingFooter() {
           </p>
         </Disclaimer>
         <p className="text-xs text-ink-muted">
-          학원콕 · 하남 미사 AI 학원 추천 (정식 출시 준비 중)
+          학원콕 · 하남 미사 학원 후보 가이드 (정식 출시 준비 중)
         </p>
         <p className="flex flex-wrap items-center gap-x-1 text-xs text-ink-muted">
           <span className="inline-flex min-h-11 items-center">문의:</span>
@@ -40,15 +41,6 @@ export function LandingFooter() {
             className="inline-flex min-h-11 items-center underline underline-offset-2"
           >
             개인정보처리방침
-          </Link>
-          <span className="inline-flex min-h-11 items-center" aria-hidden>
-            ·
-          </span>
-          <Link
-            href="/app"
-            className="inline-flex min-h-11 items-center underline underline-offset-2"
-          >
-            {APP_EXPLORE_LINK_LABEL}
           </Link>
           <span className="inline-flex min-h-11 items-center" aria-hidden>
             ·

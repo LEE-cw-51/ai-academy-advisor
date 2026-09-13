@@ -115,6 +115,39 @@ def test_q_like_wildcards_are_escaped(db_session):
     assert underscore == []
 
 
+def test_region_like_wildcards_are_escaped(db_session):
+    """region 도 q 와 동일하게 LIKE 메타문자를 리터럴로 취급한다 (hard+soft)."""
+    _seed(
+        db_session,
+        [
+            Academy(name="미사학원", address="경기도 하남시 미사대로 1"),
+            Academy(name="강남학원", address="서울시 강남구 1"),
+            Academy(name="퍼센트학원", address="특수%지역 1"),
+        ],
+    )
+    soft = academy_repository.list_candidates(
+        db_session, RecommendationRequest(region="%", limit=20)
+    )
+    assert [r.name for r in soft] == ["퍼센트학원"]
+
+    hard, total = academy_repository.list_recommendations(
+        db_session, RecommendationRequest(region="%", limit=20)
+    )
+    assert total == 1
+    assert [r.name for r in hard] == ["퍼센트학원"]
+
+    soft_us = academy_repository.list_candidates(
+        db_session, RecommendationRequest(region="_", limit=20)
+    )
+    assert soft_us == []
+
+    hard_us, total_us = academy_repository.list_recommendations(
+        db_session, RecommendationRequest(region="_", limit=20)
+    )
+    assert total_us == 0
+    assert hard_us == []
+
+
 def test_pool_limit_respected(db_session):
     _seed(
         db_session,

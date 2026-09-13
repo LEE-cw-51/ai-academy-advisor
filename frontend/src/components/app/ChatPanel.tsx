@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Badge, Chip } from "@/components/ui";
 import {
   requestAiRecommendations,
@@ -138,6 +138,9 @@ export function ChatPanel({
   const [submitted, setSubmitted] = useState<SubmittedConditions | null>(null);
   const [formExpanded, setFormExpanded] = useState(true);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
+  // 상황 제출 일련번호. 최신 요청만 상태에 반영한다 — 더블 서브밋·Enter 연타로
+  // 늦게 온 응답이 새 결과를 덮어쓰는 것을 막는다 (AppShell searchSeq 와 동일).
+  const querySeq = useRef(0);
 
   const query = useMemo(
     () =>
@@ -222,6 +225,7 @@ export function ChatPanel({
       tags: [...tags],
       note: note.trim(),
     };
+    const seq = ++querySeq.current;
     setLoading(true);
     setQuestions([]);
     setItems([]);
@@ -250,6 +254,8 @@ export function ChatPanel({
         }),
         requestAiRecommendations(trimmed, 3),
       ]);
+
+      if (seq !== querySeq.current) return;
 
       if (questionsResult.status === "fulfilled") {
         // used_fallback이어도 200이므로 질문 본문만 보여 준다. 에러로 취급하지 않는다.
@@ -284,7 +290,7 @@ export function ChatPanel({
         );
       }
     } finally {
-      setLoading(false);
+      if (seq === querySeq.current) setLoading(false);
     }
   }
 

@@ -50,7 +50,7 @@ export const PLANNED_FEATURES = [
   {
     id: "before-enroll",
     title: "학원 다니기전",
-    body: "아이의 학년, 학교, 수준, 성향을 입력하시면 3개 학원을 추천해드릴 예정입니다.",
+    body: "아이의 학년, 학교, 수준, 성향을 입력하시면 조건에 맞는 후보 학원 정보를 정리해 드릴 예정입니다.",
   },
   {
     id: "during",
@@ -59,28 +59,31 @@ export const PLANNED_FEATURES = [
   },
 ] as const;
 
-/** 가상 추천 카드. data/academies/*.json을 참조하지 않는다.
- *  OO/△△/□□ 표기는 docs/design/academy-kok-landing.html 목업의 관례를 따른다. */
+/** 가상 후보 카드. data/academies/*.json을 참조하지 않는다.
+ *  OO/△△/□□ 표기는 docs/design/academy-kok-landing.html 목업의 관례를 따른다.
+ *  순위·추천 언어 대신 `/app` exploreCopy(후보 정보)와 같은 톤을 쓴다. */
 export const PREVIEW_HEADING = "서비스 화면 예시";
 export const PREVIEW_NOTICE =
-  "추천 결과가 어떤 근거와 함께 보이는지 보여주는 가상 예시입니다.";
+  "후보 정보가 어떤 근거와 함께 보이는지 보여주는 가상 예시입니다.";
 export const PREVIEW_DISCLAIMER =
   "실제 학원 정보가 아닌 예시이며, 정식 출시 후 이 화면으로 제공될 예정입니다.";
+export const PREVIEW_CANDIDATE_BADGE = "후보 정보";
+export const PREVIEW_WHY_HEADING = "왜 이 후보를 보여드렸나요?";
 export const EXAMPLE_ITEMS = [
   {
-    rank: 1,
+    id: 1,
     name: "OO수학학원",
     tagline: "소수정예 · 내신 대비 · 도보 6분",
     reason: "아이가 경쟁 분위기에 예민하다고 하셔서 소수정예 위주로 골랐어요.",
   },
   {
-    rank: 2,
+    id: 2,
     name: "△△영어학원",
     tagline: "그룹수업 · 선행 · 도보 9분",
     reason: "또래와 같이 할 때 더 잘한다고 하셔서 그룹수업을 함께 담았어요.",
   },
   {
-    rank: 3,
+    id: 3,
     name: "□□국어학원",
     tagline: "1:1 · 독해 · 도보 4분",
     reason: "글쓰기를 어려워한다고 하셔서 1:1 첨삭이 되는 곳을 넣었어요.",
@@ -119,12 +122,12 @@ export const SITUATIONS = [
  *  같이 바뀐다 (하드코딩된 별도 문자열로 어긋나지 않게). */
 export const MISA_ACADEMY_COUNT = 410;
 
-/** 메인 하단. 지금 확인 가능한 사실(위 학원 수)과 준비 중인 것(맞춤 추천)을 한 덩어리로
- *  구분해 말한다. 가상 추천 카드는 예시 고지·배지·Disclaimer를 조건으로 다시 두었다.
+/** 메인 하단. 지금 확인 가능한 사실(위 학원 수)과 준비 중인 것(후보 정리)을 한 덩어리로
+ *  구분해 말한다. 가상 후보 카드는 예시 고지·배지·Disclaimer를 조건으로 다시 두었다.
  *  결정 로그에 근거가 없는 약속(영수증 인증 리뷰 등)은 여기에 쓰지 않는다. */
 export const GROUNDWORK_HEADING = "학원콕이 쌓아가는 근거";
 export const GROUNDWORK_BODY =
-  `하남 미사 등록 학원 ${MISA_ACADEMY_COUNT}곳을 바탕으로, 더 나은 상담과 선택을 돕는 자료를 먼저 만들고 있습니다. 등록 전 맞춤 추천은 정식 출시 후 제공됩니다.`;
+  `하남 미사 등록 학원 ${MISA_ACADEMY_COUNT}곳을 바탕으로, 더 나은 상담과 선택을 돕는 자료를 먼저 만들고 있습니다. 등록 전 후보 정리는 정식 출시 후 제공됩니다.`;
 export const GROUNDWORK_SOURCE_NOTE =
   `${MISA_ACADEMY_COUNT}곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소`;
 
@@ -160,10 +163,8 @@ export const CHECK_RESULT_HOME_LABEL = "학원콕 더 알아보기";
 export const META_DESCRIPTION =
   "학원을 알아보는 중이라면 상담 전에 확인할 질문과 하남 미사 후보 정보를, 다니는 중이라면 1분 점검을 받아보세요. 특정 학원을 정해 드리거나 중개·예약·결제를 하지는 않습니다.";
 
-/** 푸터 고지. 상담 질문·점검·하남 미사 후보 정보는 현재형. 중개·예약·결제는 없음. */
+/** 푸터 고지. 상담 질문·점검·하남 미사 후보 정보는 현재형. 중개·예약·결제는 없음.
+ *  `/app` 푸터 링크는 두지 않는다 — 상황 카드 CTA(/checklists·/check)만 유지. */
 export const FOOTER_STATUS_COPY =
   "학원콕은 아직 정식 출시 전입니다. 지금은 상담 전 확인할 질문, 1분 학원 점검, 하남 미사 후보 정보를 이용하실 수 있습니다. 특정 학원을 정해 드리거나 중개·예약·결제를 하지는 않습니다.";
-
-/** `/app` 탐색 화면. 상황 카드 CTA를 바꾸지 않고 푸터에만 둔다. */
-export const APP_EXPLORE_LINK_LABEL = "하남 미사 후보 정보 둘러보기";
 

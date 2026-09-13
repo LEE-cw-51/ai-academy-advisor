@@ -45,6 +45,16 @@ def _q_predicate(q: str) -> ColumnElement[bool]:
     )
 
 
+def _region_predicate(region: str) -> ColumnElement[bool]:
+    """address 부분일치. hard(`/recommendations`)·soft(`list_candidates`) 공통.
+
+    `q` 와 같이 `%`/`_`/`\\` 를 리터럴로 취급한다 — region 입력이 와일드카드로
+    전체 주소를 매치하면 하드·소프트 둘 다 풀이 붕괴한다.
+    """
+    pattern = f"%{region.translate(_Q_ESCAPE)}%"
+    return Academy.address.ilike(pattern, escape="\\")
+
+
 def _apply_filters(stmt: Select, params: AcademyListParams) -> Select:
     # Boolean 필터는 IS TRUE / IS FALSE 를 명시해 NULL(미확인)을 제외한다.
     if params.level is not None:
@@ -76,7 +86,7 @@ def _apply_recommendation_filters(
 ) -> Select:
     stmt = _apply_filters(stmt, params)
     if params.region is not None:
-        stmt = stmt.where(Academy.address.ilike(f"%{params.region}%"))
+        stmt = stmt.where(_region_predicate(params.region))
     if params.budget_max is not None:
         stmt = stmt.where(
             Academy.tuition_monthly_fee.is_not(None),
@@ -146,7 +156,7 @@ def list_candidates(
     """
     stmt = select(Academy)
     if params.region is not None:
-        stmt = stmt.where(Academy.address.ilike(f"%{params.region}%"))
+        stmt = stmt.where(_region_predicate(params.region))
     if params.q is not None:
         stmt = stmt.where(_q_predicate(params.q))
 

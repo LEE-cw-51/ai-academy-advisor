@@ -1,4 +1,4 @@
-"""Operational DB 감지 — import_academies가 Studio 수정을 덮어쓰지 않게 한다."""
+"""Operational DB 감지 — JSON 임포트·stub 리뷰 수집이 운영 DB를 오염시키지 않게 한다."""
 
 from __future__ import annotations
 
@@ -21,17 +21,46 @@ def _normalized_host(database_url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
 
+def _looks_like_supabase(database_url: str) -> bool:
+    """호스트가 localhost여도 URL에 Supabase 표식이 있으면 운영으로 본다.
+
+    SSH/로컬 터널로 pooler·직접 접속을 우회할 때 hostname만으로는 로컬로
+    오인되므로, `supabase` / `pooler.supabase` 부분 문자열을 본다.
+    """
+    lowered = database_url.lower()
+    return "supabase" in lowered or "pooler.supabase" in lowered
+
+
 def is_local_database_url(database_url: str) -> bool:
     """로컬·테스트 DB — JSON→DB sync가 기본 허용된다."""
     lowered = database_url.lower()
     if "sqlite" in lowered:
         return True
+    if _looks_like_supabase(database_url):
+        return False
     return _normalized_host(database_url) in _LOCAL_HOSTS
 
 
 def is_operational_database_url(database_url: str) -> bool:
     """Supabase/Railway 등 운영 DB — Studio가 정본이므로 import 기본 거부."""
     return not is_local_database_url(database_url)
+
+
+def stub_review_ingest_allowed(database_url: str, review_source: str) -> tuple[bool, str]:
+    """운영 DB에 stub 가짜 후기를 넣는 사고를 막는다.
+
+    실수집은 REVIEW_SOURCE=naver. 로컬·테스트(SQLite 포함)에서만 stub을 허용한다.
+    """
+    if (review_source or "").strip().lower() != "stub":
+        return True, ""
+    if is_local_database_url(database_url):
+        return True, ""
+    return (
+        False,
+        "운영 DB(Supabase/Railway 등)에는 REVIEW_SOURCE=stub 수집을 거부합니다. "
+        "stub은 결정적 가짜 후기라 사실 DB·공개 후기와 섞이면 안 됩니다. "
+        "실수집은 REVIEW_SOURCE=naver 와 session pooler(5432)로 실행하세요.",
+    )
 
 
 def academy_import_allowed(

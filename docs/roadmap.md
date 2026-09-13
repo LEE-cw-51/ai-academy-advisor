@@ -17,7 +17,8 @@
 - 학원 목록/상세 조회 API ✅ (`GET /academies` 필터 검색, `GET /academies/{id}`)
 - Repository / Service 계층 구현 ✅
 - Pydantic Schema 정의 ✅
-- 쓰기 API는 의도적으로 없음 — 정본이 git JSON이므로 (`docs/data-strategy.md`)
+- 쓰기 API는 의도적으로 없음 — 학원 사실 운영 정본은 Supabase Studio
+  (`docs/data-strategy.md`). git JSON은 시드·백업.
 
 ## Phase 3 — 추천 로직 (Rule 기반, 완료)
 - 학년/지역/예산 등 조건 기반 필터링 추천 ✅
@@ -41,14 +42,15 @@
   - 기존 `academy_repository.list_recommendations` 필터 재사용
 - **LLM provider 실연동 완료**: Groq(Llama, 무료 티어) `GroqLLMProvider` 추가,
   `LLM_PROVIDER=groq`로 전환 가능 (`docs/decision-log.md`)
-- **임베딩/VectorStore 실연동 완료**: `OpenAIEmbeddingProvider`(`text-embedding-3-small`,
-  `dimensions=1024` truncation으로 스키마 변경 없이 사용) + `PgVectorStore`
-  (`Review.embedding` 컬럼에 `cosine_distance()` 직접 검색) 추가.
-  `EMBEDDING_PROVIDER=openai` + `VECTOR_STORE=pgvector`로 전환 가능 (`docs/decision-log.md`).
+- **임베딩/VectorStore 실연동 완료**: 운영 기본은 HuggingFace `BAAI/bge-m3`
+  (`EMBEDDING_PROVIDER=huggingface`, 네이티브 1024차원). OpenAI
+  `text-embedding-3-small`(`dimensions=1024` truncate)은 폴백.
+  `PgVectorStore`는 `Review.embedding` 컬럼에 코사인 거리 검색.
+  `VECTOR_STORE=pgvector`로 전환 가능 (`docs/decision-log.md` 2026-09-12).
   리뷰 임베딩 백필 CLI(`app/cli/ingest_review_embeddings.py`)로 기존 리뷰 행을 채운다.
-- LlamaIndex 기반 RAG 엔진을 단일 `RagEngine` 포트 뒤에 채택하는 것(교체 가능성 유지),
-  프롬프트 설계(prompts/), 리뷰 원본 수집 파이프라인, ANN 인덱스(ivfflat/hnsw) 튜닝은
-  다음 단계
+- LlamaIndex 기반 `RagEngine`은 **미채택**. 현행은 `recommendation_pipeline` +
+  `VectorStore`/`LLMProvider` 포트. 프롬프트 설계(prompts/), 리뷰 원본 수집
+  파이프라인, ANN 인덱스(ivfflat/hnsw) 튜닝은 다음 단계
 - LLM 기반 의도 분석으로 `intent.parse_intent` 교체도 다음 단계
 
 ### 4c — engagement API (완료)

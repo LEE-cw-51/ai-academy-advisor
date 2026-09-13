@@ -6,6 +6,8 @@
     uv run python -m app.cli.ingest_reviews --from-raw ../data/raw/naver
 
 REVIEW_SOURCE 환경변수로 소스를 고른다 (stub/naver). 대상 DB는 DATABASE_URL(.env)을 따른다.
+운영 URL + REVIEW_SOURCE=stub 은 가짜 후기 적재를 막기 위해 거부한다. 실수집은
+REVIEW_SOURCE=naver 와 session pooler(5432)만 쓴다.
 
 플래그 조합별 부작용:
 
@@ -17,6 +19,10 @@ REVIEW_SOURCE 환경변수로 소스를 고른다 (stub/naver). 대상 DB는 DAT
 `--dry-run`은 **부작용 전무**가 계약이다(파일 포함). 원본 캐시는 정상 실행으로 만들고,
 같은 응답을 다시 처리할 땐 `--from-raw`로 쿼터를 쓰지 않는다.
 
+운영 DB + `--from-raw` 에서는 캐시 항목의 `source=stub` 을 CLI에서 거부한다.
+`REVIEW_SOURCE=naver` 여도 stub 캐시를 재처리하면 가짜 후기가 섞인다. 가드
+시그니처는 건드리지 않고 raw 메타만 본다 (`import_guard` 터널 감지는 W4).
+
 쿼터: 학원당 1질의 × 2엔드포인트 × 411건 = 822회로, 무료 25,000회/일의 3.3%다.
 동시 실행하지 않는다 — 봇 트래픽 패턴을 만들지 않기 위한 의도적 순차 실행이다.
 """
@@ -24,8 +30,6 @@ REVIEW_SOURCE 환경변수로 소스를 고른다 (stub/naver). 대상 DB는 DAT
 import argparse
 import sys
 from pathlib import Path
-
-from app.services import review_ingest_service
 
 _DEFAULT_RAW_DIR = Path("../data/raw/naver")
 
@@ -62,14 +66,31 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # app.db.session 임포트는 DATABASE_URL로 엔진을 만드는 부작용이 있다. 이 CLI는
-    # dry-run 에서도 학원 목록과 중복 판정에 DB가 필요하므로 여기서 임포트한다
-    # (모듈 최상단으로 올리지 말 것 — import 만으로 DB 접속이 생긴다).
+    # app.db.session 임포트는 DATABASE_URL로 엔진을 만드는 부작용이 있다.
+    # stub+운영 URL 거부는 그 전에 끝낸다 — 가짜 후기를 넣지도, 접속을 열지도 않는다.
+    # 서비스 임포트도 가드 뒤에 둔다: app.services.review_ingest_service 는
+    # app.models.academy → app.db.session 을 끌어오므로, 모듈 최상단에 두면 가드가
+    # 돌기 전에 이미 엔진이 만들어진다.
     from app.core.config import get_settings
-    from app.db.session import SessionLocal
-    from app.providers.factory import get_review_source
+    from app.core.import_guard import (
+        is_operational_database_url,
+        stub_review_ingest_allowed,
+    )
 
     settings = get_settings()
+    allowed, reason = stub_review_ingest_allowed(
+        settings.database_url, settings.review_source
+    )
+    if not allowed:
+        print(f"ERROR: {reason}", file=sys.stderr)
+        return 1
+
+    # dry-run 에서도 학원 목록과 중복 판정에 DB가 필요하므로 여기서 임포트한다
+    # (모듈 최상단으로 올리지 말 것 — import 만으로 DB 접속이 생긴다).
+    from app.db.session import SessionLocal
+    from app.providers.factory import get_review_source
+    from app.services import review_ingest_service
+
     display = args.display if args.display is not None else settings.naver_display
 
     from_raw = None
@@ -77,6 +98,17 @@ def main(argv: list[str] | None = None) -> int:
         from_raw = review_ingest_service.load_raw(args.from_raw)
         if not from_raw:
             print(f"ERROR: 저장된 응답이 없습니다: {args.from_raw}", file=sys.stderr)
+            return 1
+        # 운영 DB에서는 stub 캐시 재처리를 CLI 로컬로 막는다 (가드 시그니처 변경 없음).
+        if is_operational_database_url(
+            settings.database_url
+        ) and review_ingest_service.raw_payload_has_stub_source(from_raw):
+            print(
+                "ERROR: 운영 DB에서는 source=stub 인 --from-raw 캐시 재처리를 거부합니다. "
+                "stub 스니펫은 결정적 가짜 후기라 공개 후기와 섞이면 안 됩니다. "
+                "실수집 캐시(naver_*)만 재처리하거나 로컬 DB에서 돌리세요.",
+                file=sys.stderr,
+            )
             return 1
         print(f"--from-raw: {len(from_raw)}개 학원의 저장된 응답을 재처리한다 (API 호출 없음)")
 
@@ -103,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # 커버리지를 즉시 보이게 한다 — 회원 전용 카페 글은 색인되지 않아 0건 학원이
     # 많이 나오는 게 정상이고, 그 사실을 RAG 결과가 빈약해진 뒤에 알면 늦다.
+    print(report.source_yield_line())
     histogram = report.coverage_histogram()
     print("커버리지: " + " / ".join(f"{k} {v}개 학원" for k, v in histogram.items()))
 

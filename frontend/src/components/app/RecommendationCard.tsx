@@ -85,7 +85,10 @@ export function RecommendationCard({
           {matched_conditions.length > 0 ? (
             <p className="mt-1 break-words text-xs text-ink-subtle">
               {MATCHED_CONDITIONS_LABEL}:{" "}
-              {matched_conditions.map(conditionLabel).join(", ")}
+              {matched_conditions
+                .map(conditionLabel)
+                .filter(Boolean)
+                .join(", ")}
             </p>
           ) : null}
         </CardSection>
@@ -93,7 +96,7 @@ export function RecommendationCard({
         {conflicts.length > 0 ? (
           <CardSection title={CONFLICTS_HEADING}>
             <p className="break-words text-xs text-ink-subtle">
-              {conflicts.map(conditionLabel).join(", ")}
+              {conflicts.map(conditionLabel).filter(Boolean).join(", ")}
             </p>
           </CardSection>
         ) : null}

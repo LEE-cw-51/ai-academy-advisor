@@ -138,13 +138,17 @@ POST /recommendations
 세부 이름)이 포함되며, 과목 질의는 이름·`subjects`·`subject_detail` 라벨로 매칭한다.
 
 현재 provider 기본값은 **stub**이며(키·비용 0), 의도 분석은 규칙 기반이다.
-`EMBEDDING_PROVIDER=openai` + `VECTOR_STORE=pgvector`로 전환하면 실제 임베딩(OpenAI
-`text-embedding-3-small`)과 pgvector 코사인 검색이 동작한다 (config만 바꿔 교체,
-`docs/decision-log.md`). LLM은 여전히 config로 별도 선택(`LLM_PROVIDER=groq` 등).
+임베딩 운영 기본은 **HuggingFace `BAAI/bge-m3`**(네이티브 1024차원,
+`EMBEDDING_PROVIDER=huggingface`). OpenAI `text-embedding-3-small`(
+`dimensions=1024` truncate)은 폴백이다. `VECTOR_STORE=pgvector`와 함께 쓰면
+pgvector 코사인 검색이 동작한다 (config만 바꿔 교체, `docs/decision-log.md`
+2026-09-12). LLM은 여전히 config로 별도 선택(`LLM_PROVIDER=groq` 등).
 실제 provider로 전환한 뒤에도 `Review.embedding`을 채우는 백필 CLI
 (`uv run python -m app.cli.ingest_review_embeddings`)를 먼저 실행하지 않았다면
 `evidence_reviews`가 빈 배열일 수 있다. 임베딩 또는 벡터 검색이 실패해도 items는
 학원 사실 후보로 200 반환되며 `evidence_reviews`만 빈 배열이다.
+모델·차원 fingerprint 컬럼은 스키마 확장 범위라 아직 없다 — 운영에서는
+`EMBEDDING_PROVIDER`/`HF_EMBEDDING_MODEL`과 백필 CLI를 같은 조합으로 맞춘다.
 
 | 필드 | 값 | 의미 |
 |---|---|---|
@@ -215,9 +219,12 @@ POST /recommendations/ai
 
 ## engagement 쓰기 API
 
-학원 데이터의 정본은 운영 Postgres이며, 사용자 행동 데이터는 DB 직접 쓰기다
-(`docs/data-strategy.md`). KPI(외부 행동률·대기자 등록률 등) 측정용. 성공 시 `201`과
-`{ "id", "created_at" }`를 반환한다.
+학원 사실의 운영 정본은 Supabase Postgres `academies`(Studio)이며, 사용자 행동
+데이터는 DB 직접 쓰기다 (`docs/data-strategy.md`). KPI(외부 행동률·대기자 등록률
+등) 측정용. 성공 시 `201`과 `{ "id", "created_at" }`를 반환한다.
+`/events`·`/feedback`·`/waitlist`는 동일 인메모리 IP 슬라이딩 윈도우(분당 10회)를
+공유하며 초과 시 429. 클라이언트 조작이 가능한 `X-Forwarded-For`는 신뢰하지 않고
+`request.client.host`를 쓴다.
 
 ### POST /events
 외부 행동 클릭 추적 (기획안 §6 기능5).
@@ -246,6 +253,7 @@ POST /events
 정식 출시 알림 신청 (기획안 §6 기능6). `email`과 `kakao` 중 **최소 하나**는 필요하며,
 둘 다 비면 422. `email`이 있으면 형식을 검사하고 lowercase로 정규화한다.
 이미 등록된 email/kakao면 기존 행을 반환하고(중복 insert 없음), 빠진 연락처만 채운다.
+서로 다른 행에 이미 쓰인 email과 kakao를 한 요청으로 묶으면 **409**.
 동일 IP는 분당 10회로 제한하며 초과 시 429.
 
 | 필드 | 값 | 의미 |

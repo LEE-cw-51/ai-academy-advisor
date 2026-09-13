@@ -359,10 +359,18 @@ def rollback_enrich_urls(
         file_name = json_path.name
         try:
             raw = _read_json(json_path)
-            record = AcademyRecord.model_validate(raw)
-        except (OSError, json.JSONDecodeError, ValidationError) as exc:
+        except (OSError, json.JSONDecodeError) as exc:
             report.results.append(
                 RollbackRowResult(file_name, "error", detail=str(exc))
+            )
+            continue
+
+        # 롤백 대상은 Studio CHECK에 안 맞는 website_url(소셜 등)일 수 있다.
+        # 입력은 raw로 읽고, 정리된 결과만 AcademyRecord로 검증한다.
+        academy_name = (raw.get("name") or "").strip()
+        if not academy_name:
+            report.results.append(
+                RollbackRowResult(file_name, "error", detail="name 누락")
             )
             continue
 
@@ -382,20 +390,24 @@ def rollback_enrich_urls(
 
         matched_title = (row.get("matched_local_title") or "").strip()
         evidence = row.get("evidence") or ""
+        website_url = raw.get("website_url")
+        blog_url = raw.get("blog_url")
+        address = raw.get("address")
+        subjects = raw.get("subjects")
         rollback_website = _should_rollback_website(
-            record.name, matched_title, record.website_url
+            academy_name, matched_title, website_url
         )
         rollback_blog = _should_rollback_blog(
-            record.name,
+            academy_name,
             matched_title,
-            record.blog_url,
+            blog_url,
             evidence,
-            record.address,
+            address,
         )
         name_mismatch = bool(matched_title) and not names_match(
-            record.name, matched_title
+            academy_name, matched_title
         )
-        rollback_subjects = name_mismatch and record.subjects is not None
+        rollback_subjects = name_mismatch and subjects is not None
 
         if not rollback_website and not rollback_blog and not rollback_subjects:
             report.results.append(
