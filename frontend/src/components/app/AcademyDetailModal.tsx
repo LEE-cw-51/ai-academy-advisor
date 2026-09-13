@@ -205,7 +205,7 @@ export function AcademyDetailModal({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm font-medium text-brand-dark underline underline-offset-2"
+                  className="text-sm font-medium text-ink underline underline-offset-2"
                   onClick={() => onTrack?.(detail.id, "website")}
                 >
                   {label}

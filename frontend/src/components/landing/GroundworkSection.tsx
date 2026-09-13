@@ -9,13 +9,11 @@ import {
   KAKAO_REWARD_NOTE,
 } from "./landingFacts";
 
-/** 가상 후보 카드(ServicePreviewSection)와 출시 알림 섹션(WaitlistSection)을
- *  2026-08-19에 이 한 섹션으로 합쳤다. 가상 후보 카드는 상황 선택이라는 메인의
- *  첫 과업과 무관하고, 속성 필드가 0%인 정본에서 오해를 살 위험이 커 삭제했다.
- *  여기 남기는 것은 지금 확인 가능한 사실(MISA_ACADEMY_COUNT)과 준비 중인 것(후보 정리)뿐이다.
- *  카카오 CTA는 하단 고정 바(StickyKakaoBar)와 같은 목적이지만, 근거 설명 직후의
- *  자연스러운 전환이라 둔다 — 이벤트는 모달 안 링크에만 붙어 이중 집계가 없다.
- *  `/app` 푸터 링크는 두지 않는다 — 상황 카드·이 섹션의 카카오 CTA를 바꾸지 않는다. */
+/** 메인 하단. 지금 확인 가능한 사실(MISA_ACADEMY_COUNT)과 후보 정리가 그 사실 위에서
+ *  돌아간다는 것만 말한다 — "정식 출시 후 제공" 예고는 `/app`이 주 CTA가 되며 뺐다
+ *  (2026-09-13, docs/decision-log.md). 카카오 CTA는 하단 고정 바(StickyKakaoBar)와 같은
+ *  목적이지만, 근거 설명 직후의 자연스러운 전환이라 둔다 — 이벤트는 모달 안 링크에만
+ *  붙어 이중 집계가 없다. `/app` 링크는 히어로 주 CTA 하나로 충분해 여기엔 두지 않는다. */
 export function GroundworkSection() {
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
