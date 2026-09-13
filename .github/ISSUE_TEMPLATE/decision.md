@@ -12,7 +12,7 @@ assignees: ''
 
 
 **현재 구조 · 관련된 기존 결정**
-<!-- 뒤집거나 확장하는 docs/decision-log.md 항목이 있으면 링크 -->
+<!-- 뒤집거나 확장하는 결정이 있으면 링크 (docs/decisions/ 파일, 2026-09-13 이전은 docs/decision-log.md 항목) -->
 
 
 **대안과 트레이드오프**
@@ -28,4 +28,4 @@ assignees: ''
 **되돌리기 난이도 / 모르는 것**
 
 
-<sub>결정이 나면 `docs/decision-log.md`에 남기고 이 Issue를 닫는다.</sub>
+<sub>결정이 나면 `docs/decisions/`에 파일로 남기고 이 Issue를 닫는다.</sub>

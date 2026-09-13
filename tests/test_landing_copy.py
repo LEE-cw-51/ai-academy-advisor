@@ -1,4 +1,9 @@
-"""랜딩 카피의 실측 숫자·경로·이벤트가 정본·코드와 어긋나지 않는지 검사한다."""
+"""랜딩 카피의 실측 숫자·경로·이벤트가 정본·코드와 어긋나지 않는지 검사한다.
+
+2026-09-13 첫 MVP 확정: 메인(`/`)은 상황 분기 페이지가 아니라 `상황 입력 → 후보·상담 질문`
+도구(`/app`)로 보내는 페이지다. 상황 카드 두 장은 보조 퍼널로 남고, 준비 중 기능 예고·
+예시 화면 섹션은 없다. `/check`·`/checklists`는 공용 HeroSection 을 계속 쓴다.
+"""
 
 import json
 import re
@@ -20,8 +25,6 @@ KAKAO_LINK = LANDING / "KakaoChannelLink.tsx"
 SITUATION_SECTION = LANDING / "SituationSection.tsx"
 SITUATION_CARD = LANDING / "SituationCard.tsx"
 GROUNDWORK_SECTION = LANDING / "GroundworkSection.tsx"
-PLANNED_FEATURES_SECTION = LANDING / "PlannedFeaturesSection.tsx"
-SERVICE_PREVIEW_SECTION = LANDING / "ServicePreviewSection.tsx"
 LANDING_PAGE = LANDING / "LandingPage.tsx"
 LANDING_HEADER = LANDING / "LandingHeader.tsx"
 SITE_CHROME = LANDING / "SiteChrome.tsx"
@@ -67,8 +70,6 @@ ALL_LANDING_FILES = [
     SITUATION_SECTION,
     SITUATION_CARD,
     GROUNDWORK_SECTION,
-    PLANNED_FEATURES_SECTION,
-    SERVICE_PREVIEW_SECTION,
     LANDING_PAGE,
     LANDING_HEADER,
     SITE_CHROME,
@@ -136,11 +137,14 @@ def test_tracked_link_and_kakao_link_do_not_latch_modified_clicks():
 
 
 def test_hero_logo_uses_the_cropped_mark_not_the_padded_original():
-    """logo.png(정사각 캔버스, 헤더 전용)는 히어로 로고에서 더 이상 쓰지 않는다."""
+    """logo.png(정사각 캔버스, 헤더 전용)는 히어로 로고에서 더 이상 쓰지 않는다.
+    대체 텍스트는 브랜드명만 — 적합성 확정 문구를 alt 에 숨기지 않는다 (2026-09-13)."""
     hero = PAGE_HERO.read_text(encoding="utf-8")
     header = LANDING_HEADER.read_text(encoding="utf-8")
 
     assert 'src="/logo-mark.png"' in hero
+    assert 'alt="학원콕"' in hero
+    assert "우리 아이에게 맞는" not in hero
     assert 'src="/logo.png"' not in hero
     # 헤더 로고는 이번 변경 범위 밖이다 — 계속 원본을 쓴다.
     assert 'src="/logo.png"' in header
@@ -193,121 +197,64 @@ def test_reassurance_lines_do_not_nest_a_bare_middle_dot_inside_a_dot_list():
     assert consult_line.split(" · ")[0] == check_hint.split(" · ")[0] == "로그인"
 
 
-def test_home_is_a_situation_router_not_a_single_feature_page():
-    """메인은 기능 하나를 팔지 않는다 — 두 상황 카드가 첫 과업이다."""
+def test_home_leads_with_explore_cta_and_keeps_situation_cards():
+    """메인은 2026-09-13부터 주 CTA(`/app` 후보·상담 질문 정리) 하나로 시작한다.
+    상황 카드 두 장은 보조 퍼널로 그 아래, 근거는 맨 아래. 준비 중 기능 예고·예시 화면·
+    대기자 모달·공용 HeroSection 은 메인에서 뺐다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    hero = HERO.read_text(encoding="utf-8")
     page = LANDING_PAGE.read_text(encoding="utf-8")
 
-    assert 'HERO_HEADLINE = "학원을 알아볼 때도, 다니는 동안에도"' in facts
-    assert "SituationSection" in page
-    assert "GroundworkSection" in page
-    # 옛 3시점 카드·단일 CTA 히어로로 되돌아가지 않았는지.
+    assert 'HOME_HEADLINE = "하남 미사에서 학원을 알아보고 있나요?"' in facts
+    assert 'HOME_CTA_LABEL = "후보와 질문 정리하기"' in facts
+    assert 'HOME_CTA_HREF = "/app"' in facts
+    # 제목은 좁은 폭에서 두 줄로 고정한다.
+    mobile_lines = slice_between(
+        facts, "export const HOME_HEADLINE_MOBILE_LINES = [", "] as const;"
+    )
+    assert len(re.findall(r'"[^"]+"', mobile_lines)) == 2
+
+    assert "PageHero" in page
+    assert "href={HOME_CTA_HREF}" in page
+    assert "HOME_CTA_LABEL" in page
+    # 신뢰 문구는 `/app`의 것을 그대로 쓴다 — 착지한 뒤 같은 말을 다시 만나게.
+    assert "TRUST_NOTE" in page
+    assert page.index("<SituationSection") < page.index("<GroundworkSection")
+
+    # 옛 3시점 카드·상황 분기 히어로·준비 중 섹션으로 되돌아가지 않았는지.
+    # (HomeHero 설명 주석이 '공용 HeroSection 을 쓰지 않는다'고 적으므로 주석은 뺀다.)
     assert "LIFECYCLE_STAGES" not in facts
-    assert "WaitlistModal" not in page
-    for const in (
-        "HERO_BADGE",
-        "HERO_HEADLINE",
-        "HERO_HEADLINE_LINE2",
-        "HERO_HEADLINE_MOBILE_LINES",
-        "HERO_SUPPORT",
+    page_code = _strip_comments(page)
+    for gone in (
+        "HeroSection",
+        "PlannedFeaturesSection",
+        "ServicePreviewSection",
+        "WaitlistModal",
     ):
-        assert const in hero, f"{const} not rendered by HeroSection"
+        assert gone not in page_code, f"{gone} still rendered on /"
+    assert not (LANDING / "PlannedFeaturesSection.tsx").exists()
+    assert not (LANDING / "ServicePreviewSection.tsx").exists()
 
 
-def test_hero_support_points_to_situation_cards_not_a_single_check_path():
-    """옛 히어로 '맞는 곳부터'는 탐색 기대를 만들었는데 행동은 /check로 갔다.
-    지금은 카드 두 장이 첫 과업이므로 서포트도 아래 선택을 가리켜야 한다."""
+def test_home_support_promises_candidates_and_questions_from_inputs():
+    """홈 서포트는 무엇을 넣으면 무엇이 나오는지(학년·과목·고민 → 후보·상담 질문)만 말한다.
+    옛 '맞는 곳부터'(적합성 확정)·'아래에서 상황을 고르세요'(분기 페이지)·숫자 약속으로
+    되돌아가지 않는다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    support = slice_between(facts, "HERO_SUPPORT =", '";')
-    assert "아래" in support
-    assert "상황" in support
-    assert "상담" in support
-    assert "점검" in support
+    support = slice_between(facts, "HOME_SUPPORT =", '";')
+    for word in ("학년", "과목", "고민", "후보", "상담 질문"):
+        assert word in support, word
     assert "맞는 곳부터" not in support
     assert "410" not in support
+    assert "우리 아이에게 맞는" not in support
 
 
-def test_home_explains_the_service_around_the_situation_choice():
-    """상황 선택 다음에 준비 중 기능 예고와 예시 화면이 오고, 근거는 맨 아래다."""
-    page = LANDING_PAGE.read_text(encoding="utf-8")
-
-    order = [
-        page.index("<HeroSection"),
-        page.index("<SituationSection"),
-        page.index("<PlannedFeaturesSection"),
-        page.index("<ServicePreviewSection"),
-        page.index("<GroundworkSection"),
-    ]
-    assert order == sorted(order), f"main section order changed: {order}"
-    assert "ServiceRoleSection" not in page
-    assert "PrinciplesSection" not in page
-
-
-def test_planned_features_are_marked_as_planned():
-    """없는 기능을 현재형으로 단정하지 못하게 강제한다. 추천 언어 대신 후보 톤."""
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    section = PLANNED_FEATURES_SECTION.read_text(encoding="utf-8")
-
-    features_block = slice_between(
-        facts, "export const PLANNED_FEATURES = [", "] as const;"
-    )
-    assert features_block.count("title:") == 2
-    assert features_block.count("예정입니다.") == 2
-    assert "추천해드립니다" not in features_block
-    assert "보내드립니다" not in features_block
-    assert "3개 학원을 추천" not in features_block
-    assert "후보" in features_block
-    assert "PLANNED_FEATURES" in section
-    assert "PLANNED_BADGE_LABEL" in section
-    assert 'tone="neutral"' in section
-
-
-def test_service_preview_says_example_before_the_cards():
-    """예시 고지가 카드보다 먼저 오고, 배지·Disclaimer·카드 3개가 남아 있는지.
-    순위·추천 언어 대신 후보 톤(`/app` exploreCopy)과 맞춘다."""
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    section = SERVICE_PREVIEW_SECTION.read_text(encoding="utf-8")
-    section_code = _strip_comments(section)
-
-    # 렌더 블록으로 경계를 준다 — 파일 전체에서 찾으면 알파벳순 import 목록의
-    # PREVIEW_NOTICE 가 항상 먼저라 이 순서 비교는 절대 실패할 수 없다.
-    render = slice_between(section, "return (", "\n}")
-    assert render.index("PREVIEW_NOTICE") < render.index("EXAMPLE_ITEMS.map")
-    assert "PREVIEW_CANDIDATE_BADGE" in section
-    assert "PREVIEW_WHY_HEADING" in section
-    assert "순위" not in section_code
-    assert "왜 추천했나요?" not in section_code
-    assert "AI 추천" not in section_code
-    assert "Disclaimer" in section
-    assert "PREVIEW_DISCLAIMER" in section
-
-    items_block = slice_between(
-        facts, "export const EXAMPLE_ITEMS = [", "] as const;"
-    )
-    assert items_block.count("id:") == 3
-    assert "rank:" not in items_block
-    assert "OO수학학원" in items_block
-    assert "△△영어학원" in items_block
-    assert "□□국어학원" in items_block
-    assert 'PREVIEW_CANDIDATE_BADGE = "후보 정보"' in facts
-    assert 'PREVIEW_WHY_HEADING = "왜 이 후보를 보여드렸나요?"' in facts
-    notice = slice_between(facts, "PREVIEW_NOTICE =", '";')
-    assert "후보" in notice
-    assert "추천 결과" not in notice
-
-
-def test_landing_pages_do_not_link_to_app():
-    """소개 퍼널 푸터·사실에 `/app` href를 두지 않는다 — 상황 카드 CTA만 유지."""
-    footer = LANDING_FOOTER.read_text(encoding="utf-8")
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    footer_code = _strip_comments(footer)
-    facts_code = _strip_comments(facts)
+def test_footer_keeps_status_copy_without_app_link():
+    """주 CTA 는 히어로 하나(`/app`)로 충분하다 — 푸터에는 `/app` 링크를 두지 않고
+    출시 전 고지·후보 가이드 문구만 남긴다."""
+    footer_code = _strip_comments(LANDING_FOOTER.read_text(encoding="utf-8"))
 
     assert 'href="/app"' not in footer_code
     assert "APP_EXPLORE_LINK_LABEL" not in footer_code
-    assert 'href: "/app"' not in facts_code
-    assert "APP_EXPLORE_LINK_LABEL" not in facts_code
     assert "AI 학원 추천" not in footer_code
     assert "학원 후보 가이드" in footer_code
 
@@ -344,10 +291,21 @@ def _strip_comments(text: str) -> str:
 
 
 def test_no_dead_stage_vocabulary_remains():
-    """되돌아오기 방지 가드: 3시점 카드·수량 프레이밍·근거 없는 새 약속이 다시 들어오지 않는지.
-    (설명 주석 안에서 옛 이름을 언급하는 것은 허용하고, 실제 카피·코드만 본다.)"""
+    """되돌아오기 방지 가드: 3시점 카드·수량 프레이밍·근거 없는 새 약속·순위·적합성 확정·
+    출시 후 약속이 다시 들어오지 않는지. (설명 주석 안에서 옛 이름을 언급하는 것은
+    허용하고, 실제 카피·코드만 본다.) `우리 아이에게 계속 맞을까요?`(/check 질문형)는
+    `우리 아이에게 맞는`(확정형)을 품지 않으므로 통과한다."""
     banned_everywhere = RETIRED_STAGE_EVENTS
-    banned_copy = ("체크리스트 3종", "영수증 인증", "인증 리뷰")
+    banned_copy = (
+        "체크리스트 3종",
+        "영수증 인증",
+        "인증 리뷰",
+        # 2026-09-13
+        "우리 아이에게 맞는",
+        "정식 출시 후 제공",
+        "AI 추천",
+        "1순위",
+    )
 
     for path in ALL_LANDING_FILES:
         code_only = _strip_comments(path.read_text(encoding="utf-8"))
@@ -357,11 +315,19 @@ def test_no_dead_stage_vocabulary_remains():
             assert banned not in code_only, f"{banned} still referenced in {path.name}"
 
 
-def test_launch_status_notice_still_on_home_first_screen():
-    """배지가 중립 문구로 바뀌어도 출시 전 사실은 첫 화면 어딘가에 남아야 한다."""
+def test_groundwork_no_longer_defers_candidates_to_launch():
+    """`/app`이 주 CTA가 된 뒤 '정식 출시 후 제공'은 사실이 아니다 (2026-09-13) — 근거
+    섹션은 지금 확인 가능한 사실(학원 수·확인일)만 말한다. 출시 전 고지는 푸터가 계속 맡는다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    groundwork_body = slice_between(facts, "GROUNDWORK_BODY =", ";")
-    assert "정식 출시 후" in groundwork_body
+
+    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
+    assert "정식 출시 후" not in body
+    assert "${MISA_ACADEMY_COUNT}" in body
+    assert "확인일" in body
+
+    footer = slice_between(facts, "FOOTER_STATUS_COPY =", '";')
+    assert "정식 출시 전" in footer
+
     groundwork = GROUNDWORK_SECTION.read_text(encoding="utf-8")
     assert "GROUNDWORK_BODY" in groundwork
 
@@ -554,15 +520,17 @@ def test_meta_description_slice_catches_removed_brokerage_notice():
 
 
 def test_header_status_notice_sits_beside_the_logo():
+    """헤더 문장은 출시 전·판매 없음만 말한다. '소개용 랜딩 페이지'는 `/app`을 주 CTA로
+    연결한 뒤 사실과 어긋나 2026-09-13에 뺐다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     header = LANDING_HEADER.read_text(encoding="utf-8")
 
     assert "HEADER_STATUS_NOTICE" in header
     notice = slice_between(facts, "HEADER_STATUS_NOTICE =", ";")
-    assert "정식 운영" in notice
-    assert "랜딩 페이지" in notice
+    assert "정식 출시" in notice
     assert "중개" in notice
     assert "수강료" in notice
+    assert "랜딩 페이지" not in notice
     # 배지 형태로 되돌리지 않는다.
     assert "Badge" not in header
 
@@ -593,17 +561,28 @@ def test_intro_pages_share_site_chrome_and_sticky_kakao():
 
 
 def test_funnel_pages_share_the_home_hero_copy():
-    """화면 히어로는 홈과 같다. `/privacy`는 방침 h1을 유지한다."""
+    """`/check`·`/checklists` 히어로는 공용 HeroSection(HERO_*)을 쓴다. `/privacy`는 방침
+    h1을 유지한다. 둘째 줄은 적합성 확정 대신 프로젝트 상위 목표(더 나은 질문과 판단)."""
     checklists = CHECKLISTS_PAGE.read_text(encoding="utf-8")
     mini = MINI_CHECK.read_text(encoding="utf-8")
     privacy = PRIVACY_PAGE.read_text(encoding="utf-8")
     facts = LANDING_FACTS.read_text(encoding="utf-8")
+    hero = HERO.read_text(encoding="utf-8")
 
     assert "HeroSection" in checklists
     assert "CONSULT_HEADLINE" not in checklists
     assert "HeroSection" in mini
     assert "CHECK_INTRO_HEADLINE" not in mini
     assert 'HERO_HEADLINE = "학원을 알아볼 때도, 다니는 동안에도"' in facts
+    assert 'HERO_HEADLINE_LINE2 = "더 나은 질문과 판단을 돕습니다"' in facts
+    for const in (
+        "HERO_BADGE",
+        "HERO_HEADLINE",
+        "HERO_HEADLINE_LINE2",
+        "HERO_HEADLINE_MOBILE_LINES",
+        "HERO_SUPPORT",
+    ):
+        assert const in hero, f"{const} not rendered by HeroSection"
     assert "개인정보처리방침" in privacy
     assert "HeroSection" not in privacy
 

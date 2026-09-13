@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Badge, Chip } from "@/components/ui";
+import { Chip } from "@/components/ui";
 import {
   requestAiRecommendations,
   requestConsultationQuestions,
@@ -12,13 +12,11 @@ import type {
   ConsultationIntent,
   ConsultationQuestion,
 } from "@/lib/types";
-import { ApiError } from "@/lib/types";
 import {
   CANDIDATES_ERROR,
   CANDIDATES_HEADING,
   CONDITIONS_CHANGED_NOTE,
   EDIT_CONDITIONS_LABEL,
-  EMPTY_RESULTS,
   FORM_HEADING,
   FORM_SUPPORT,
   INTENTS,
@@ -26,10 +24,13 @@ import {
   MORE_DETAILS_HIDE_LABEL,
   MORE_DETAILS_LABEL,
   NO_CANDIDATES,
+  NO_CANDIDATES_SEARCH_HINT,
   QUESTIONS_ERROR,
   QUESTIONS_HEADING,
   RELAXED_HEADING,
   RESUBMIT_LABEL,
+  SHOW_RESULTS_LABEL,
+  RETRY_LABEL,
   SUBJECT_FORM_HELPER,
   SUBJECT_HELPER,
   SUBJECT_DETAIL_LABEL,
@@ -38,6 +39,7 @@ import {
   SUBMIT_LABEL,
   TAGS_HEADING,
   TAGS_HELPER,
+  TRUST_NOTE,
   relaxedNotes,
 } from "./exploreCopy";
 import { RecommendationCard } from "./RecommendationCard";
@@ -127,8 +129,10 @@ export function ChatPanel({
   const [currentAcademy, setCurrentAcademy] = useState("");
   const [intent, setIntent] = useState<ConsultationIntent>("find_new_academy");
   const [loading, setLoading] = useState(false);
-  const [questionsError, setQuestionsError] = useState("");
-  const [candidatesError, setCandidatesError] = useState("");
+  // 에러는 사용자 문구(QUESTIONS_ERROR·CANDIDATES_ERROR)만 보여 준다. 서버 메시지는
+  // 개발자 대상이라 그대로 내보내지 않는다 — 그래서 상태도 문자열이 아니라 플래그다.
+  const [questionsError, setQuestionsError] = useState(false);
+  const [candidatesError, setCandidatesError] = useState(false);
   const [items, setItems] = useState<AiRecommendationItem[]>([]);
   const [questions, setQuestions] = useState<ConsultationQuestion[]>([]);
   const [questionsDisclaimer, setQuestionsDisclaimer] = useState("");
@@ -159,7 +163,7 @@ export function ChatPanel({
   const hasSubmitted = submitted !== null;
 
   // 요약은 라이브 폼이 아니라 제출 스냅샷에서 만든다. 폼만 바꾸고 다시 보내지 않으면
-  // 아래 질문·후보는 이전 조건의 사실인데 칩만 새 조건을 적어, 어떤 조건에서 나온
+  // 아래 후보·질문은 이전 조건의 사실인데 칩만 새 조건을 적어, 어떤 조건에서 나온
   // 사실인지 잘못 알린다 (docs/decision-log.md 2026-09-08 사실 우선).
   const conditionSummary = useMemo(() => {
     if (!submitted) return "";
@@ -232,8 +236,8 @@ export function ChatPanel({
     setQuestionsDisclaimer("");
     setRelaxed([]);
     onResults([]);
-    setQuestionsError("");
-    setCandidatesError("");
+    setQuestionsError(false);
+    setCandidatesError(false);
     // 요청이 실패해도 되돌리지 않는다 — 아래 에러 문구도 이 조건으로 보낸 결과다.
     setSubmitted(snapshot);
     setFormExpanded(false);
@@ -252,7 +256,8 @@ export function ChatPanel({
           concern: snapshot.note,
           intent: snapshot.intent,
         }),
-        requestAiRecommendations(trimmed, 3),
+        // 후보는 최대 5곳. 응답을 잘라 내지 않고 온 만큼 그린다.
+        requestAiRecommendations(trimmed, 5),
       ]);
 
       if (seq !== querySeq.current) return;
@@ -264,11 +269,7 @@ export function ChatPanel({
       } else {
         setQuestions([]);
         setQuestionsDisclaimer("");
-        setQuestionsError(
-          questionsResult.reason instanceof ApiError
-            ? questionsResult.reason.message
-            : QUESTIONS_ERROR,
-        );
+        setQuestionsError(true);
       }
 
       if (recsResult.status === "fulfilled") {
@@ -283,28 +284,44 @@ export function ChatPanel({
         setRelaxed([]);
         onResults([]);
         onSelectAcademy(null);
-        setCandidatesError(
-          recsResult.reason instanceof ApiError
-            ? recsResult.reason.message
-            : CANDIDATES_ERROR,
-        );
+        setCandidatesError(true);
       }
     } finally {
       if (seq === querySeq.current) setLoading(false);
     }
   }
 
+  const anyError = questionsError || candidatesError;
+  const noCandidates =
+    hasSubmitted && !loading && items.length === 0 && !candidatesError;
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
+      {/* 페이지 h1 은 항상 있다. 제출 뒤엔 요약 칩이 시선을 받으므로 sr-only 로
+          내리고, 래퍼는 contents 로 두어 flex gap 에 빈 칸을 남기지 않는다. */}
+      <div className={hasSubmitted ? "contents" : "space-y-2"}>
+        <h1 id="explore-heading" className={hasSubmitted ? "sr-only" : "text-2xl font-black leading-tight text-ink sm:text-3xl break-keep"}>
+          {FORM_HEADING}
+        </h1>
+        {!hasSubmitted ? (
+          <>
+            <p className="break-keep text-sm text-ink-muted">{FORM_SUPPORT}</p>
+            <p className="break-keep text-xs text-ink-subtle">{TRUST_NOTE}</p>
+          </>
+        ) : null}
+      </div>
+
       {hasSubmitted && !formExpanded ? (
         <div className="rounded-card border border-border-soft bg-surface-muted px-3 py-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            {/* 제출 시점 스냅샷. 아래 질문·후보를 만든 조건이 그대로 적힌다. */}
-            <p className="text-sm font-medium text-ink">{conditionSummary}</p>
+            {/* 제출 시점 스냅샷. 아래 후보·질문을 만든 조건이 그대로 적힌다. */}
+            <p className="min-w-0 break-words text-sm font-medium text-ink">
+              {conditionSummary}
+            </p>
             <button
               type="button"
               onClick={() => setFormExpanded(true)}
-              className="text-sm font-semibold text-brand underline-offset-2 hover:underline"
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {EDIT_CONDITIONS_LABEL}
             </button>
@@ -318,16 +335,8 @@ export function ChatPanel({
         </div>
       ) : (
         <>
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <h2 className="text-lg font-bold text-ink">{FORM_HEADING}</h2>
-              <Badge tone="brand">하남 미사</Badge>
-            </div>
-            <p className="text-sm text-ink-subtle">{FORM_SUPPORT}</p>
-          </div>
-
           <div className="space-y-3.5">
-            <FilterRow label="상황">
+            <FilterRow label="상황" labelId="explore-intent-label">
               {INTENTS.map((option) => (
                 <Chip
                   key={option.id}
@@ -340,7 +349,7 @@ export function ChatPanel({
               ))}
             </FilterRow>
 
-            <FilterRow label="학년">
+            <FilterRow label="학년" labelId="explore-grade-label">
               {GRADES.map((g) => (
                 <Chip
                   key={g}
@@ -353,7 +362,7 @@ export function ChatPanel({
               ))}
             </FilterRow>
 
-            <FilterRow label="과목">
+            <FilterRow label="과목" labelId="explore-subject-label">
               {SUBJECTS.map((s) => (
                 <Chip
                   key={s}
@@ -377,6 +386,7 @@ export function ChatPanel({
                   id="explore-subject-detail"
                   name="subject_detail"
                   type="text"
+                  autoComplete="off"
                   disabled={loading}
                   value={subjectDetail}
                   onChange={(e) => setSubjectDetail(e.target.value)}
@@ -428,17 +438,23 @@ export function ChatPanel({
               type="button"
               disabled={loading}
               aria-expanded={moreDetailsOpen}
+              aria-controls="explore-more-details"
               onClick={() => setMoreDetailsOpen((open) => !open)}
-              className="text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {moreDetailsOpen ? MORE_DETAILS_HIDE_LABEL : MORE_DETAILS_LABEL}
             </button>
             {moreDetailsOpen ? (
-              <div className="space-y-3.5 rounded-card border border-border-soft bg-surface-muted px-3 py-3">
-                <FilterRow label="학교">
+              <div
+                id="explore-more-details"
+                className="space-y-3.5 rounded-card border border-border-soft bg-surface-muted px-3 py-3"
+              >
+                <FilterRow label="학교" htmlFor="explore-school">
                   <input
+                    id="explore-school"
                     type="text"
                     name="school"
+                    autoComplete="off"
                     value={school}
                     disabled={loading}
                     placeholder="학교 이름을 입력하세요 (예: 미사중학교)"
@@ -447,10 +463,12 @@ export function ChatPanel({
                   />
                 </FilterRow>
 
-                <FilterRow label="학원">
+                <FilterRow label="학원" htmlFor="explore-current-academy">
                   <input
+                    id="explore-current-academy"
                     type="text"
                     name="current_academy"
+                    autoComplete="off"
                     value={currentAcademy}
                     disabled={loading}
                     placeholder="현재 다니는 학원 (없으면 비워 두세요)"
@@ -460,11 +478,18 @@ export function ChatPanel({
                 </FilterRow>
 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-ink-subtle">
+                  <p
+                    id="explore-tags-label"
+                    className="text-sm font-medium text-ink-subtle"
+                  >
                     {TAGS_HEADING}
                   </p>
                   <p className="text-xs text-ink-subtle">{TAGS_HELPER}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div
+                    role="group"
+                    aria-labelledby="explore-tags-label"
+                    className="flex flex-wrap gap-2"
+                  >
                     {STYLE_TAGS.map((tag) => (
                       <Chip
                         key={tag}
@@ -493,19 +518,41 @@ export function ChatPanel({
               <button
                 type="button"
                 onClick={() => setFormExpanded(false)}
-                className="self-start text-sm text-ink-subtle underline-offset-2 hover:underline"
+                className="inline-flex min-h-11 items-center self-start text-sm text-ink-subtle underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
-                질문·후보 보기
+                {SHOW_RESULTS_LABEL}
               </button>
             </div>
           ) : null}
         </>
       )}
 
-      {loading ? <p className="text-sm text-ink-subtle">{LOADING_LABEL}</p> : null}
-      {questionsError ? <p className="text-sm text-warn">{questionsError}</p> : null}
-      {candidatesError ? (
-        <p className="text-sm text-warn">{candidatesError}</p>
+      {/* 로딩 상태는 늘 같은 live region 에 쓴다 — 비어 있을 땐 sr-only 로 자리만 남긴다. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={loading ? "text-sm text-ink-subtle" : "sr-only"}
+      >
+        {loading ? LOADING_LABEL : null}
+      </p>
+
+      {anyError ? (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="space-y-1.5 rounded-card border border-warn/30 bg-warn-bg px-3 py-2.5 text-sm text-warn"
+        >
+          {candidatesError ? <p className="break-keep">{CANDIDATES_ERROR}</p> : null}
+          {questionsError ? <p className="break-keep">{QUESTIONS_ERROR}</p> : null}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void runQuery()}
+            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            {RETRY_LABEL}
+          </button>
+        </div>
       ) : null}
 
       {relaxed.length > 0 ? (
@@ -518,10 +565,60 @@ export function ChatPanel({
         </div>
       ) : null}
 
+      {/* 결과 순서: 후보 → 상담 질문. 후보 카드가 먼저 보이고, 질문은 그 뒤에 이어진다. */}
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+        {items.length > 0 ? (
+          <section
+            aria-labelledby="explore-candidates-heading"
+            className="space-y-3"
+          >
+            <h2
+              id="explore-candidates-heading"
+              className="text-sm font-semibold text-ink"
+            >
+              {CANDIDATES_HEADING}
+            </h2>
+            <p className="text-xs text-ink-subtle">{SUBJECT_HELPER}</p>
+            {items.map((item) => (
+              <RecommendationCard
+                key={item.academy.id}
+                item={item}
+                selected={selectedAcademyId === item.academy.id}
+                onSelect={() => onSelectAcademy(item.academy.id)}
+                onShowDetail={() => onOpenDetail(item.academy.id)}
+                onTrack={(event) => void trackEventSafe(item.academy.id, event)}
+              />
+            ))}
+          </section>
+        ) : null}
+
+        {noCandidates ? (
+          <div className="space-y-2 rounded-card border border-border-soft bg-surface-muted px-3 py-3">
+            <p className="break-keep text-sm text-ink">{NO_CANDIDATES}</p>
+            <button
+              type="button"
+              onClick={() => setFormExpanded(true)}
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {EDIT_CONDITIONS_LABEL}
+            </button>
+            <p className="break-keep text-xs text-ink-subtle">
+              {NO_CANDIDATES_SEARCH_HINT}
+            </p>
+          </div>
+        ) : null}
+
         {questions.length > 0 ? (
-          <section className="space-y-2 rounded-card border border-border-soft bg-surface-muted px-3 py-3">
-            <h3 className="text-sm font-semibold text-ink">{QUESTIONS_HEADING}</h3>
+          <section
+            aria-labelledby="explore-questions-heading"
+            className="space-y-2 rounded-card border border-border-soft bg-surface-muted px-3 py-3"
+          >
+            <h2
+              id="explore-questions-heading"
+              className="text-sm font-semibold text-ink"
+            >
+              {QUESTIONS_HEADING}
+            </h2>
             {questionsDisclaimer ? (
               <p className="text-xs text-ink-subtle">{questionsDisclaimer}</p>
             ) : null}
@@ -537,31 +634,6 @@ export function ChatPanel({
             </ol>
           </section>
         ) : null}
-
-        {items.length > 0 ? (
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-ink">{CANDIDATES_HEADING}</h3>
-            <p className="text-xs text-ink-subtle">{SUBJECT_HELPER}</p>
-            {items.map((item) => (
-              <RecommendationCard
-                key={item.academy.id}
-                item={item}
-                selected={selectedAcademyId === item.academy.id}
-                onSelect={() => onSelectAcademy(item.academy.id)}
-                onShowDetail={() => onOpenDetail(item.academy.id)}
-                onTrack={(event) => void trackEventSafe(item.academy.id, event)}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        {hasSubmitted && !loading && items.length === 0 && !candidatesError ? (
-          <p className="text-sm text-ink-subtle">{NO_CANDIDATES}</p>
-        ) : null}
-
-        {!hasSubmitted && items.length === 0 && questions.length === 0 && !loading ? (
-          <p className="text-sm text-ink-subtle">{EMPTY_RESULTS}</p>
-        ) : null}
       </div>
     </div>
   );
@@ -569,17 +641,34 @@ export function ChatPanel({
 
 function FilterRow({
   label,
+  labelId,
+  htmlFor,
   children,
 }: {
   label: string;
+  /** 칩 묶음 행: 라벨 span 에 id 를 주고 칩 컨테이너를 role=group 으로 묶는다. */
+  labelId?: string;
+  /** 텍스트 입력 행: span 대신 <label htmlFor> 로 입력과 연결한다. */
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
+  const labelClass = "w-10 shrink-0 pt-1.5 text-sm text-ink-subtle sm:pt-0";
   return (
     <div className="flex items-start gap-3 sm:items-center">
-      <span className="w-10 shrink-0 pt-1.5 text-sm text-ink-subtle sm:pt-0">
-        {label}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={labelClass}>
+          {label}
+        </label>
+      ) : (
+        <span id={labelId} className={labelClass}>
+          {label}
+        </span>
+      )}
+      <div
+        role={labelId ? "group" : undefined}
+        aria-labelledby={labelId}
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+      >
         {children}
       </div>
     </div>
@@ -598,12 +687,12 @@ function ChangedConditionsNotice({
 }) {
   return (
     <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-warn">
-      <span>{CONDITIONS_CHANGED_NOTE}</span>
+      <span className="break-keep">{CONDITIONS_CHANGED_NOTE}</span>
       <button
         type="button"
         disabled={disabled}
         onClick={onResubmit}
-        className="font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         {RESUBMIT_LABEL}
       </button>

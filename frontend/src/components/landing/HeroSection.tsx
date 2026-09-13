@@ -15,9 +15,8 @@ interface HeroSectionProps {
   reassurance?: boolean;
 }
 
-/** 메인 히어로. 기능 하나를 팔지 않는다 — 아래 SituationSection의 카드 두 장이
- *  실제 선택지라서 여기엔 주 CTA 버튼을 두지 않는다.
- *  `/`·`/check`·`/checklists` 세 페이지가 같은 히어로를 재사용하므로, 페이지별로
+/** `/check`·`/checklists`가 공유하는 히어로. `/`는 2026-09-13부터 LandingPage 안의
+ *  HomeHero(`/app` 주 CTA)를 쓴다. 두 페이지가 같은 히어로를 재사용하므로, 페이지별로
  *  다른 logo·reassurance 조합만 prop으로 받는다. */
 export function HeroSection({ logo = true, reassurance = true }: HeroSectionProps = {}) {
   return (

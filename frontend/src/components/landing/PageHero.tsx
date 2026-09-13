@@ -27,7 +27,7 @@ interface PageHeroProps {
   /** 즉시 효익 한 줄. `/`만 쓴다 — `/check`·`/checklists`는 각자 CTA 옆에 이미 같은 문구가 있다. */
   reassurance?: string;
   /** 주 CTA 또는 첫 콘텐츠. 페이지마다 다음에 오는 것이 다르다 —
-   *  `/`는 SituationSection 카드, `/check`·`/checklists`는 버튼. */
+   *  `/`는 `/app`으로 가는 주 CTA와 신뢰 문구, `/check`·`/checklists`는 버튼. */
   children?: ReactNode;
 }
 
@@ -50,7 +50,7 @@ export function PageHero({
         // 투명 여백을 잘라낸 버전이다 — 실제 글자가 표시 영역을 꽉 채우게 한다.
         <Image
           src="/logo-mark.png"
-          alt="학원콕 — 우리 아이에게 맞는 학원을 찾다."
+          alt="학원콕"
           width={1061}
           height={675}
           priority

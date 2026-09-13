@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Badge, Card } from "@/components/ui";
 import type { AcademySummary } from "@/lib/types";
-import { MAP_EMPTY_LIST, subjectBadges } from "./exploreCopy";
+import {
+  MAP_EMPTY_LIST,
+  MAP_LOADING,
+  MAP_UNAVAILABLE,
+  subjectBadges,
+} from "./exploreCopy";
 
 type NaverMapInstance = {
   setCenter: (latLng: unknown) => void;
@@ -65,10 +70,12 @@ function markerIcon(maps: NaverMapsApi, selected: boolean) {
 
 interface MapPanelProps {
   academies: AcademySummary[];
-  /** 지도가 지금 무엇을 보여 주는지 — 대기 / 후보 위치 / 검색 결과. */
+  /** 지도가 지금 무엇을 보여 주는지 — 후보 위치 / 검색 결과. */
   heading: string;
-  /** 목록이 비었을 때 지도·리스트에 보여 줄 안내 (제출 전 빈 지도 등). */
+  /** 목록이 비었을 때 지도·리스트에 보여 줄 안내 (후보가 없을 때 등). */
   emptyHint?: string;
+  /** 후보 모드에선 카드가 곧 목록이라 지도 아래 목록을 숨긴다. */
+  hideList?: boolean;
   selectedId: number | null;
   onSelect: (id: number) => void;
   onOpenDetail: (id: number) => void;
@@ -122,11 +129,13 @@ export function MapPanel({
   academies,
   heading,
   emptyHint,
+  hideList,
   selectedId,
   onSelect,
   onOpenDetail,
   children,
 }: MapPanelProps) {
+  // 키가 없으면 지도 대신 안내만 그린다. 설정 방법은 frontend/README.md 에 둔다.
   const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID?.trim() ?? "";
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<NaverMapInstance | null>(null);
@@ -238,7 +247,6 @@ export function MapPanel({
 
   const showPlaceholder = !clientId || mapError || !mapReady;
   const isEmpty = academies.length === 0;
-  const emptyMessage = emptyHint ?? MAP_EMPTY_LIST;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -249,23 +257,20 @@ export function MapPanel({
 
       {children ? <div className="space-y-2">{children}</div> : null}
 
-      <div className="relative min-h-[220px] flex-1 overflow-hidden rounded-card border border-border-soft bg-surface-subtle">
+      <div
+        role="region"
+        aria-label={heading}
+        className="relative min-h-[220px] flex-1 overflow-hidden rounded-card border border-border-soft bg-surface-subtle"
+      >
         {clientId ? (
           <div ref={mapRef} className="absolute inset-0 h-full w-full" />
         ) : null}
         {showPlaceholder ? (
+          // 키가 없거나 스크립트가 실패해도 목록·길찾기는 그대로 쓸 수 있다 —
+          // 개발자용 안내(환경변수 이름 등)는 화면에 찍지 않는다.
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-subtle/90 p-4 text-center">
             <p className="text-sm font-medium text-ink-muted">
-              {clientId
-                ? mapError
-                  ? "지도를 불러오지 못했어요"
-                  : "지도 준비 중…"
-                : "지도 플레이스홀더"}
-            </p>
-            <p className="max-w-xs text-xs text-ink-subtle">
-              {clientId
-                ? "Naver Maps 스크립트 로드를 확인해 주세요."
-                : "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID를 설정하면 네이버 지도가 표시됩니다."}
+              {!clientId || mapError ? MAP_UNAVAILABLE : MAP_LOADING}
             </p>
             {isEmpty && emptyHint ? (
               <p className="max-w-xs text-xs text-ink-subtle">{emptyHint}</p>
@@ -281,8 +286,11 @@ export function MapPanel({
       </div>
 
       {isEmpty ? (
-        <p className="text-sm text-ink-subtle">{emptyMessage}</p>
-      ) : (
+        // emptyHint 는 지도 위(또는 플레이스홀더)에 이미 보인다 — 같은 문장을 두 번 찍지 않는다.
+        emptyHint ? null : (
+          <p className="text-sm text-ink-subtle">{MAP_EMPTY_LIST}</p>
+        )
+      ) : !hideList ? (
         <ul className="max-h-48 space-y-2 overflow-y-auto sm:max-h-56">
           {academies.map((a) => (
             <li key={a.id}>
@@ -312,7 +320,7 @@ export function MapPanel({
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }

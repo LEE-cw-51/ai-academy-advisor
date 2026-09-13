@@ -33,7 +33,7 @@ export function SituationCard({
       <p className="break-keep text-sm leading-relaxed text-ink-muted">
         {body}
       </p>
-      <span className="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-semibold text-brand-dark group-hover:text-ink">
+      <span className="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-semibold text-ink underline-offset-2 group-hover:underline">
         {ctaLabel}
         <span aria-hidden>→</span>
       </span>

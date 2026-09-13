@@ -11,10 +11,10 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 /** `/` 전용 기본값. `/check`·`/checklists`·`/privacy`는 각 page.tsx가 덮어쓴다.
- *  메인이 상황 분기 페이지가 되며(2026-08-19) 검색·공유 미리보기도 특정 도구 하나가
- *  아니라 두 상황을 함께 말한다. */
+ *  메인이 `/app`(후보·상담 질문 정리) 주 CTA로 시작하게 되며(2026-09-13) 제목은
+ *  "선택 가이드"가 아니라 "알아보기"로 맞춘다. 설명은 주 과업과 보조 퍼널을 함께 말한다. */
 export const metadata: Metadata = {
-  title: "하남 미사 학원 선택 가이드 | 학원콕",
+  title: "하남 미사 학원 알아보기 | 학원콕",
   description: META_DESCRIPTION,
 };
 

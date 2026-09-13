@@ -1,8 +1,12 @@
-"""/app 탐색 흐름 카피·계약이 2026-08-21 제품 언어·2026-09-08 표현 원칙과 어긋나지 않는지 검사한다.
+"""/app 탐색 흐름 카피·계약이 2026-08-21 제품 언어·2026-09-08 표현 원칙·2026-09-13 첫 MVP
+제품 정의와 어긋나지 않는지 검사한다.
 
-표현 원칙(docs/decision-log.md 2026-09-08): 검색창은 학원명·주소·전화만 약속한다,
-카드는 사실 먼저·AI 이유는 나중, 태그는 상담 질문 힌트일 뿐 후보 조건이 아니다.
-한 흐름: 마운트 시 전체 fetch 없음, 짧은 폼·글자 제출, 제출 후 조건 요약으로 접기.
+표현 원칙(docs/decision-log.md 2026-09-08 · 2026-09-13): 검색창은 학원명·주소·전화만
+약속한다, 카드는 이름 → 배지 → 왜 이 후보인지 → 확인일 → 다음 행동이고 근거는 토글 뒤,
+태그는 상담 질문 힌트일 뿐 후보 조건이 아니다.
+한 흐름(2026-09-13): 상황 입력 → 후보 → 상담 질문 → 후보 위치. 제출·검색 전에는 지도를
+그리지 않는다(대기 모드 없음). 키워드 검색은 '이미 알고 있는 학원 찾기' 토글 뒤의 보조다.
+마운트 시 전체 fetch 없음, 짧은 폼·글자 제출, 제출 후 조건 요약으로 접기는 그대로다.
 """
 
 import re
@@ -19,12 +23,17 @@ LANDING_FOOTER = (
 LANDING_FACTS = (
     REPO_ROOT / "frontend" / "src" / "components" / "landing" / "landingFacts.ts"
 )
+LANDING_PAGE = (
+    REPO_ROOT / "frontend" / "src" / "components" / "landing" / "LandingPage.tsx"
+)
 
 CHAT_PANEL = APP / "ChatPanel.tsx"
 REC_CARD = APP / "RecommendationCard.tsx"
 APP_SHELL = APP / "AppShell.tsx"
 EXPLORE_COPY = APP / "exploreCopy.ts"
 DETAIL_MODAL = APP / "AcademyDetailModal.tsx"
+MAP_PANEL = APP / "MapPanel.tsx"
+APP_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "app" / "page.tsx"
 API_TS = LIB / "api.ts"
 TYPES_TS = LIB / "types.ts"
 
@@ -33,7 +42,22 @@ BANNED_RESULT_COPY = (
     "가장 맞는 학원",
     "교육비 대비 우수",
     "AI 학원 추천",
+    # 2026-09-13 — 순위·적합성 확정·출시 후 약속도 학부모 화면에 두지 않는다.
+    "AI 추천",
+    "1순위",
+    "2순위",
+    "3순위",
+    "우리 아이에게 맞는",
+    "정식 출시 후 제공",
 )
+
+
+def _strip_comments(text: str) -> str:
+    """`/** ... */`·`// ...` 주석을 지운다. exploreCopy 머리말처럼 '무엇을 쓰지 않는지'
+    설명하는 주석(확정 추천·별점…)을 위반으로 오탐하지 않게 — 실제 카피·코드만 검사한다.
+    tests/test_landing_copy.py 의 것과 같다 (테스트 모듈끼리는 import하지 않는다)."""
+    without_block = re.sub(r"/\*[\s\S]*?\*/", "", text)
+    return re.sub(r"//[^\n]*", "", without_block)
 
 
 def component_jsx(chat: str) -> str:
@@ -97,26 +121,34 @@ def test_explore_copy_uses_candidate_not_recommendation_language():
     card = REC_CARD.read_text(encoding="utf-8")
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     shell = APP_SHELL.read_text(encoding="utf-8")
+    map_panel = MAP_PANEL.read_text(encoding="utf-8")
+    modal = DETAIL_MODAL.read_text(encoding="utf-8")
 
-    assert 'CANDIDATE_BADGE = "후보 정보"' in copy
+    assert 'CANDIDATES_HEADING = "지금 조건으로 확인해 볼 후보예요"' in copy
+    assert 'SUBMIT_LABEL = "후보와 질문 정리하기"' in copy
     assert 'WHY_CANDIDATE_HEADING = "왜 이 후보를 보여드렸나요?"' in copy
     assert 'ASK_AT_CONSULTATION_HEADING = "상담에서 확인할 점"' in copy
     assert 'UNVERIFIED_FIELDS_LABEL = "아직 확인하지 못한 항목"' in copy
-    assert "CANDIDATE_BADGE" in card
+    # 신뢰 문구는 랜딩(`/`)과 `/app`이 같은 상수를 쓴다 — 두 모듈에 복제하지 않는다.
+    assert "TRUST_NOTE" in copy
+    assert "TRUST_NOTE" in chat
     assert "WHY_CANDIDATE_HEADING" in card
     assert "QUESTIONS_HEADING" in chat
     assert "CANDIDATES_HEADING" in chat
     assert "SUBJECT_FORM_HELPER" in chat
     assert "SUBJECT_HELPER" in chat
 
+    # 주석은 뺀다 — exploreCopy 머리말이 '확정 추천을 쓰지 않는다'고 적는 것은 위반이 아니다.
     for banned in BANNED_RESULT_COPY:
         for path, text in (
             ("exploreCopy.ts", copy),
             ("RecommendationCard.tsx", card),
             ("ChatPanel.tsx", chat),
             ("AppShell.tsx", shell),
+            ("MapPanel.tsx", map_panel),
+            ("AcademyDetailModal.tsx", modal),
         ):
-            assert banned not in text, f"{banned!r} found in {path}"
+            assert banned not in _strip_comments(text), f"{banned!r} found in {path}"
 
 
 def test_subject_detail_input_and_badges():
@@ -156,10 +188,11 @@ def test_score_is_not_rendered_as_stars_percent_or_trust():
         APP / "MapPanel.tsx",
     ]
     for path in app_files:
-        text = path.read_text(encoding="utf-8")
+        # 주석은 뺀다 — exploreCopy 머리말은 '별점을 쓰지 않는다'고 적는다.
+        text = _strip_comments(path.read_text(encoding="utf-8"))
         assert "item.score" not in text, f"score rendered in {path.name}"
-        assert "별점" not in text
-        assert "신뢰도" not in text
+        assert "별점" not in text, f"별점 in {path.name}"
+        assert "신뢰도" not in text, f"신뢰도 in {path.name}"
         assert "evidence_reviews[0].rating" not in text
         assert "review.rating" not in text
 
@@ -175,14 +208,19 @@ def test_app_shell_chrome_does_not_block_explore_as_coming_soon():
     assert "결제" in copy
 
 
-def test_landing_keeps_funnel_ctas_without_app_footer_link():
-    """상황 카드는 /checklists·/check 유지. `/app` 푸터 링크는 두지 않는다."""
+def test_landing_hero_links_to_app_and_keeps_funnel_ctas():
+    """메인 주 CTA 는 `/app`(2026-09-13). 상황 카드는 /checklists·/check 를 그대로 두고,
+    푸터에는 `/app` 링크를 두지 않는다 — 주 CTA는 히어로 하나로 충분하다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
+    page = LANDING_PAGE.read_text(encoding="utf-8")
     footer = LANDING_FOOTER.read_text(encoding="utf-8")
 
+    assert 'HOME_CTA_HREF = "/app"' in facts
+    assert 'HOME_CTA_LABEL = "후보와 질문 정리하기"' in facts
     assert 'href: "/checklists"' in facts
     assert 'href: "/check"' in facts
-    assert 'href: "/app"' not in facts
+    assert "href={HOME_CTA_HREF}" in page
+    assert "HOME_CTA_LABEL" in page
     assert 'href="/app"' not in footer
     assert "APP_EXPLORE_LINK_LABEL" not in footer
     assert "APP_EXPLORE_LINK_LABEL" not in facts
@@ -285,19 +323,37 @@ def test_map_list_card_shows_phone_and_opens_canonical_detail():
     assert "blog_url" in detail_block
 
 
-def test_candidate_card_shows_facts_before_ai_reason():
-    """카드는 이름 → 과목 배지 → 주소·전화 → 확인일 → AI 이유 순. 미확인 나열·고정 3문항은
-    카드에 두지 않는다 (왼쪽 상담 질문·상세 모달과 중복)."""
+def test_candidate_card_reads_why_then_verified_then_actions():
+    """카드 첫 화면은 이름 → 과목 배지 → 왜 이 후보인지 → 확인일 → 다음 행동(전화·길찾기)
+    (2026-09-13). 확인된 조건·다른 점·리뷰 스니펫은 '근거 더 보기' 토글 뒤에 둔다 —
+    투명성 필드는 계속 그리되 첫 시선을 차지하지 않게. '후보 정보' 배지·미확인 나열·
+    고정 3문항은 카드에 두지 않는다 (왼쪽 상담 질문·상세 모달과 중복)."""
     card = REC_CARD.read_text(encoding="utf-8")
-    map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
+    map_panel = MAP_PANEL.read_text(encoding="utf-8")
+
+    # 토글 state 가 있으니 클라이언트 컴포넌트다 — BOM 없이 첫 줄.
+    assert card.startswith('"use client"')
 
     jsx = rec_card_jsx(card)
-    facts_at = jsx.index("subjects.map")  # 과목 배지 (있을 때만)
-    verified_at = jsx.index("VERIFIED_AT_LABEL")
+    badges_at = jsx.index("subjects.map")  # 과목 배지 (있을 때만)
     reason_at = jsx.index("WHY_CANDIDATE_HEADING")
-    assert facts_at < verified_at < reason_at
+    verified_at = jsx.index("VERIFIED_AT_LABEL")
+    actions_at = jsx.index('onTrack?.("phone")')
+    assert badges_at < reason_at < verified_at < actions_at
+
+    # 근거 토글 — 접근성 상태·라벨과, 그 뒤에 남는 투명성 필드.
+    assert "aria-expanded" in jsx
+    assert "EVIDENCE_TOGGLE_LABEL" in jsx
+    # 토글·행 표시는 원본 키 배열이 아니라 conditionLabel 을 거친 라벨 배열로 판단한다 —
+    # 모르는 키만 있으면 "확인된 조건:" 뒤가 비는 채로 토글이 열리기 때문이다.
+    assert "matchedLabels" in jsx
+    assert "conflictLabels" in jsx
+    assert "matched_conditions.map(conditionLabel)" in card
+    assert "conflicts.map(conditionLabel)" in card
+    assert "REVIEW_EVIDENCE_HEADING" in jsx
 
     assert "unknown_conditions" not in jsx
+    assert "CANDIDATE_BADGE" not in card
     assert "ASK_AT_CONSULTATION_HEADING" not in card
     assert "ASK_AT_CONSULTATION_ITEMS" not in card
     # 확인된 과목이 있는 행만 배지 — 지도 목록도 같은 규칙.
@@ -379,6 +435,53 @@ def test_subject_helpers_split_form_and_results():
     assert "SUBJECT_HELPER" in candidates_block
 
 
+def test_results_show_candidates_before_questions():
+    """결과는 후보 → 상담 질문 순 (2026-09-13). 후보가 주 산출물이고 질문은 그 후보와
+    함께 들고 갈 것이라 뒤에 온다. 후보 5건은 백엔드에 그대로 청하고 화면에서 자르지
+    않는다. 옛 EMPTY_RESULTS 는 NO_CANDIDATES(+검색 힌트)로 대체됐다."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    jsx = component_jsx(chat)
+
+    assert jsx.index("{CANDIDATES_HEADING}") < jsx.index("{QUESTIONS_HEADING}")
+    assert "requestAiRecommendations(trimmed, 5)" in chat
+    assert "items.slice(" not in chat
+    assert "EMPTY_RESULTS" not in chat
+    assert "EMPTY_RESULTS" not in copy
+
+
+def test_state_copy_is_user_facing_with_next_action():
+    """로딩·실패·0건 문구는 학부모가 읽는 말이고 다음 행동이 바로 보인다. 'API 서버'·
+    환경변수 같은 개발자 문장은 화면에 두지 않는다 (frontend/README.md 몫)."""
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    map_panel = MAP_PANEL.read_text(encoding="utf-8")
+
+    assert "API 서버" not in copy
+    assert 'RETRY_LABEL = "다시 보내기"' in copy
+    assert 'LOADING_LABEL = "후보와 질문을 정리하는 중…"' in copy
+    assert "NO_CANDIDATES" in copy
+    assert "RETRY_LABEL" in chat
+    assert "NO_CANDIDATES_SEARCH_HINT" in chat
+    assert 'aria-live="polite"' in chat
+    # 지도 키가 없거나 스크립트가 실패해도 목록·길찾기는 그대로 — 환경변수 안내는 주석까지만.
+    assert "MAP_UNAVAILABLE" in map_panel
+    assert "NEXT_PUBLIC_NAVER_MAP_CLIENT_ID를 설정하면" not in _strip_comments(map_panel)
+
+
+def test_app_page_has_h1_and_title():
+    """`/app`에도 h1 과 문서 제목이 있어야 한다 — 없으면 탭·공유·스크린리더가 페이지를
+    이름 없이 만난다. 색인은 계속 막는다 (noindex)."""
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+    page = APP_PAGE.read_text(encoding="utf-8")
+
+    assert '<h1 id="explore-heading"' in chat
+    assert "FORM_HEADING" in chat
+    assert "title:" in page
+    assert "robots" in page
+    assert "index: false" in page
+
+
 def test_back_to_candidates_skips_full_list_refetch():
     """검색 해제(후보로 돌아가기·검색 지우기)는 GET /academies를 다시 치지 않는다."""
     shell = APP_SHELL.read_text(encoding="utf-8")
@@ -441,9 +544,8 @@ def test_decision_log_records_expression_principles():
 
 
 def test_app_shell_does_not_fetch_all_academies_on_mount():
-    """제출 전 빈 지도 — 마운트 시 useEffect로 전체 GET /academies를 치지 않는다."""
+    """제출 전 지도 없음 — 마운트 시 useEffect로 전체 GET /academies를 치지 않는다."""
     shell = APP_SHELL.read_text(encoding="utf-8")
-    copy = EXPLORE_COPY.read_text(encoding="utf-8")
 
     # useEffect 자체는 금지하지 않는다 — 포커스 관리·리사이즈처럼 정당한 용도가 있고,
     # 금지해 봐야 useLayoutEffect·데이터 훅으로 쓴 진짜 마운트 fetch 는 통과한다.
@@ -462,8 +564,6 @@ def test_app_shell_does_not_fetch_all_academies_on_mount():
     )
     assert "void runSearch(searchInput)" in submit
     assert 'runSearch("")' not in shell
-    assert "MAP_EMPTY_HINT" in shell
-    assert "조건을 보내면 후보 위치가 여기에 표시됩니다" in copy
     assert "fetchAllAcademies({ q })" in shell
 
 
@@ -514,7 +614,7 @@ def test_short_form_hides_optional_fields_and_shows_text_submit():
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
     jsx = component_jsx(chat)
 
-    assert 'SUBMIT_LABEL = "질문과 후보 정보 보기"' in copy
+    assert 'SUBMIT_LABEL = "후보와 질문 정리하기"' in copy
     assert "{loading ? LOADING_LABEL : SUBMIT_LABEL}" in chat
     assert "SendIcon" not in chat
     assert "aria-label={SUBMIT_LABEL}" not in chat
@@ -616,7 +716,7 @@ def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
     assert 'relaxed.join(", ")' not in chat
     assert "RELAXED_HEADING" in chat
     assert "relaxedNotes" in chat
-    assert 'RELAXED_HEADING = "조건을 조금 넓혀 찾은 후보 정보예요."' in copy
+    assert 'RELAXED_HEADING = "조건을 조금 넓혀 찾은 후보예요."' in copy
 
     notes = copy.split("RELAXED_NOTES: Record<string, string> = {", 1)[1].split(
         "};", 1
@@ -671,36 +771,57 @@ def test_empty_search_and_clear_share_candidate_pin_restore():
     assert 'runSearch("")' not in shell
 
 
-def test_map_mode_uses_has_explored_so_idle_hint_stays_pre_submit():
-    """상황 제출 뒤(로딩·후보 0건 포함) mapMode 는 candidates 다.
-    MAP_EMPTY_HINT('조건을 보내면…')는 idle 에만 묶인다."""
+def test_map_renders_only_after_explore_or_search():
+    """제출·검색 전에는 지도를 그리지 않는다 — 입력이 주인공이다 (2026-09-13).
+    MapMode 는 candidates·search 둘뿐이고, 제출 뒤(로딩·후보 0건 포함) 검색 중이 아니면
+    candidates 다. 후보 0건 안내는 MAP_EMPTY_CANDIDATES, 옛 대기 힌트(MAP_EMPTY_HINT ·
+    '조건을 보내면…')는 없다. 키워드 검색창은 토글 뒤에 접혀 있다."""
     shell = APP_SHELL.read_text(encoding="utf-8")
-
-    mode = slice_between(shell, "const mapMode: MapMode =", ";")
-    assert "hasExplored" in mode
-    assert "hasCandidates" in mode
-    assert "activeQuery" in mode
-
-    empty_hint = slice_between(shell, "emptyHint={", "}")
-    assert 'mapMode === "idle"' in empty_hint
-    assert "MAP_EMPTY_HINT" in empty_hint
-
-
-def test_map_headings_distinguish_all_three_modes():
-    """MapMode 3상태를 만들었으면 헤딩도 셋이 달라야 한다. 제출 전(idle)에
-    '후보 위치'라고 하면 아직 없는 후보를 약속한다 (2026-09-08 헤딩 결정)."""
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
 
-    assert 'MAP_HEADING_IDLE = "하남 미사 학원"' in copy
+    assert 'type MapMode = "candidates" | "search"' in shell
+    mode = slice_between(shell, "const mapMode: MapMode =", ";")
+    assert "activeQuery" in mode
+    assert "idle" not in mode
+    assert "hasExplored" not in mode
+
+    # 조건부 렌더 — 제출했거나 검색 중일 때만 MapPanel 이 트리에 올라간다.
+    assert "hasExplored || activeQuery" in shell
+    assert "<MapPanel" in shell
+    # 후보 모드는 왼쪽 카드가 목록이라 지도 아래 목록을 감춘다.
+    assert 'hideList={mapMode === "candidates"}' in shell
+    assert "MAP_EMPTY_CANDIDATES" in shell
+    assert "MAP_EMPTY_HINT" not in shell
+    assert "MAP_HEADING_IDLE" not in shell
+    assert "MAP_EMPTY_HINT" not in copy
+    assert "조건을 보내면 후보 위치가 여기에 표시됩니다" not in copy
+
+    # 키워드 검색은 토글 뒤의 보조 — 기본 화면에 검색창을 펼쳐 두지 않고,
+    # 검색 해제가 토글도 닫는다.
+    assert "SEARCH_MODE_LABEL" in shell
+    assert "const [searchOpen, setSearchOpen] = useState(false)" in shell
+    assert "aria-expanded={searchOpen}" in shell
+    clear = slice_between(
+        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
+    )
+    assert "setSearchOpen(false)" in clear
+
+
+def test_map_headings_distinguish_candidates_and_search():
+    """지도는 제출·검색 뒤에만 그리므로 대기(idle) 헤딩은 없다 (2026-09-13). 남은 두 모드
+    후보·검색은 헤딩이 서로 달라야 지금 지도가 무엇을 보여 주는지 읽힌다."""
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+
     assert 'MAP_HEADING_CANDIDATES = "후보 위치"' in copy
     assert 'MAP_HEADING_SEARCH = "검색 결과"' in copy
+    assert "MAP_HEADING_IDLE" not in copy
 
     headings = {
         line.split("= ", 1)[1]
         for line in copy.splitlines()
         if line.startswith("export const MAP_HEADING_")
     }
-    assert len(headings) == 3
+    assert len(headings) == 2
 
 
 def test_clickable_cards_are_keyboard_reachable():

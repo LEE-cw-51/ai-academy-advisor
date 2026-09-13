@@ -32,5 +32,5 @@ cd backend && uv run pytest ../tests
 cd frontend && npm run build
 ```
 
-외부 동작·데이터 규칙·기술 결정을 바꿨다면 같은 PR에서 `docs/api.md`,
-`docs/decision-log.md`도 갱신한다.
+외부 동작·데이터 규칙·기술 결정을 바꿨다면 같은 PR에서 `docs/api.md`를 갱신하고
+`docs/decisions/`에 결정 파일을 남긴다.
