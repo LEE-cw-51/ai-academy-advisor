@@ -13,7 +13,8 @@ AI끼리는 서로의 대화를 볼 수 없으므로, **저장소에 남지 않�
 ## 1. 작업 전에 훑어볼 것
 
 - `docs/roadmap.md` — 지금 어느 Phase인가
-- `docs/decision-log.md` — **이미 내려진 결정과 이유** (최신순). 여기와 충돌하는 제안을
+- `docs/decisions/` — **이미 내려진 결정과 이유** (결정당 파일 하나, 이름순이 곧 시간순).
+  2026-09-13까지는 `docs/decision-log.md`에 보관돼 있다. 여기와 충돌하는 제안을
   하려면 무엇이 바뀌어서 재검토가 필요한지 먼저 말한다
 - 손대는 범위의 문서: `docs/architecture.md` · `api.md` · `database.md` · `data-strategy.md`
 - `README.md` — 실행·배포 방법
@@ -35,12 +36,13 @@ AI끼리는 서로의 대화를 볼 수 없으므로, **저장소에 남지 않�
 
 ## 3. 결과를 어디에 남기나
 
-- **결정과 그 이유** → `docs/decision-log.md` 맨 위 (`## YYYY-MM-DD — 제목`).
+- **결정과 그 이유** → `docs/decisions/YYYY-MM-DD-slug.md` 새 파일 (형식은 `docs/decisions/README.md`).
   가장 중요한 한 가지다. 나중에 되돌리려는 사람이 이유를 알 수 있게 쓴다.
+  `docs/decision-log.md`는 2026-09-13까지의 보관본이라 새 항목을 추가하지 않는다.
 - **외부 동작(엔드포인트·응답) 변경** → `docs/api.md`
 - **제품 정의·범위 / Phase 진행** → `docs/project.md` · `docs/roadmap.md`
 - **작업 인계** → PR 본문
-- **조사 결과** → Issue 또는 `docs/` 문서 + decision-log 링크
+- **조사 결과** → Issue 또는 `docs/` 문서 + 관련 결정 파일 링크
 
 새 문서를 만들기 전에 기존 문서 갱신으로 되는지 먼저 본다. 세션 안에서만 유효한 내용은 남기지 않는다.
 
@@ -83,7 +85,7 @@ AI 구성요소(LLM·임베딩·벡터)는 `app/providers/`의 Protocol 뒤에�
 ## 7. 이건 지키자 (뒤에 이유가 있는 것들)
 
 대부분은 유연하게 가되, 아래는 **실제로 버그가 났거나 데이터 신뢰를 깨는 지점**이라
-바꾸려면 decision-log를 먼저 읽고 근거를 대자.
+바꾸려면 `docs/decisions/`와 `docs/decision-log.md`를 먼저 읽고 근거를 대자.
 
 **데이터** — 운영 정본은 Supabase Postgres `academies` 테이블이고 Founder는 Studio Table
 Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프이며 git 이력은 참고용이다.

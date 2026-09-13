@@ -71,7 +71,7 @@ MVP 단계다. 확장성보다 명확한 구조와 유지보수성을 우선한�
 
 자유 대화형 채팅 및 SSE 스트리밍 채팅(`POST /chat`)은 구현 완료 또는 첫 MVP의 기본 범위로 간주하지 않는다. 로그인/인증(JWT), 관리자 페이지, LlamaIndex 기반 RAG 엔진, LLM 기반 의도 분석도 현재 구현 완료로 보지 않는다.
 
-Phase별 진행 상황은 [roadmap.md](roadmap.md), 이미 내려진 결정은 [decision-log.md](decision-log.md)를 참고한다.
+Phase별 진행 상황은 [roadmap.md](roadmap.md), 이미 내려진 결정은 [decisions/](decisions/)(2026-09-13까지는 [decision-log.md](decision-log.md))를 참고한다.
 
 ## 단계적 수익화
 
