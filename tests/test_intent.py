@@ -23,6 +23,16 @@ def test_parse_class_type_and_budget():
     req = parse_intent("1:1 관리, 30만원 이하", 3)
     assert req.class_type == ClassType.ONE_ON_ONE
     assert req.budget_max == 300_000
+    assert parse_intent("50만 원", 3).budget_max == 500_000
+
+
+def test_parse_budget_ignores_grade_only_man():
+    """`고3만 모집`의 `만`은 금액이 아니다 — `원`이 있어야 예산으로 본다."""
+    req = parse_intent("고3만 모집", 3)
+    assert req.budget_max is None
+    assert req.level == SchoolLevel.HIGH
+    assert parse_intent("중2만 모집", 3).budget_max is None
+    assert parse_intent("30만 이하", 3).budget_max is None
 
 
 def test_parse_curriculum_variants():

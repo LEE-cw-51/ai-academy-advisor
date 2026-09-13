@@ -2,6 +2,33 @@
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 
+## 2026-09-13 — 리뷰 수정 병렬 배치 (P1+P2·문서 소정리)
+
+- **계기**: 코드 리뷰 P1+P2와 P3 문서·leftover를 파일 소유권이 겹치지 않는 4
+  스트림(W1 수집 · W2 랭킹 · W3 프론트 · W4 가드/문서)으로 병렬 반영한 뒤 통합
+  검증했다.
+- **프론트·광고 안전**: 랜딩 푸터에서 `/app` 링크를 다시 제거하고 「추천」 톤을
+  후보/가이드 카피로 맞췄다 (2026-08-15 광고 안전 유지). 미리보기·`/check` 메타·
+  준비중 카피도 같은 톤. `conditionLabel` 미지 키는 숨기고 빈 라벨은 join 전에
+  걸러 blank slot을 막는다. `ChatPanel`은 searchSeq로 stale overwrite를 막는다.
+- **수집 정밀도**: trait matcher `_JOSA`에서 1글자 `고`/`인` 오탐을 막고
+  (`선행고등학교`·`수능인강` 등), 리뷰 귀속은 경계·더 긴 등록명 우선으로
+  시드 충돌 쌍을 회귀 테스트한다. Founder 승인 `--purge-candidates` 재적재는
+  **이번 패치에서 실행하지 않음** (운영 후속).
+- **랭킹·임베딩**: intent 예산은 `만원`/`만 원` 위주(`고3만` 제외). `region` LIKE는
+  hard/soft 공통 escape. OpenAI 임베딩도 HF와 같이 dim/count 불일치를 거부한다.
+- **Engagement RL**: waitlist와 같이 클라이언트 조작 가능한 `X-Forwarded-For` 첫
+  hop을 신뢰하지 않는다. `/events`·`/feedback`이 waitlist와 같은 인메모리 IP
+  한도를 공유한다.
+- **Import/export 가드**: URL에 `supabase`/`pooler.supabase`가 있으면 localhost여도
+  remote(ops)로 보고 `--force`/`ALLOW_ACADEMY_IMPORT`가 필요하다. import dry-run은
+  Studio `website_url` CHECK와 맞춘다. export orphan 삭제는 `--prune` opt-in.
+  rollback CLI는 dirty website_url을 raw로 읽고 정리본만 스키마 검증한다.
+- **문서·leftover**: api.md 임베딩=HF/BGE-M3(OpenAI 폴백), waitlist 409,
+  database.md `subject_detail`, roadmap/architecture 고어·RagEngine 정리.
+  `railway.json` 제거, `tmp_audit_out/` gitignore.
+- **검증**: `pytest` 476 passed / 3 skipped; `frontend` `npm run build` 성공.
+
 ## 2026-09-12 — 임베딩은 BGE-M3 + HuggingFace (Groq에는 임베딩 모델이 없다)
 
 - **계기**: Stage 2가 `OPENAI_API_KEY` 때문에 막혀 있고, 이미 있는 Groq으로 대체할 수

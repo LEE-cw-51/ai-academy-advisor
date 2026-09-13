@@ -203,6 +203,48 @@ def test_openai_embedding_provider_raises_on_http_error(monkeypatch):
         embedder.embed(["hi"])
 
 
+def test_openai_embedding_provider_raises_on_dimension_mismatch(monkeypatch):
+    """차원이 틀리면 죽어야 한다 — SQLite는 길이가 틀린 벡터도 그대로 받는다."""
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=200,
+            json={"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    embedder = OpenAIEmbeddingProvider(
+        api_key="test-key",
+        model="text-embedding-3-small",
+        base_url="https://api.openai.com/v1",
+        dim=2,
+    )
+    with pytest.raises(ValueError, match="차원 불일치"):
+        embedder.embed(["hi"])
+
+
+def test_openai_embedding_provider_raises_on_count_mismatch(monkeypatch):
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return httpx.Response(
+            status_code=200,
+            json={"data": [{"index": 0, "embedding": [0.0, 0.1]}]},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    embedder = OpenAIEmbeddingProvider(
+        api_key="test-key",
+        model="text-embedding-3-small",
+        base_url="https://api.openai.com/v1",
+        dim=2,
+    )
+    with pytest.raises(ValueError, match="결과 수 불일치"):
+        embedder.embed(["하나", "둘"])
+
+
 # --- HuggingFace 임베딩 (BGE-M3). Groq은 임베딩 모델이 없어 이쪽으로 간다. ---
 
 _HF_URL = (

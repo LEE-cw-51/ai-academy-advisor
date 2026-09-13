@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.constants import ClassType, CurriculumType, SchoolLevel
+from app.core.studio_guards import website_url_pass_db_check
 from app.core.subjects import normalize_subject_detail, normalize_subjects
 
 _STRING_FIELDS = (
@@ -76,6 +77,17 @@ class AcademyRecord(BaseModel):
         if any(item == "" for item in cleaned):
             raise ValueError("subjects에 빈 문자열이 있습니다")
         return normalize_subjects(cleaned)
+
+    @field_validator("website_url")
+    @classmethod
+    def _check_website_url(cls, value: str | None) -> str | None:
+        """Import dry-run이 Studio `ck_academies_website_not_social`과 맞도록."""
+        if value is not None and not website_url_pass_db_check(value):
+            raise ValueError(
+                "website_url이 Studio CHECK(ck_academies_website_not_social)에 "
+                "맞지 않습니다 (소셜·플레이스·카페·블로그 호스트 거부)"
+            )
+        return value
 
     @model_validator(mode="after")
     def _check_subject_detail(self) -> "AcademyRecord":

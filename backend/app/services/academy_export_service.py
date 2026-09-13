@@ -18,6 +18,7 @@ _RECORD_FIELDS = tuple(AcademyRecord.model_fields.keys())
 class ExportReport:
     written: int = 0
     skipped: int = 0
+    pruned: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -40,11 +41,12 @@ def _file_name_for(row) -> str:
     return f"academy-{slug}.json"
 
 
-def export_records(db: Session, directory: Path) -> ExportReport:
+def export_records(
+    db: Session, directory: Path, *, prune: bool = False
+) -> ExportReport:
     """DB academies 행을 JSON 파일로 덤프한다.
 
-    같은 경로를 재export할 때 DB에 없는 orphan `*.json`을 남기지 않도록,
-    이번 실행에서 성공적으로 쓴 파일 집합 밖의 `*.json`은 삭제한다.
+    기본은 덮어쓰기만 한다. orphan `*.json` 삭제는 `prune=True`(`--prune`)일 때만.
     """
     report = ExportReport()
     directory.mkdir(parents=True, exist_ok=True)
@@ -65,7 +67,9 @@ def export_records(db: Session, directory: Path) -> ExportReport:
             report.errors.append(f"id={row.id} name={row.name}: {exc}")
             report.skipped += 1
 
-    for stale in directory.glob("*.json"):
-        if stale.name not in written_names:
-            stale.unlink()
+    if prune:
+        for stale in directory.glob("*.json"):
+            if stale.name not in written_names:
+                stale.unlink()
+                report.pruned += 1
     return report

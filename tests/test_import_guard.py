@@ -44,6 +44,25 @@ def test_operational_database_urls_blocked(url: str):
     assert "Studio" in reason
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+psycopg://postgres.abc:pass@127.0.0.1:5432/postgres?host=db.abcdef.supabase.co",
+        "postgresql://postgres:pass@localhost:5432/postgres#pooler.supabase.com",
+        "postgresql+psycopg://postgres:pass@0.0.0.0:5432/postgres?application_name=supabase-tunnel",
+    ],
+)
+def test_supabase_tunnel_urls_require_force(url: str):
+    """URL에 supabase/pooler.supabase가 있으면 localhost여도 운영으로 본다."""
+    assert is_operational_database_url(url)
+    assert not is_local_database_url(url)
+    allowed, reason = academy_import_allowed(url)
+    assert not allowed
+    assert "Studio" in reason
+    forced, _ = academy_import_allowed(url, force=True)
+    assert forced
+
+
 def test_force_allows_operational(monkeypatch):
     url = "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
     allowed, _ = academy_import_allowed(url, force=True)

@@ -175,18 +175,19 @@ def test_app_shell_chrome_does_not_block_explore_as_coming_soon():
     assert "결제" in copy
 
 
-def test_landing_keeps_funnel_ctas_and_adds_minimum_app_entry():
-    """상황 카드는 /checklists·/check 유지. /app 진입은 푸터 링크만."""
+def test_landing_keeps_funnel_ctas_without_app_footer_link():
+    """상황 카드는 /checklists·/check 유지. `/app` 푸터 링크는 두지 않는다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     footer = LANDING_FOOTER.read_text(encoding="utf-8")
 
     assert 'href: "/checklists"' in facts
     assert 'href: "/check"' in facts
     assert 'href: "/app"' not in facts
-    assert 'href="/app"' in footer
-    assert "APP_EXPLORE_LINK_LABEL" in footer
-    assert "APP_EXPLORE_LINK_LABEL" in facts
+    assert 'href="/app"' not in footer
+    assert "APP_EXPLORE_LINK_LABEL" not in footer
+    assert "APP_EXPLORE_LINK_LABEL" not in facts
     assert "daangn" not in footer.lower()
+    assert "AI 학원 추천" not in footer
 
 
 def test_consultation_form_maps_required_api_fields():
@@ -482,6 +483,29 @@ def test_search_responses_are_sequence_guarded():
     assert "if (seq === searchSeq.current) setSearching(false);" in shell
     # 검색 해제도 진행 중인 요청을 무효화한다.
     assert "searchSeq.current += 1;" in shell.split("const onSearchClear", 1)[1]
+
+
+def test_explore_query_responses_are_sequence_guarded():
+    """상황 제출 더블클릭·Enter 연타 뒤 늦게 온 응답이 상태를 덮으면 안 된다.
+
+    AppShell searchSeq 와 같이 요청 시작 시 번호를 올리고, 반영·finally 전에 최신인지 본다.
+    """
+    chat = CHAT_PANEL.read_text(encoding="utf-8")
+
+    assert "useRef" in chat
+    assert "const querySeq = useRef(0)" in chat
+    run_query = chat.split("async function runQuery()", 1)[1]
+    assert "const seq = ++querySeq.current" in run_query
+    assert "if (seq !== querySeq.current) return;" in run_query
+    assert "if (seq === querySeq.current) setLoading(false);" in run_query
+
+
+def test_condition_label_hides_unknown_backend_keys():
+    """모르는 필터 키는 raw 로 새지 않는다 — `?? key` 폴백 금지."""
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    fn = slice_between(copy, "export function conditionLabel", "\n}")
+    assert "?? key" not in fn
+    assert '?? ""' in fn
 
 
 def test_short_form_hides_optional_fields_and_shows_text_submit():

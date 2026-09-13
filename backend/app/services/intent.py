@@ -31,8 +31,9 @@ _CLASS_TYPE_KEYWORDS = {
     "그룹": ClassType.GROUP,
 }
 
-# "300만"/"30만원" 형태의 예산 상한 (단위: 만원)
-_BUDGET_PATTERN = re.compile(r"(\d+)\s*만")
+# "30만원"/"50만 원" 형태의 예산 상한. `만`만으로는 `고3만 모집` 같은
+# 학년·모집 표현을 금액으로 오인하므로 `원`을 요구한다.
+_BUDGET_PATTERN = re.compile(r"(\d+)\s*만\s*원")
 
 
 def _parse_level(query: str) -> SchoolLevel | None:

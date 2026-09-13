@@ -21,11 +21,23 @@ def _normalized_host(database_url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
 
+def _looks_like_supabase(database_url: str) -> bool:
+    """호스트가 localhost여도 URL에 Supabase 표식이 있으면 운영으로 본다.
+
+    SSH/로컬 터널로 pooler·직접 접속을 우회할 때 hostname만으로는 로컬로
+    오인되므로, `supabase` / `pooler.supabase` 부분 문자열을 본다.
+    """
+    lowered = database_url.lower()
+    return "supabase" in lowered or "pooler.supabase" in lowered
+
+
 def is_local_database_url(database_url: str) -> bool:
     """로컬·테스트 DB — JSON→DB sync가 기본 허용된다."""
     lowered = database_url.lower()
     if "sqlite" in lowered:
         return True
+    if _looks_like_supabase(database_url):
+        return False
     return _normalized_host(database_url) in _LOCAL_HOSTS
 
 

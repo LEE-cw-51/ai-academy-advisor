@@ -13,6 +13,8 @@ RAG 파이프라인에서 유일하게 비어 있던 구간이다. 임베딩·�
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -25,6 +27,33 @@ from app.models.review import Review
 from app.providers.base import ReviewItem, ReviewSource
 
 _RAW_ENCODING = "utf-8"
+_HANGUL_CHAR = re.compile(r"[가-힣]")
+# 학원명 뒤 조사. 긴 것을 앞에 둬서 `으로`가 `로`로 잘리지 않게 한다.
+# `고`·`인` 단독은 제외 — 등록명 뒤에 `고등학교`·`인강`이 붙는 경우는 다른 단어다.
+_NAME_JOSA: tuple[str, ...] = (
+    "에서",
+    "으로",
+    "부터",
+    "까지",
+    "이랑",
+    "이나",
+    "이고",
+    "은",
+    "는",
+    "이",
+    "가",
+    "을",
+    "를",
+    "도",
+    "만",
+    "과",
+    "와",
+    "에",
+    "의",
+    "로",
+    "랑",
+    "요",
+)
 
 
 @dataclass
@@ -85,19 +114,80 @@ def build_query(academy: Academy) -> str:
     return academy.name
 
 
-def matches_academy(item: ReviewItem, academy: Academy) -> bool:
+def _is_hangul(ch: str) -> bool:
+    return bool(_HANGUL_CHAR.fullmatch(ch))
+
+
+def name_appears_with_boundary(haystack: str, name: str) -> bool:
+    """학원명이 한글 어절 경계로 등장하는지 본다.
+
+    단순 ``in`` 은 ``한수학학원`` ⊂ ``착한수학학원`` 처럼 더 긴 등록명의 일부에
+    걸려 오귀속된다. 앞이 한글이면 다른 이름의 조각으로 보고, 뒤는 비한글·조사만
+    허용한다 (`가온수학은` 은 통과, `…학원중등관` 은 거절).
+    """
+    if not name or not haystack:
+        return False
+    start = 0
+    while True:
+        idx = haystack.find(name, start)
+        if idx < 0:
+            return False
+        before_ok = idx == 0 or not _is_hangul(haystack[idx - 1])
+        if not before_ok:
+            start = idx + 1
+            continue
+        after = idx + len(name)
+        if after >= len(haystack) or not _is_hangul(haystack[after]):
+            return True
+        rest = haystack[after:]
+        for josa in _NAME_JOSA:
+            if rest.startswith(josa):
+                end = after + len(josa)
+                if end >= len(haystack) or not _is_hangul(haystack[end]):
+                    return True
+                break
+        start = idx + 1
+
+
+def matches_academy(
+    item: ReviewItem,
+    academy: Academy,
+    *,
+    registered_names: Sequence[str] | None = None,
+) -> bool:
     """항목이 이 학원의 글이 맞는지 검사한다.
 
     네이버 키워드 검색은 OR성이라 "가온수학" 질의에 같은 동네 다른 학원 글이 섞여 온다.
     **잘못 귀속된 리뷰는 없는 것보다 훨씬 나쁘다** — `evidence_by_academy` →
     `_build_reason`을 타고 사용자에게 보이는 "근거 리뷰"로 둔갑하기 때문이다.
-    그래서 학원명이 제목이나 본문에 실제로 등장할 때만 통과시킨다.
+    그래서 학원명이 제목·본문에 **경계**를 두고 등장할 때만 통과시킨다.
+
+    ``registered_names`` 가 있으면, 이 이름을 부분 문자열로 품는 **더 긴 등록명**이
+    같은 글에 경계 매칭될 때 짧은 쪽 귀속을 거절한다 (긴 이름 우선).
     """
     name = academy.name.strip()
     if not name:
         return False
     haystack = f"{item.title} {item.content}"
-    return name in haystack
+    if not name_appears_with_boundary(haystack, name):
+        return False
+    if registered_names:
+        for other in registered_names:
+            other_name = other.strip()
+            if len(other_name) <= len(name):
+                continue
+            if name not in other_name:
+                continue
+            if name_appears_with_boundary(haystack, other_name):
+                return False
+    return True
+
+
+def raw_payload_has_stub_source(
+    by_academy: Mapping[int, Sequence[ReviewItem]],
+) -> bool:
+    """``--from-raw`` 캐시에 stub 출처 항목이 있는지. 운영 DB 재처리 차단용."""
+    return any(item.source == "stub" for items in by_academy.values() for item in items)
 
 
 def _existing_urls(db: Session, academy_id: int) -> set[str]:
@@ -188,6 +278,14 @@ def ingest_reviews(
     if limit is not None:
         stmt = stmt.limit(limit)
     academies = list(db.scalars(stmt))
+    # 귀속 충돌 쌍(짧은 이름 ⊂ 긴 이름)을 긴 쪽 우선으로 거르기 위해 전체 등록명을 넘긴다.
+    # limit 이 있어도 이름 목록은 전체에서 읽는다 — 잘린 배치가 긴 이름을 모르면
+    # 짧은 쪽으로 오귀속된다.
+    registered_names = [
+        name
+        for name in db.scalars(select(Academy.name).order_by(Academy.id))
+        if name and name.strip()
+    ]
 
     for academy in academies:
         if from_raw is not None:
@@ -210,7 +308,14 @@ def ingest_reviews(
         for item in items:
             key = item.source or "unknown"
             report.by_source[key] = report.by_source.get(key, 0) + 1
-        inserted_here = _ingest_one(db, academy, items, report, dry_run=dry_run)
+        inserted_here = _ingest_one(
+            db,
+            academy,
+            items,
+            report,
+            dry_run=dry_run,
+            registered_names=registered_names,
+        )
         report.per_academy[academy.id] = inserted_here
 
     return report
@@ -223,6 +328,7 @@ def _ingest_one(
     report: IngestReport,
     *,
     dry_run: bool,
+    registered_names: Sequence[str] | None = None,
 ) -> int:
     # 중복 판정은 사전 조회로 한다. IntegrityError 를 잡는 방식은 Postgres 에서
     # 트랜잭션 전체를 abort 시켜 그 학원의 나머지 수집분까지 잃는다.
@@ -232,7 +338,9 @@ def _ingest_one(
     for item in items:
         # attributed 항목은 소스가 이미 특정 학원 페이지에서 가져온 글이라
         # 이름 사후필터를 건너뛴다 (플레이스형 소스). 그 외엔 오귀속 방지 필터.
-        if not item.attributed and not matches_academy(item, academy):
+        if not item.attributed and not matches_academy(
+            item, academy, registered_names=registered_names
+        ):
             report.skipped_unmatched += 1
             continue
         if item.url and item.url in seen:

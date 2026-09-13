@@ -35,4 +35,21 @@ class OpenAIEmbeddingProvider:
         )
         response.raise_for_status()
         data = sorted(response.json()["data"], key=lambda item: item["index"])
-        return [item["embedding"] for item in data]
+        # HF provider 와 같이 count/dim 을 여기서 막는다. SQLite(테스트)는 길이가
+        # 틀린 벡터도 받아 주므로, 잘못된 모델·dimensions 가 운영 INSERT 전까지
+        # 조용히 오염되지 않게 한다.
+        if len(data) != len(texts):
+            raise ValueError(
+                f"OpenAI 임베딩 결과 수 불일치: 입력 {len(texts)}건, 응답 {len(data)}건"
+            )
+        vectors: list[list[float]] = []
+        for item in data:
+            vector = item["embedding"]
+            if len(vector) != self._dim:
+                raise ValueError(
+                    f"OpenAI 임베딩 차원 불일치: EMBEDDING_DIM={self._dim} 인데 "
+                    f"{len(vector)}차원이 왔습니다 (model={self._model!r}). "
+                    "모델과 EMBEDDING_DIM 을 맞추세요."
+                )
+            vectors.append(vector)
+        return vectors

@@ -32,7 +32,9 @@ def subject_detail_pass_db_check(
     `subject_detail`은 `기타` 버킷의 세부 이름이므로 subjects에 `기타`가 있을 때만
     채울 수 있다. 어휘 자체는 강제하지 않는다.
     """
-    if subject_detail is None or subject_detail == "":
+    # Postgres CHECK는 NULL만 빈 값으로 허용한다. ""는 NULL이 아니므로
+    # subjects에 `기타`가 있을 때만 통과한다 (`subject_detail_check_predicate_sql`).
+    if subject_detail is None:
         return True
     return isinstance(subjects, list) and "기타" in subjects
 

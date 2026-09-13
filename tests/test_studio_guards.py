@@ -60,6 +60,10 @@ def test_subject_detail_requires_etc_bucket():
     assert subject_detail_pass_db_check(["수학"], None)
     assert not subject_detail_pass_db_check(["수학"], "피아노")
     assert not subject_detail_pass_db_check(None, "피아노")
+    # Postgres CHECK는 NULL만 빈 값 — ""는 subjects에 기타가 있어야 통과.
+    assert not subject_detail_pass_db_check(None, "")
+    assert not subject_detail_pass_db_check(["수학"], "")
+    assert subject_detail_pass_db_check(["기타"], "")
 
 
 def test_subject_detail_check_sql_shape():
@@ -75,6 +79,17 @@ def test_website_url_check_rejects_social_hosts():
     assert website_url_pass_db_check("https://example-academy.com")
     for marker in NON_HOMEPAGE_HOST_MARKERS:
         assert not website_url_pass_db_check(f"https://www.{marker}/academy")
+
+
+def test_academy_record_rejects_social_website_url():
+    """Import dry-run(AcademyRecord)이 Studio website CHECK와 맞는다."""
+    from pydantic import ValidationError
+
+    from app.schemas.academy import AcademyRecord
+
+    AcademyRecord(name="홈페이지학원", website_url="https://example-academy.com")
+    with pytest.raises(ValidationError, match="website_url|CHECK|소셜"):
+        AcademyRecord(name="인스타학원", website_url="https://www.instagram.com/x")
 
 
 def test_website_url_check_allows_host_substring_false_positives():

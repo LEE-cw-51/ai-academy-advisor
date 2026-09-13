@@ -17,7 +17,8 @@
 | address | varchar(200) | O | 주소 |
 | phone | varchar(20) | O | 전화번호 |
 | website_url / blog_url / instagram_url | varchar(300) | O | 공식 채널 URL |
-| subjects | JSON (PG: JSONB) | O | 과목 리스트. 표시 전용 — 필터 불가 |
+| subjects | JSON (PG: JSONB) | O | 과목 리스트. 표시 전용 — 필터 불가. 허용: `국어`/`영어`/`수학`/`기타` |
+| subject_detail | varchar(50) | O | `기타` 버킷의 세부 이름(예: `피아노`). subjects에 `기타`가 있을 때만 |
 | level_elementary / level_middle / level_high | boolean | O | 초/중/고 (3상태) |
 | class_small_group / class_group / class_one_on_one | boolean | O | 소수정예/그룹/1:1 (3상태) |
 | curriculum_seonhaeng / curriculum_naesin / curriculum_suneung | boolean | O | 선행/내신/수능 (3상태) |

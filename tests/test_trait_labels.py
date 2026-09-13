@@ -92,6 +92,11 @@ def test_bare_question_does_not_match_qna():
         ("건물 보강공사 중이라 시끄러워요", "보강공사"),
         ("수능시계 판매점 옆 건물", "수능시계"),
         ("과제물 배송 문의드려요", "과제물"),
+        ("선행고등학교에 다니는 아이", "선행고등학교"),
+        ("수능인강 추천", "수능인강"),
+        ("내신인강으로 공부해요", "내신인강"),
+        ("보강고등학교 근처", "보강고등학교"),
+        ("선행인강 후기", "선행인강"),
     ],
 )
 def test_bare_keyword_does_not_match_across_word_boundary(text, over_matched):
@@ -99,6 +104,7 @@ def test_bare_keyword_does_not_match_across_word_boundary(text, over_matched):
 
     한국어엔 어절 경계가 없어 부분 문자열 매칭이 존댓말 어미를 통째로 삼켰다.
     이 스니펫은 후보 카드 근거로 노출되므로 오탐은 없는 것보다 나쁘다.
+    `고`/`인` 단독 조사 허용은 `*고등학교`·`*인강` 오탐을 만든다.
     """
     assert match_labels(text) == [], over_matched
 

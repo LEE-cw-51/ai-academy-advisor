@@ -153,6 +153,152 @@ def test_item_without_academy_name_is_rejected(db_session, academy):
     assert _reviews(db_session) == []
 
 
+@pytest.mark.parametrize(
+    ("short_name", "long_name"),
+    [
+        ("한수학학원", "더(The)착한수학학원"),
+        ("피플미술학원", "미사피플미술학원"),
+        ("탑수학학원", "아이탑수학학원"),
+        ("김종인국어전문학원", "김종인국어전문학원중등관학원"),
+    ],
+)
+def test_shorter_seed_name_does_not_claim_longer_academy_review(
+    db_session, short_name, long_name
+):
+    """시드 충돌 쌍: 짧은 등록명이 긴 등록명의 부분 문자열이면 경계·긴 이름 우선."""
+    short = Academy(name=short_name, address="경기도 하남시")
+    long = Academy(name=long_name, address="경기도 하남시")
+    db_session.add_all([short, long])
+    db_session.commit()
+
+    about_long = ReviewItem(
+        title=f"{long_name} 후기",
+        content=f"{long_name} 다녀왔어요",
+        url="https://blog.example/longer",
+        source="naver_blog",
+        published_at=None,
+    )
+    assert not review_ingest_service.matches_academy(
+        about_long,
+        short,
+        registered_names=[short_name, long_name],
+    )
+    assert review_ingest_service.matches_academy(
+        about_long,
+        long,
+        registered_names=[short_name, long_name],
+    )
+
+    # 짧은 학원만 언급된 글은 짧은 쪽에만 귀속된다.
+    about_short = ReviewItem(
+        title=f"{short_name} 후기",
+        content=f"{short_name} 좋아요",
+        url="https://blog.example/shorter",
+        source="naver_blog",
+        published_at=None,
+    )
+    assert review_ingest_service.matches_academy(
+        about_short,
+        short,
+        registered_names=[short_name, long_name],
+    )
+    assert not review_ingest_service.matches_academy(
+        about_short,
+        long,
+        registered_names=[short_name, long_name],
+    )
+
+
+def test_academy_name_with_trailing_josa_still_matches(db_session, academy):
+    """본문에 조사가 붙어도 (`가온수학은`) 귀속된다."""
+    item = ReviewItem(
+        title="후기",
+        content="가온수학은 숙제가 많아요",
+        url="https://blog.example/josa",
+        source="naver_blog",
+        published_at=None,
+    )
+    assert review_ingest_service.matches_academy(item, academy)
+
+
+def test_ingest_skips_substring_collision_pair(db_session):
+    """수집 경로에서도 짧은 학원이 긴 학원 글을 가져가지 않는다."""
+    short = Academy(name="한수학학원", address="경기도 하남시")
+    long = Academy(name="더(The)착한수학학원", address="경기도 하남시")
+    db_session.add_all([short, long])
+    db_session.commit()
+
+    about_long = ReviewItem(
+        title="더(The)착한수학학원 후기",
+        content="더(The)착한수학학원 강사가 친절해요",
+        url="https://blog.example/collision",
+        source="naver_blog",
+        published_at=None,
+    )
+    source = FakeSource(
+        {
+            "한수학학원": [about_long],
+            "더(The)착한수학학원": [about_long],
+        }
+    )
+
+    report = review_ingest_service.ingest_reviews(db_session, source)
+
+    rows = _reviews(db_session)
+    assert report.inserted == 1
+    assert report.skipped_unmatched == 1
+    assert len(rows) == 1
+    assert rows[0].academy_id == long.id
+
+
+def test_raw_payload_has_stub_source_detects_stub_items():
+    stub_item = ReviewItem(
+        title="stub",
+        content="stub",
+        url="https://example.invalid/stub/1",
+        source="stub",
+        published_at=None,
+    )
+    naver_item = ReviewItem(
+        title="real",
+        content="real",
+        url="https://blog.example/1",
+        source="naver_blog",
+        published_at=None,
+    )
+    assert review_ingest_service.raw_payload_has_stub_source({1: [stub_item]})
+    assert review_ingest_service.raw_payload_has_stub_source(
+        {1: [naver_item], 2: [stub_item]}
+    )
+    assert not review_ingest_service.raw_payload_has_stub_source({1: [naver_item]})
+
+
+def test_cli_from_raw_refuses_stub_cache_on_operational(tmp_path, monkeypatch, capsys):
+    """REVIEW_SOURCE=naver 여도 운영 DB + stub 캐시 --from-raw 는 CLI에서 막는다."""
+    from app.cli import ingest_reviews
+
+    day = tmp_path / "2026-08-02"
+    day.mkdir()
+    (day / "1.json").write_text(
+        '[{"title":"t","content":"c","url":"https://example.invalid/s","source":"stub"}]',
+        encoding="utf-8",
+    )
+
+    class _Settings:
+        database_url = (
+            "postgresql+psycopg://postgres:pass@db.abcdef.supabase.co:5432/postgres"
+        )
+        review_source = "naver"
+        naver_display = 10
+
+    monkeypatch.setattr("app.core.config.get_settings", lambda: _Settings())
+    exit_code = ingest_reviews.main(["--from-raw", str(tmp_path), "--dry-run"])
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "stub" in captured.err
+    assert "거부" in captured.err
+
+
 def test_name_match_in_title_alone_is_enough(db_session, academy):
     source = FakeSource(
         {"가온수학": [_item("https://blog.example/3", title="가온수학 다녀왔어요", content="괜찮네요")]}

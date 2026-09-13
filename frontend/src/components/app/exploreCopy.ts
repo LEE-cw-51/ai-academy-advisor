@@ -65,7 +65,7 @@ export const RELAXED_NOTES: Record<string, string> = {
     "하남 미사 안에 조건에 맞는 곳이 적어, 인근 지역 후보 정보도 함께 담았어요.",
 };
 
-/** 아는 키의 문장만 남긴다. conditionLabel 과 달리 키로 폴백하지 않는다 —
+/** 아는 키의 문장만 남긴다. conditionLabel 과 같이 키로 폴백하지 않는다 —
  *  백엔드가 완화 사다리에 키를 늘려도 raw 키가 화면에 새면 안 된다.
  *  순서는 백엔드가 담아 준 순서를 그대로 따른다(사다리 순서는 백엔드 소유). */
 export function relaxedNotes(keys: readonly string[]): string[] {
@@ -131,7 +131,9 @@ export const CONDITION_LABELS: Record<string, string> = {
 };
 
 export function conditionLabel(key: string): string {
-  return CONDITION_LABELS[key] ?? key;
+  // 모르는 백엔드 키는 raw 로 새지 않게 숨긴다 (relaxedNotes 와 같은 원칙).
+  // 호출부는 빈 문자열을 걸러 쓰는 것이 이상적이지만, 폴백만으로도 키 유출은 막는다.
+  return CONDITION_LABELS[key] ?? "";
 }
 
 /** 배지 표시용 과목 목록. 버킷 "기타"는 세부 라벨(subject_detail)이 있으면

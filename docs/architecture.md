@@ -55,8 +55,9 @@ AI 구성요소(LLM·임베딩·벡터 스토어)는 벤더/모델 교체가 잦
 
 ## 향후 AI 기능 확장 고려사항
 - `services/` 하위에 `recommendation_service.py`(존재), `ai_service.py` 등을 추가하며 확장
-- 실제 RAG(Phase 4b)는 **LlamaIndex 기반 `RagEngine`을 하나의 포트로 감싸** providers/에 추가 —
-  엔진 자체도 교체 가능하게 유지. 실제 어댑터도 같은 포트 뒤에 붙인다.
+- LlamaIndex 기반 `RagEngine`은 **미채택**. 현행 AI 후보는
+  `recommendation_pipeline` + `VectorStore`/`LLMProvider` 포트이며, 엔진을 바꿀 때도
+  같은 포트 뒤에 붙인다.
 - 프롬프트 템플릿은 `prompts/` 디렉터리에서 관리하여 코드와 분리
 
 ## 배포
