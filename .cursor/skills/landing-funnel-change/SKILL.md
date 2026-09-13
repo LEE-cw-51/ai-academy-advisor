@@ -13,7 +13,7 @@ the opposite of what it sounds like, and the sticky bar's a11y state is spread a
 four props that must stay in sync.
 
 This skill is the checklist for that contract. It does not decide product direction —
-that is the Founder's call, recorded in `docs/decision-log.md`.
+that is the Founder's call, recorded in `docs/decisions/`.
 
 ## Triggers
 
@@ -36,7 +36,8 @@ Use when a task does any of:
 ## Read first
 
 1. `AGENTS.md` §5 (product scope) and §7 (the load-bearing rules)
-2. `docs/decision-log.md` — the **top 3 entries**. This funnel's decisions supersede
+2. The **3 most recent decisions** — the last files in `docs/decisions/` (names sort by date;
+   if there are fewer than 3, also the top of the archived `docs/decision-log.md`). This funnel's decisions supersede
    each other frequently; an entry from last week may already be dead.
 3. The route roles table in `AGENTS.md` §5 — it names `/`'s primary CTA in prose.
    If you change that CTA, that sentence goes stale and must be updated too.
@@ -96,7 +97,7 @@ Adding one funnel event means editing all of these, in one change:
 3. the call site (see below)
 4. `docs/api.md` — the `POST /events` `event` row **and** its 의미 column
 5. `tests/test_engagement_api.py` — the accepted-values list
-6. `docs/decision-log.md` — what the event means and why it exists
+6. a decision file in `docs/decisions/` — what the event means and why it exists
 
 `click_logs.event` is a plain column, **not a DB enum** — no Alembic migration needed.
 `app/schemas/engagement.py` validates against the `ClickEvent` enum, so step 1 is what
@@ -148,7 +149,7 @@ retired in the 2026-08-19 3-page restructure). What exists today:
 - **`StickyKakaoBar`** (rendered unconditionally by `SiteChrome`, shared across
   `/`·`/check`·`/checklists`·`/privacy`) is a plain always-visible `fixed` bar — no
   `shown`/`suppressed` state, no scroll sentinel, nothing to keep in sync. Don't
-  reintroduce reveal-on-scroll logic without a decision-log entry justifying it.
+  reintroduce reveal-on-scroll logic without a decision record justifying it.
 - **`KakaoChannelCta`** owns its own `open` boolean and renders `KakaoChannelModal`
   next to itself — every Kakao entry point (footer, `StickyKakaoBar`, `/check` result,
   `GroundworkSection`) gets independent modal state; there is no longer a single
@@ -197,16 +198,17 @@ Note: `CheckQuestion.counseling` is `Partial<Record<Exclude<AnswerId, "well">, s
 counseling questions on an all-`well` result, that widens the type; flag it rather than
 quietly adding a `well` key.
 
-## Rule 6 — Decision-log supersede protocol
+## Rule 6 — Decision record supersede protocol
 
-Add a **new** `## YYYY-MM-DD — 제목` block at the **top** of `docs/decision-log.md`.
-Never edit or delete an older entry — the log's value is showing what was believed when.
+Add a **new** file `docs/decisions/YYYY-MM-DD-slug.md` (template and supersede rules live in
+`docs/decisions/README.md`). `docs/decision-log.md` is archived through 2026-09-13 — never append to it.
+Never edit or delete an older decision's body — the record's value is showing what was believed when.
 
 State explicitly:
 
 - **계기** — what changed to justify reopening a settled decision
 - **결정** — the new rule
-- **무엇을 대체하는가** — name the superseded entry by its date and title
+- **무엇을 대체하는가** — name the superseded decision: link its file, or give date and title if it is in the archived log
 - **경로** — the route → role table after the change
 - **계측** — which event measures the new conversion
 - **바꾸지 않은 것** — the scope you deliberately left alone
@@ -241,7 +243,8 @@ separate signal from noise. The Danggeun numbers in `decision-log.md` (≈600 im
 
 ## Workflow
 
-1. Read `AGENTS.md` §5/§7 and the top 3 `decision-log.md` entries. Name the entry this
+1. Read `AGENTS.md` §5/§7 and the 3 most recent decisions (`docs/decisions/`, then the archived
+   `decision-log.md` top if needed). Name the decision this
    change supersedes, if any.
 2. Read the touched components **and** their copy modules before editing.
 3. Grep the event names involved across `.py`, `.ts`, `.tsx`, `.md` — confirm each
@@ -251,7 +254,7 @@ separate signal from noise. The Danggeun numbers in `decision-log.md` (≈600 im
 6. If an event is new, do all six contract edits together.
 7. Extend `tests/test_landing_copy.py` / `test_mini_check_copy.py` for the new
    destination, label, and questions.
-8. Write the decision-log entry; propagate to `api.md` / `AGENTS.md`.
+8. Write the decision file in `docs/decisions/`; propagate to `api.md` / `AGENTS.md`.
 9. Validate (below). Report honestly what ran and what didn't.
 
 ## Validation
@@ -288,4 +291,4 @@ Do not deploy, push, or commit unless explicitly asked.
 | Reassurance line promises something false | reused `CTA_REASSURANCE` under a new destination |
 | `test_mini_check_copy` fails after adding checklist items | added an `id` field to `ChecklistItem` |
 | `test_landing_copy` fails | `MISA_ACADEMY_COUNT` no longer matches `data/academies/*.json` |
-| Reviewer asks "what happened to the old decision?" | edited an old decision-log entry instead of superseding it |
+| Reviewer asks "what happened to the old decision?" | edited an old decision's body instead of superseding it with a new decision file |
