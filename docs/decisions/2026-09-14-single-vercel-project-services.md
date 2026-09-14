@@ -1,7 +1,7 @@
 # 프론트·백엔드를 Vercel 프로젝트 하나로 — Services
 
 - 날짜: 2026-09-14
-- 상태: 채택 (코드 반영, 대시보드 전환은 Founder 대기)
+- 상태: 채택 (2026-09-15 운영 전환 완료)
 - 대체:
   - `decision-log.md 2026-09-04 — 백엔드 호스팅을 Railway에서 Vercel Python Function으로 이전`
     중 "프론트와 별도의 Vercel 프로젝트(Root Directory `backend`)로 배포한다"와 프론트
@@ -149,8 +149,30 @@ Founder가 "프론트와 백엔드가 Vercel에서 다른 프로젝트인데 꼭
   - Vercel이 값을 다시 보여주지 않아 CLI로도 대시보드로도 복사할 수 없다.
   - Founder가 원래 출처(Supabase transaction pooler 6543 URL, Groq·HF 콘솔, 운영 설정값)에서
     `ai-academy-advisor` 프로젝트에 다시 입력해야 한다.
-- **다음 순서**
-  1. Founder가 위 7종을 `ai-academy-advisor`의 Production·Preview에 입력한다.
-  2. PR을 머지한다. 이 단계와 순서가 바뀌어도 된다.
-  3. 프로젝트 설정을 Framework `services`, Root Directory 비움으로 바꾸고 재배포한다(API로 가능).
-  4. 프로덕션 스모크(`/app` 제출 포함)가 통과하면 `BACKEND_ORIGIN`을 지운다.
+- **운영 전환 (2026-09-15)**
+  - PR #54가 `main`(`e2ab131`)에 머지됐다. 옛 설정 그대로 배포된 두 프로젝트에서 운영 API·화면이
+    정상이었고, 백엔드 주소로 직접 부른 `/health`와 `/api/backend/health`도 둘 다 200이었다.
+  - Founder가 백엔드 환경변수 7종을 `ai-academy-advisor`의 Production·Preview에 입력했다. 비밀값이
+    아닌 네 값(`LLM_PROVIDER`·`LLM_MODEL`·`EMBEDDING_PROVIDER`·`VECTOR_STORE`)은 값을 출력하지
+    않고 일치 여부만 대조했다.
+  - API로 Framework `services`, Root Directory 비움으로 바꾸고 `main`을 운영에 배포했다
+    (`dpl_A26NAAXNbfifhFrDCE4FoBHbiCMH`, 약 60초).
+  - 운영 스모크
+    - `/api/backend/health` 200, 학원 조회 200(411곳)
+    - `/`·`/app` 200, `/check` 307
+    - AI 후보 추천 200(5초), `maxDuration: 30`
+  - **발견한 문제**: 상담 질문과 추천 이유가 전부 fallback이었다.
+    - 원인: 입력된 `GROQ_API_KEY` 끝의 줄바꿈 때문에 httpx가 `Illegal header value`로 요청 전에
+      실패했다. 그 예외 메시지가 키 전체를 런타임 로그에 남겼다.
+    - 같은 요청이 옛 백엔드 프로젝트(기존 환경변수)에서는 LLM으로 생성됐다(`used_fallback=False`).
+    - 조치: 설정에서 키·provider 값의 앞뒤 공백을 지운다(PR #55). 노출된 키는 Founder가 교체한다.
+    - 기능이 멈춘 게 아니라 품질이 떨어진 것이고 롤백해도 키 노출은 그대로라, 롤백하지 않았다.
+  - 확인이 통과한 뒤 `BACKEND_ORIGIN`(Production·Preview)을 지웠다.
+  - Founder가 `GROQ_API_KEY`를 새 키로 교체한 뒤 `main`을 다시 운영 배포했다
+    (`dpl_DPr62dQ2ziURT56zrLmv8ExFeufm`, `BACKEND_ORIGIN` 없이 빌드). 상담 질문이 `used_fallback=False`(1초),
+    AI 추천 이유가 LLM 문장으로 돌아왔고, health·학원 조회·`/`·`/app`·`/check` 307도 정상이었다.
+  - **롤백**: 직전 운영 배포 `dpl_HaJ1tSf86kPb9xq4zrDTgvRH8LN2`(옛 2-프로젝트 빌드)를 promote한다.
+    이 배포는 옛 백엔드 프로젝트를 부르므로, 그 프로젝트를 지운 뒤에는 이 방법을 쓸 수 없다.
+- **남은 일**
+  - Groq 콘솔에서 노출된 기존 키가 삭제됐는지 Founder가 확인한다(새 키 교체·재배포·`used_fallback=false` 확인은 2026-09-15 완료)
+  - 1~2주 뒤 `ai-academy-advisor-backend` 프로젝트 삭제
