@@ -1,0 +1,20 @@
+# Snyk policy file — next@15.5.25 패치 후에도 남는 이슈.
+# Critical(Windows RCE·AVIF RCE)은 next 15.5.25로 닫힘.
+# 자세한 이유: docs/decision-log.md (2026-09-14).
+version: v1.25.0
+ignore:
+  SNYK-JS-NEXT-15105315:
+    - '*':
+        reason: >-
+          PPR resume DoS (CVE-2025-59472). exploitable only with
+          experimental.ppr / cacheComponents + NEXT_PRIVATE_MINIMAL_MODE=1.
+          This app enables none of those. Fix requires Next 16.1.x or 15.6 canary;
+          staying on Maintenance LTS 15.5 until a major upgrade is planned.
+        expires: 2027-03-14T00:00:00.000Z
+  SNYK-JS-NEXT-15674556:
+    - '*':
+        reason: >-
+          Unbounded next/image disk cache (CVE-2026-27980). Official advisory:
+          does not impact platforms with their own image optimization (e.g. Vercel).
+          App uses only local /logo.png and /logo-mark.png. Fix requires Next 16.1.7+.
+        expires: 2027-03-14T00:00:00.000Z
