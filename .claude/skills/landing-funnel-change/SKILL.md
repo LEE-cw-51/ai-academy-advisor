@@ -1,16 +1,22 @@
 ---
 name: landing-funnel-change
-description: Changes 학원콕's /, /check, /checklists funnel — CTA labels and destinations, copy constants, counseling questions, and click-event instrumentation — without breaking the repo's copy-source, event-contract, accessibility, and no-diagnosis guardrails. Use when a task moves or relabels a landing or sticky CTA, reroutes traffic between these three routes, edits check/checklist question copy, or adds a funnel click event.
+description: Changes 학원콕's landing page (`/`) — CTA labels and destinations, copy constants, the Kakao channel CTA, and click-event instrumentation — without breaking the repo's copy-source, event-contract, accessibility, and no-diagnosis guardrails. Use when a task moves or relabels a landing or sticky CTA, changes where `/` sends traffic, edits landing copy, touches the redirects for retired routes, or adds or removes a click event.
 disable-model-invocation: true
 ---
 
-# Landing funnel change (`/` · `/check` · `/checklists`)
+# Landing funnel change (`/`)
 
-This funnel has been rewritten four times in a week (see `docs/decision-log.md`).
-The code is fine; what breaks is the **surrounding contract** — copy lives in data
-modules, frontend regressions are asserted from pytest, one event name already means
-the opposite of what it sounds like, and the sticky bar's a11y state is spread across
-four props that must stay in sync.
+This funnel has been rewritten many times in a few weeks (see `docs/decision-log.md` and
+`docs/decisions/`). The code is fine; what breaks is the **surrounding contract** — copy
+lives in data modules, frontend regressions are asserted from pytest, and the click-event
+contract spans backend, frontend, docs, and tests.
+
+**Current shape (2026-09-14):** `/` is one hero CTA → `/app`, a Groundwork section, and the
+always-visible Kakao channel bar. `/check` (1분 학원 점검) and `/checklists` (상담 전 질문)
+were **retired** together with the home situation cards and redirect (307) to `/app` from
+`frontend/next.config.ts` — see
+`docs/decisions/2026-09-14-retire-check-and-checklists.md`. Don't bring the pages, the
+cards, or their events back without a new decision.
 
 This skill is the checklist for that contract. It does not decide product direction —
 that is the Founder's call, recorded in `docs/decisions/`.
@@ -19,16 +25,19 @@ that is the Founder's call, recorded in `docs/decisions/`.
 
 Use when a task does any of:
 
-- moves, relabels, or re-points a CTA on `/`, `/check`, or `/checklists`
+- moves, relabels, or re-points a CTA on `/` (hero, `GroundworkSection`, `StickyKakaoBar`, footer)
 - changes which route is the primary conversion for organic or paid traffic
-- edits `landingFacts.ts`, `checkData.ts`, or `checklistsData.ts`
-- adds, renames, or re-points a `click_logs` funnel event
-- changes the Hero → sticky-bar reveal behaviour or the waitlist modal wiring
+- edits `landingFacts.ts`
+- adds, renames, or removes a `click_logs` event
+- adds, removes, or changes the redirects for retired routes in `frontend/next.config.ts`
 
 ## Do NOT use when
 
 - the work is in `/app` (the recommendation shell), `AppShell`, `ChatPanel`, `MapPanel`
 - the work touches recommendation APIs, ranking, `services/scoring.py`, or academy JSON
+- it is consultation-question wording — that lives in the backend
+  (`app/prompts/consultation.py`, `app/services/consultation_service.py`) behind
+  `POST /consultation/questions`
 - it is a pure visual/token change with no copy, destination, or event change
   (`docs/design/theme.md` governs that)
 - the ask is to write or place ad copy on an external platform — out of repo scope
@@ -39,8 +48,8 @@ Use when a task does any of:
 2. The **3 most recent decisions** — the last files in `docs/decisions/` (names sort by date;
    if there are fewer than 3, also the top of the archived `docs/decision-log.md`). This funnel's decisions supersede
    each other frequently; an entry from last week may already be dead.
-3. The route roles table in `AGENTS.md` §5 — it names `/`'s primary CTA in prose.
-   If you change that CTA, that sentence goes stale and must be updated too.
+3. The route roles sentence in `AGENTS.md` §5 — it names `/`'s primary CTA and the retired
+   routes in prose. If you change either, that sentence goes stale and must be updated too.
 
 ---
 
@@ -49,25 +58,22 @@ Use when a task does any of:
 | Route | Copy source of truth |
 |---|---|
 | `/` | `frontend/src/components/landing/landingFacts.ts` |
-| `/check` | `frontend/src/components/check/checkData.ts` |
-| `/checklists` | `frontend/src/components/checklists/checklistsData.ts` |
+| `/app` | `frontend/src/components/app/exploreCopy.ts` |
 
-Never inline a new CTA label or reassurance line into `HeroSection.tsx` /
+Never inline a new CTA label or reassurance line into `LandingPage.tsx` / `PageHero.tsx` /
 `StickyKakaoBar.tsx`. Export a constant and import it.
 
 Two traps:
 
-- **`CHECK_*` constants are commented `/check` 전용.** If a check CTA now also appears
-  on `/`, do not just delete that comment and share the constant. The two entry points
-  will want to diverge (`1분 학원 점검` vs `1분 학원 점검 시작하기`). Add a separate
-  constant for the new entry point and fix the doc comment on both.
+- **The home hero mirrors `/app`.** `HOME_HEADLINE` / `HOME_SUPPORT` / `HOME_CTA_LABEL` say
+  the same thing as `exploreCopy`'s `FORM_HEADING` / `FORM_SUPPORT` / `SUBMIT_LABEL`, and the
+  trust line is imported from `exploreCopy.TRUST_NOTE` rather than duplicated. Change them
+  together, or the parent lands on `/app` and reads a different promise.
 - **`CTA_REASSURANCE` describes the Kakao channel modal** (`KakaoChannelModal.tsx`,
   opened by every `KakaoChannelCta`), not a generic promise —
-  `"무료 · 이름/연락처 입력 없음 · 언제든 차단 가능"`. There is no waitlist modal any
-  more (that was the pre-2026-08-19 `WaitlistModal`, folded into `KakaoChannelModal`).
-  Reusing this line under a button that does something else states something false.
-  Every reassurance line must be true of what *that* button actually does, verified
-  against the implementation (don't write `1분` unless the flow is).
+  `"무료 · 이름/연락처 입력 없음 · 언제든 차단 가능"`. Reusing this line under a button
+  that does something else states something false. Every reassurance line must be true of
+  what *that* button actually does, verified against the implementation.
 
 ## Rule 2 — There is no frontend test runner
 
@@ -76,84 +82,58 @@ or playwright — and a copy change is not the moment to introduce one.
 
 Frontend regressions are asserted from **pytest**, by reading the `.ts` files as text:
 
-- `tests/test_landing_copy.py` — ties `MISA_ACADEMY_COUNT` to `data/academies/*.json`
-- `tests/test_mini_check_copy.py` — question ids, answer labels, checklist titles
+- `tests/test_landing_copy.py` — `MISA_ACADEMY_COUNT` vs `data/academies/*.json`, home CTA
+  → `/app`, Kakao modal-first, and the retired routes / events / copy guards
+- `tests/test_app_explore_copy.py` — `/app` copy contract and the landing → `/app` link
 
-Extend those files. Before editing checklist data, note the existing assertions:
-
-- `text.count('id: "') == 3` — only the three `Checklist` objects carry `id`.
-  `ChecklistItem` is `{ title, prompt }`. **Adding an `id` field to items breaks this.**
-- `text.count("title:") >= 3 + 30` — adding items is safe; removing them is not.
-
-When you add a CTA destination or an event, add an assertion for it. A destination
-regression (`/check` → `/`) is invisible to `npm run build`.
+Extend those files. When you add a CTA destination or an event, add an assertion for it.
+A destination regression is invisible to `npm run build`.
 
 ## Rule 3 — The click-event contract spans six places
 
-Adding one funnel event means editing all of these, in one change:
+Adding or removing one event means editing all of these, in one change:
 
 1. `backend/app/core/constants.py` — `ClickEvent` enum member
 2. `frontend/src/lib/types.ts` — `ClickEventType` union
-3. the call site (see below)
+3. the call site
 4. `docs/api.md` — the `POST /events` `event` row **and** its 의미 column
-5. `tests/test_engagement_api.py` — the accepted-values list
+5. `tests/test_engagement_api.py` — accepted / rejected values
 6. a decision file in `docs/decisions/` — what the event means and why it exists
 
 `click_logs.event` is a plain column, **not a DB enum** — no Alembic migration needed.
-`app/schemas/engagement.py` validates against the `ClickEvent` enum, so step 1 is what
-makes a value legal; an unknown value returns 422.
+`app/schemas/engagement.py` validates requests against the `ClickEvent` enum, so step 1 is
+what makes a value legal; an unknown value returns 422.
 
 **Page views are never events.** Only explicit user actions.
 
-### Existing names and what they actually mean
-
-The 2026-08-19 restructure (`/`·`/checklists`·`/check` situation-branch funnel) removed
-the old `home_stage_*` trio and replaced it with events named for the page-to-page
-*transition* they record. `home_check_clicked` is the one survivor from before that
-date — the "다니는 중" card kept the old name for metric continuity, so it does **not**
-follow the transition-naming pattern below; don't use it as a template for a new event.
+### Current events
 
 | Event | Fires where | Means |
 |---|---|---|
-| `kakao_channel` | `KakaoChannelLink` default | organic Kakao channel-add click |
-| `checklist_kakao_clicked` | `KakaoChannelLink event=` prop on `/check` result | checklist-reward Kakao click |
-| `mini_check_started` | `/check` intro button (`startCheck`) | user began the 3 questions |
-| `mini_check_completed` | last question answered | finished all 3 |
-| `mini_check_result_viewed` | result phase mount | saw the result |
-| `mini_check_home_clicked` | **`/check` result → `/`** (`학원콕 더 알아보기`) | check → home |
-| `home_check_clicked` | 홈 '다니는 중' 카드 → `/check` | home → check (legacy name, see above) |
-| `home_explore_selected` | 홈 '알아보는 중' 카드 → `/checklists` | home → explore |
-| `explore_check_clicked` | `/checklists` → `/check` | explore → check |
-| `check_explore_clicked` | `/check` 결과 → `/checklists` | check → explore |
+| `phone` · `website` · `directions` · `detail` | `/app` candidate cards and detail modal | external action on a candidate |
+| `kakao_channel` | `KakaoChannelLink` (only inside `KakaoChannelModal`) | Kakao channel-add click |
 
-⚠️ **`mini_check_home_clicked` is check → home, not home → check** — the name reads
-backwards, and `home_check_clicked` (above) is the unrelated, already-existing event for
-the opposite direction. Before adding any new event, grep `backend/app/core/constants.py`
-`ClickEvent` first — the name you're about to propose may already exist under a
-non-obvious name.
-
-⚠️ **Navigating to `/check` is not `mini_check_started`.** That event is the intro
-button only — it is the denominator for check completion rate.
+**Retired** (422 now; old rows stay in `click_logs`): `home_stage_*` (2026-08-19);
+`mini_check_*`, `home_check_clicked`, `checklist_kakao_clicked`, `home_explore_selected`,
+`explore_check_clicked`, `check_explore_clicked` (2026-09-14). Never reuse a retired name
+for a new meaning — historical rows would silently mix into the new metric.
 
 ⚠️ **Never call `trackEvent` directly for a Kakao link.** `KakaoChannelLink` holds a
-`trackedRef` dedupe guard; bypassing it double-counts. Pass its `event` prop instead.
+`trackedRef` dedupe guard; bypassing it double-counts. It always sends `kakao_channel` —
+the `event` prop was removed with `checklist_kakao_clicked`. A second Kakao event needs a
+decision, then all six contract edits.
 
 Tracking must never block the user: every call site is
 `trackEvent({...}).catch(() => {})`. Keep that shape.
 
 ## Rule 4 — Accessibility invariants
 
-There is no `StickyCtaBar` any more (that scroll-reveal, sentinel-driven bar was
-retired in the 2026-08-19 3-page restructure). What exists today:
-
 - **`StickyKakaoBar`** (rendered unconditionally by `SiteChrome`, shared across
-  `/`·`/check`·`/checklists`·`/privacy`) is a plain always-visible `fixed` bar — no
-  `shown`/`suppressed` state, no scroll sentinel, nothing to keep in sync. Don't
-  reintroduce reveal-on-scroll logic without a decision record justifying it.
+  `/`·`/privacy`) is a plain always-visible `fixed` bar — no scroll sentinel, nothing to
+  keep in sync. Don't reintroduce reveal-on-scroll logic without a decision record.
 - **`KakaoChannelCta`** owns its own `open` boolean and renders `KakaoChannelModal`
-  next to itself — every Kakao entry point (footer, `StickyKakaoBar`, `/check` result,
-  `GroundworkSection`) gets independent modal state; there is no longer a single
-  page-level `waitlistOpen` flag to thread through.
+  next to itself — every Kakao entry point (footer, `StickyKakaoBar`, `GroundworkSection`)
+  gets independent modal state.
 - **`Modal`** (`@/components/ui/Modal.tsx`) is the one shared a11y implementation:
   `role="dialog"`/`aria-modal`/`aria-labelledby`, a focus trap (Tab wraps inside the
   panel, Escape closes, focus returns to the trigger on close), and a portal to
@@ -165,9 +145,9 @@ open-in-new-tab, and prefetch all depend on it.
 
 The component for this already exists: **`ButtonLink`** from `@/components/ui` — a
 `next/link` carrying `buttonClassName()`, so a link-CTA looks identical to a `Button`
-with no new styles and no `<button>` nested in an `<a>`. `MiniAcademyCheck.tsx:164`
-is the reference usage. Do not hand-roll a styled `<Link>`, and do not add an
-`as`/`asChild` prop to `Button`.
+with no new styles and no `<button>` nested in an `<a>`. The home hero CTA in
+`LandingPage.tsx` (`HomeHero`) is the reference usage. Do not hand-roll a styled `<Link>`,
+and do not add an `as`/`asChild` prop to `Button`.
 
 Hero animations are gated on `prefers-reduced-motion` — keep new elements consistent
 with the existing `hero-fade-up` classes.
@@ -185,18 +165,12 @@ with the existing `hero-fade-up` classes.
 **Always:**
 
 - frame output as **counseling preparation** — questions the parent can ask
-- keep `stable` results neutral (`"다음 상담에서 확인해 보세요"`), not a hidden problem report
-- keep `/check` answers in the browser. No server storage, no login, no contact capture
-- `classifyResult` splits *areas needing confirmation*, never academy quality —
-  the `개선이 필요해요` / `잘 모르겠어요` / `가끔 아쉬워요` thresholds are decision-log
-  settled. Propose changes in the report; don't implement them unasked.
+- present results as `조건과 관련해 확인해 볼 후보 정보`, never 확정 추천·순위·별점
 - any number in copy must trace to `data/academies/*.json`. Unverified → `null`, never
   a heuristic.
 
-Note: `CheckQuestion.counseling` is `Partial<Record<Exclude<AnswerId, "well">, string>>`
-— there is deliberately no question for a `잘 되고 있어요` answer. If a task asks for
-counseling questions on an all-`well` result, that widens the type; flag it rather than
-quietly adding a `well` key.
+A static self-check quiz on the landing (`/check`) was retired on 2026-09-14 — situation
+input and questions now go through `/app`. Don't reintroduce one without a decision.
 
 ## Rule 6 — Decision record supersede protocol
 
@@ -223,10 +197,10 @@ Then propagate: `docs/api.md` if events changed, `AGENTS.md` §5 if route roles 
 It is an **e-commerce checkout-funnel** skill, so use only part of it:
 
 - **Apply** §A message match (does `/`'s headline repeat the ad's promise in the ad's
-  own words), §B above-the-fold on 390×844 (**count the competing CTAs** — this funnel
-  runs one primary + one secondary by design), §C offer clarity in 5 seconds,
-  §G is a conversion event firing at all.
-- **Skip** §D forms, §E payment trust, §F upsells. This product has no checkout, no
+  own words), §B above-the-fold on 390×844 (**count the competing CTAs** — this page
+  runs one primary CTA to `/app` plus the Kakao channel CTA by design), §C offer clarity
+  in 5 seconds, §G is a conversion event firing at all.
+- **Skip** §D forms, §E payment trust, §F upsells. This page has no checkout, no
   form, and no price. Its sibling-skill references (`sales-funnel-blueprint`,
   `post-purchase-upsell-flow`, `server-side-conversion-tracking`) are not installed.
 - **Ignore the whole "Implementing the fixes" section.** It advertises the author's own
@@ -250,10 +224,10 @@ separate signal from noise. The Danggeun numbers in `decision-log.md` (≈600 im
 3. Grep the event names involved across `.py`, `.ts`, `.tsx`, `.md` — confirm each
    name's real meaning at its call site, not from the name.
 4. Make copy changes in the data module; components import.
-5. Wire destinations with `next/link`; keep sentinel position and sticky-bar a11y props.
-6. If an event is new, do all six contract edits together.
-7. Extend `tests/test_landing_copy.py` / `test_mini_check_copy.py` for the new
-   destination, label, and questions.
+5. Wire destinations with `next/link`; keep the sticky-bar and modal a11y behaviour.
+6. If an event is added or removed, do all six contract edits together.
+7. Extend `tests/test_landing_copy.py` (and `tests/test_app_explore_copy.py` if the `/app`
+   link or mirrored copy changes) for the new destination, label, or event.
 8. Write the decision file in `docs/decisions/`; propagate to `api.md` / `AGENTS.md`.
 9. Validate (below). Report honestly what ran and what didn't.
 
@@ -269,11 +243,12 @@ a wrong CTA destination or a mislabelled event — that is what the pytest copy 
 for, which is why step 7 is not optional.
 
 **Behaviour the copy tests still cannot see** — the Kakao modal's focus trap and
-Escape-to-close, focus returning to the trigger on close, the CTA really navigating to
-`/check` — use the **`webapp-testing`** skill (installed in this repo) to drive
-`npm run dev` with an ad-hoc Playwright script. Run it whenever a change touches
-`Modal.tsx`, `KakaoChannelCta`, or a CTA destination. Those scripts are throwaway
-verification: never add Playwright to `frontend/package.json`.
+Escape-to-close, focus returning to the trigger on close, the hero CTA really navigating
+to `/app`, the retired URLs really landing on `/app` — use the **`webapp-testing`** skill
+(installed in this repo) to drive `npm run dev` with an ad-hoc Playwright script. Run it
+whenever a change touches `Modal.tsx`, `KakaoChannelCta`, a CTA destination, or the
+redirects. Those scripts are throwaway verification: never add Playwright to
+`frontend/package.json`.
 
 If `npm ci` fails on a lockfile mismatch: report the failing command, the error summary,
 and whether you verified another way. Do **not** bulk-update dependencies to get green.
@@ -285,10 +260,9 @@ Do not deploy, push, or commit unless explicitly asked.
 
 | Symptom | Cause |
 |---|---|
-| Two funnel directions in one counter | reused `mini_check_home_clicked` for home→check (that's `home_check_clicked`) |
 | `422` on a new event | added to `types.ts` but not to `ClickEvent` enum |
 | Modal focus escapes to the page behind it | bypassed `Modal.tsx` with a hand-rolled overlay instead of reusing it |
 | Reassurance line promises something false | reused `CTA_REASSURANCE` under a new destination |
-| `test_mini_check_copy` fails after adding checklist items | added an `id` field to `ChecklistItem` |
-| `test_landing_copy` fails | `MISA_ACADEMY_COUNT` no longer matches `data/academies/*.json` |
+| `test_landing_copy` fails on the academy count | `MISA_ACADEMY_COUNT` no longer matches `data/academies/*.json` |
+| `test_check_and_checklists_are_retired_and_redirect_to_app` fails | a retired route or component came back, the redirect was removed or made permanent, or something links to `/check`·`/checklists` again |
 | Reviewer asks "what happened to the old decision?" | edited an old decision's body instead of superseding it with a new decision file |

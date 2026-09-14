@@ -10,9 +10,10 @@ const notoSansKr = Noto_Sans_KR({
   display: "swap",
 });
 
-/** `/` 전용 기본값. `/check`·`/checklists`·`/privacy`는 각 page.tsx가 덮어쓴다.
+/** `/` 전용 기본값. `/privacy`처럼 자체 metadata가 있는 page.tsx가 덮어쓴다.
  *  메인이 `/app`(후보·상담 질문 정리) 주 CTA로 시작하게 되며(2026-09-13) 제목은
- *  "선택 가이드"가 아니라 "알아보기"로 맞춘다. 설명은 주 과업과 보조 퍼널을 함께 말한다. */
+ *  "선택 가이드"가 아니라 "알아보기"로 맞춘다. 설명은 `/app`이 받는 두 상황(알아보는 중·
+ *  다니는 중)을 함께 말한다 — 보조 퍼널(`/check`·`/checklists`)은 2026-09-14에 퇴역했다. */
 export const metadata: Metadata = {
   title: "하남 미사 학원 알아보기 | 학원콕",
   description: META_DESCRIPTION,

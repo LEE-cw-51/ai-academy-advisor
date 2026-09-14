@@ -208,8 +208,9 @@ def test_app_shell_chrome_does_not_block_explore_as_coming_soon():
     assert "결제" in copy
 
 
-def test_landing_hero_links_to_app_and_keeps_funnel_ctas():
-    """메인 주 CTA 는 `/app`(2026-09-13). 상황 카드는 /checklists·/check 를 그대로 두고,
+def test_landing_hero_is_the_only_entry_to_app():
+    """메인 주 CTA 는 `/app`(2026-09-13). 상황 카드(/checklists·/check 보조 퍼널)는
+    2026-09-14에 퇴역했다 — 알아보는 중·다니는 중 두 상황 모두 `/app`의 상황 선택이 받는다.
     푸터에는 `/app` 링크를 두지 않는다 — 주 CTA는 히어로 하나로 충분하다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     page = LANDING_PAGE.read_text(encoding="utf-8")
@@ -217,8 +218,8 @@ def test_landing_hero_links_to_app_and_keeps_funnel_ctas():
 
     assert 'HOME_CTA_HREF = "/app"' in facts
     assert 'HOME_CTA_LABEL = "후보와 질문 정리하기"' in facts
-    assert 'href: "/checklists"' in facts
-    assert 'href: "/check"' in facts
+    assert 'href: "/checklists"' not in facts
+    assert 'href: "/check"' not in facts
     assert "href={HOME_CTA_HREF}" in page
     assert "HOME_CTA_LABEL" in page
     assert 'href="/app"' not in footer

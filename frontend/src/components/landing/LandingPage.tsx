@@ -3,7 +3,6 @@ import { TRUST_NOTE } from "@/components/app/exploreCopy";
 import { GroundworkSection } from "./GroundworkSection";
 import { PageHero } from "./PageHero";
 import { SiteChrome } from "./SiteChrome";
-import { SituationSection } from "./SituationSection";
 import {
   HERO_BADGE,
   HERO_REASSURANCE,
@@ -15,8 +14,7 @@ import {
 } from "./landingFacts";
 
 /** 홈 히어로 (`/` 전용). 2026-09-13 첫 MVP 확정으로 메인은 상황 분기 페이지가 아니라
- *  `상황 입력 → 후보·상담 질문` 도구(`/app`)로 보내는 페이지가 됐다. 그래서 CTA 없는
- *  공용 HeroSection(`/check`·`/checklists`)을 쓰지 않고 주 CTA를 여기 둔다.
+ *  `상황 입력 → 후보·상담 질문` 도구(`/app`)로 보내는 페이지가 됐다. 주 CTA는 여기 둔다.
  *  신뢰 문구는 `/app`의 TRUST_NOTE를 그대로 쓴다 — 착지한 뒤 같은 말을 다시 만나게.
  *  좁은 폭에서 버튼은 max-w-xs까지 꽉 채운다. */
 function HomeHero() {
@@ -44,8 +42,9 @@ function HomeHero() {
   );
 }
 
-/** 메인은 2026-09-13부터 주 CTA(`/app` 후보·상담 질문 정리) 하나로 시작한다.
- *  상황 카드 두 장(SituationSection)은 다른 목적의 보조 퍼널로 그 아래에 둔다.
+/** 메인은 주 CTA(`/app` 후보·상담 질문 정리) 하나로 시작하고, 그 아래는 근거 섹션뿐이다.
+ *  상황 카드 두 장(`/checklists`·`/check` 보조 퍼널)은 2026-09-14에 두 페이지와 함께
+ *  퇴역했다 — 알아보는 중·다니는 중 두 상황 모두 `/app`의 상황 선택이 받는다.
  *  StickyCtaBar는 두지 않는다 — 하단 고정은 카카오 채널 바(StickyKakaoBar, SiteChrome)가
  *  계속 맡고, 주 CTA는 히어로 하나로 충분하다. */
 export function LandingPage() {
@@ -53,7 +52,6 @@ export function LandingPage() {
     <SiteChrome>
       <main className="flex-1">
         <HomeHero />
-        <SituationSection />
         <GroundworkSection />
       </main>
     </SiteChrome>

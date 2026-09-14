@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { Button, Modal, buttonClassName } from "@/components/ui";
-import { KakaoChannelLink, type KakaoTrackEvent } from "./KakaoChannelLink";
+import { KakaoChannelLink } from "./KakaoChannelLink";
 import { KAKAO_WELCOME_HINT } from "./landingFacts";
 
 interface KakaoChannelModalProps {
   open: boolean;
   onClose: () => void;
-  /** 실제 외부 이동에 붙는 이벤트. 점검 결과 경로만 checklist_kakao_clicked. */
-  event?: KakaoTrackEvent;
 }
 
 /** 외부 카카오 채널로 나가기 전 무료·개인정보 미입력·차단 가능 고지를 주는 유일한 지점.
@@ -18,11 +16,7 @@ interface KakaoChannelModalProps {
  *  숫자로 약속하지 않고 "상담 때 물어볼 질문"으로 통일했다.
  *  계측은 모달 안의 실제 외부 링크에만 붙는다 — CTA를 눌러 모달을 연 것은
  *  아직 카카오로 간 것이 아니므로 전환으로 세지 않는다. */
-export function KakaoChannelModal({
-  open,
-  onClose,
-  event,
-}: KakaoChannelModalProps) {
+export function KakaoChannelModal({ open, onClose }: KakaoChannelModalProps) {
   return (
     <Modal
       open={open}
@@ -31,7 +25,6 @@ export function KakaoChannelModal({
       footer={
         <>
           <KakaoChannelLink
-            event={event}
             className={buttonClassName({
               variant: "kakao",
               fullWidth: true,

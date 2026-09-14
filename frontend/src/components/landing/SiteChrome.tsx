@@ -7,7 +7,7 @@ interface SiteChromeProps {
   children: ReactNode;
 }
 
-/** `/`·`/check`·`/checklists`·`/privacy`가 공유하는 크롬.
+/** `/`·`/privacy`가 공유하는 크롬.
  *  하단 고정 바가 `fixed`라 본문·법적 푸터가 가려지지 않게 패딩을 둔다.
  *  StickyKakaoBar는 pt-3 + CTA(!py-3) + 내부 pb-3 + safe-area. 375px에서
  *  라벨이 두 줄이면 바 ≈69–72px(+safe-area). 예전 5.5rem(88px)는 여유

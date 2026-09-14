@@ -174,32 +174,20 @@ def test_system_prompt_forbids_judgment_and_requires_json():
     assert "추천" in SYSTEM_PROMPT
 
 
-def test_few_shot_matches_check_and_checklist_copy():
-    check = (REPO_ROOT / "frontend/src/components/check/checkData.ts").read_text(
-        encoding="utf-8"
-    )
-    checklists = (
-        REPO_ROOT / "frontend/src/components/checklists/checklistsData.ts"
-    ).read_text(encoding="utf-8")
-    for _topic, prompt in FEW_SHOT_CHECK:
-        assert prompt in check
-    for _topic, prompt in FEW_SHOT_CHECKLIST:
-        assert prompt in checklists
-
-
-def test_fallback_prompts_match_frontend_copy():
-    check = (REPO_ROOT / "frontend/src/components/check/checkData.ts").read_text(
-        encoding="utf-8"
-    )
-    checklists = (
-        REPO_ROOT / "frontend/src/components/checklists/checklistsData.ts"
-    ).read_text(encoding="utf-8")
-    for item in consultation_service.FALLBACK_BEFORE_ENROLL:
-        assert item.prompt in checklists
-    for item in consultation_service.FALLBACK_BEFORE_SWITCH:
-        assert item.prompt in checklists
-    for item in consultation_service.FALLBACK_CURRENT:
-        assert item.prompt in check or item.prompt in checklists
+def test_few_shot_and_fallback_questions_keep_their_shape():
+    """2026-09-14 `/check`·`/checklists` 퇴역으로 프론트 원본 문구가 사라져, few-shot과
+    fallback 문장은 백엔드가 정본이다. 말투(…나요?)와 세트 크기가 흐트러지지 않게만 지킨다."""
+    for _topic, prompt in (*FEW_SHOT_CHECK, *FEW_SHOT_CHECKLIST):
+        assert prompt.strip().endswith("?"), prompt
+    for fallback in (
+        consultation_service.FALLBACK_BEFORE_ENROLL,
+        consultation_service.FALLBACK_CURRENT,
+        consultation_service.FALLBACK_BEFORE_SWITCH,
+    ):
+        assert len(fallback) == 5
+        for item in fallback:
+            assert item.topic.strip()
+            assert item.prompt.strip().endswith("?"), item.prompt
 
 
 def test_consultation_service_imports_no_orm():

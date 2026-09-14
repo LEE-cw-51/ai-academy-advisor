@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-black text-ink">개인정보처리방침</h1>
         <p className="mt-2 text-sm text-ink-subtle">
-          시행일: 2026-08-15 · 개정일: 2026-08-17
+          시행일: 2026-08-15 · 개정일: 2026-09-14
         </p>
 
         <div className="mt-8 space-y-8 text-sm leading-relaxed text-ink-muted">
@@ -22,14 +22,6 @@ export default function PrivacyPage() {
               이 소개 페이지에는 회원가입·로그인·문의 양식이 없습니다. 이름,
               전화번호, 이메일, 자녀 정보를 입력받지 않습니다. 결제 기능이
               없으므로 결제 정보도 수집하지 않습니다.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="font-bold text-ink">1분 학원 점검</h2>
-            <p className="mt-2">
-              /check 의 3문항 답변은 브라우저 안에서만 처리되며 서버에 저장하지
-              않습니다. 이름·연락처·자녀 정보도 받지 않습니다.
             </p>
           </section>
 
@@ -46,8 +38,8 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-bold text-ink">익명 클릭 기록</h2>
             <p className="mt-2">
-              눌린 버튼의 종류와 시각만 기록합니다. 1분 점검의 시작·완료·결과
-              화면 도달, 홈으로 이동, 카카오 채널 클릭이 여기 포함됩니다.
+              눌린 버튼의 종류와 시각만 기록합니다. 학원 후보의 전화·웹사이트·
+              길찾기·상세 보기 클릭과 카카오 채널 클릭이 여기 포함됩니다.
               이름·연락처·기기 식별자는 없고, 광고 쿠키나 추적 스크립트도
               없습니다. 호스팅 업체의 기본 접속 기록은 남을 수 있습니다.
             </p>
@@ -66,7 +58,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-bold text-ink">학원 탐색 화면</h2>
             <p className="mt-2">
-              탐색 화면(/app)은 직접 URL로 접근할 수 있습니다. 결과는 확정
+              탐색 화면(/app)은 로그인 없이 이용할 수 있습니다. 결과는 확정
               추천이 아니라 조건과 관련해 확인해 볼 후보 정보입니다. 여기에
               입력하신 상황 문장은 검색 기록으로 저장될 수 있습니다.
               이름·연락처 등 개인정보를 질문에 적지 말아 주세요. 이 화면에도

@@ -8,10 +8,10 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border bg-surface">
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:px-6">
-        {/* `/`와 `/privacy`·`/check`·`/checklists`가 공유하는 푸터다.
+        {/* `/`와 `/privacy`가 공유하는 푸터다.
             본문 섹션의 유보 문구를 여기로 통합했으므로, 고지를 지울 때는 이 블록에
             같은 내용이 남아 있는지 먼저 확인한다.
-            `/app` 링크는 두지 않는다 — 상황 카드 CTA(/checklists·/check)만 유지. */}
+            `/app` 링크는 두지 않는다 — 주 CTA는 홈 히어로 하나로 충분하다. */}
         <Disclaimer>
           <p>
             {FOOTER_STATUS_COPY}

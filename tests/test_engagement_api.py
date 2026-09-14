@@ -52,6 +52,8 @@ def test_track_click_kakao_channel_event(client, db_session):
 @pytest.mark.parametrize(
     "event",
     [
+        # 2026-09-14 `/check`·`/checklists`·홈 상황 카드 퇴역으로 걷어낸 퍼널 이벤트.
+        # 과거 click_logs 행은 남지만 새 요청은 받지 않는다.
         "mini_check_started",
         "mini_check_completed",
         "mini_check_result_viewed",
@@ -63,14 +65,11 @@ def test_track_click_kakao_channel_event(client, db_session):
         "check_explore_clicked",
     ],
 )
-def test_track_landing_funnel_events(client, db_session, event):
+def test_retired_landing_funnel_events_return_422(client, db_session, event):
     reset_waitlist_rate_limit()
     response = client.post("/events", json={"event": event})
-    assert response.status_code == 201
-    rows = db_session.query(ClickLog).all()
-    assert len(rows) == 1
-    assert rows[0].event == event
-    assert rows[0].academy_id is None
+    assert response.status_code == 422
+    assert db_session.query(ClickLog).count() == 0
 
 
 def test_track_click_invalid_event_returns_422(client):

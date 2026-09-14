@@ -1,6 +1,8 @@
 """상담 질문 생성. LLM JSON 파싱 실패 시 체크리스트 fallback.
 
 학원 사실·ORM을 쓰지 않는다. LLM은 `get_llm_provider` 포트만 탄다.
+아래 fallback 문장이 정본이다 — 2026-09-14 `/check`·`/checklists` 퇴역으로 옮겨 온
+프론트 원본은 더 이상 없다.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 DISCLAIMER = "학원 평가가 아닌 상담 확인용 질문입니다."
 
-# checklistsData.ts CHECKLISTS id=before-enroll (앞 5문항)
+# 등록 전 질문 (옛 /checklists before-enroll 앞 5문항에서 옮김)
 FALLBACK_BEFORE_ENROLL = [
     ConsultationQuestion(
         topic="강사와 아이와의 관계",
@@ -45,7 +47,7 @@ FALLBACK_BEFORE_ENROLL = [
     ),
 ]
 
-# checkData.ts counseling (needs_work / sometimes / unknown)
+# 재원 상담 질문 (옛 /check 점검 결과 상담 문항 needs_work / sometimes / unknown에서 옮김)
 FALLBACK_CURRENT = [
     ConsultationQuestion(
         topic="학습 상황 진단과 수업 적합도",
@@ -69,7 +71,7 @@ FALLBACK_CURRENT = [
     ),
 ]
 
-# checklistsData.ts CHECKLISTS id=before-switch
+# 옮기기 전 질문 (옛 /checklists before-switch에서 옮김)
 FALLBACK_BEFORE_SWITCH = [
     ConsultationQuestion(
         topic="현재 학원에서 보완 가능한 부분",
