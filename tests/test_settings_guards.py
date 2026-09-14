@@ -48,3 +48,26 @@ def test_local_without_vercel_env_keeps_default_database_url(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     settings = Settings(_env_file=None)
     assert "localhost" in settings.database_url
+
+
+def test_pasted_trailing_whitespace_is_stripped_from_keys_and_selectors(monkeypatch):
+    """대시보드에 줄째 붙여 넣은 GROQ_API_KEY의 줄바꿈이 헤더 오류(LLM 전면 fallback)와
+    로그의 키 노출로 이어졌다(2026-09-15). 키·provider 선택값·DATABASE_URL은 공백을 지운다."""
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    monkeypatch.setenv("DATABASE_URL", _POOLER_URL + "\n")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_value\n")
+    monkeypatch.setenv("HF_API_KEY", "  hf_test_value \r\n")
+    monkeypatch.setenv("LLM_PROVIDER", "groq\n")
+    monkeypatch.setenv("LLM_MODEL", "openai/gpt-oss-120b\n")
+    monkeypatch.setenv("EMBEDDING_PROVIDER", " huggingface")
+    monkeypatch.setenv("VECTOR_STORE", "pgvector\t")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.groq_api_key == "gsk_test_value"
+    assert settings.hf_api_key == "hf_test_value"
+    assert settings.llm_provider == "groq"
+    assert settings.llm_model == "openai/gpt-oss-120b"
+    assert settings.embedding_provider == "huggingface"
+    assert settings.vector_store == "pgvector"
+    assert settings.database_url == _POOLER_URL

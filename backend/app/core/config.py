@@ -38,9 +38,33 @@ class Settings(BaseSettings):
     # 운영 DB JSON 임포트 허용 (기본 거부). 컷오버·재해복구만 True / ALLOW_ACADEMY_IMPORT=1.
     allow_academy_import: bool = False
 
+    # 대시보드·.env에서 값을 줄째 복사해 붙여 넣으면 끝에 줄바꿈이 따라온다. API 키에 남으면
+    # httpx가 요청을 보내기도 전에 "Illegal header value"로 실패해 LLM이 조용히 fallback으로
+    # 떨어지고, 그 예외 메시지가 키 전체를 로그에 남긴다(2026-09-15 운영 GROQ_API_KEY).
+    # provider 선택값에 남으면 이름 매칭이 어긋난다. 비밀값·선택값은 앞뒤 공백을 지운다.
+    @field_validator(
+        "openai_api_key",
+        "groq_api_key",
+        "hf_api_key",
+        "naver_client_id",
+        "naver_client_secret",
+        "llm_provider",
+        "llm_model",
+        "embedding_provider",
+        "embedding_model",
+        "vector_store",
+        "review_source",
+        "local_search_provider",
+        mode="before",
+    )
+    @classmethod
+    def strip_pasted_whitespace(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
     @field_validator("database_url")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
+        value = value.strip()
         # Managed Postgres providers (e.g. Railway) inject a plain
         # "postgresql://" URL, but SQLAlchemy needs the psycopg driver scheme.
         if value.startswith("postgresql://"):
