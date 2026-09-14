@@ -130,5 +130,27 @@ Founder가 "프론트와 백엔드가 Vercel에서 다른 프로젝트인데 꼭
   - 이 과정에서 `next.config.ts` 버그를 잡았다. 처음엔 `VERCEL_ENV`가 있기만 하면 Vercel로 봐서
     `vercel dev`(development)에서 로컬 프록시가 사라졌다. production·preview만 배포로 보도록
     고치고 테스트로 막았다.
-- 다음: 위 1단계(임시 프로젝트 배포)가 경로 변환·쿼리 전달·함수 `maxDuration`을 확인하는 첫
-  실측이다. Founder가 진행하거나, CLI 배포를 확인받고 실행한다.
+- 임시 프로젝트 시험 배포(2026-09-15, Hobby `ai-academy-advisor-services-trial`, 가짜 `DATABASE_URL`)
+  - **1차** (`70140b1`, Production)
+    - 한 배포에 `services/backend/fastapi`와 `services/frontend/*` 함수가 함께 빌드됐고,
+      `maxDuration: 30`이 들어갔다.
+    - `/`·`/app`·`/privacy`는 200, `/check`는 `/app?utm_source=x`로 307이었다.
+    - 그러나 `/api/backend/*`는 전부 FastAPI JSON 404였다. 서비스 `routes`의 `request.path`
+      변환이 배포 설정(`services[].routes`)에는 있었지만 적용되지 않았다.
+  - **2차** (`ae6d5cf`, Preview, FastAPI `root_path`로 교체)
+    - `/api/backend/health`·`/api/backend/`는 200이다.
+    - `/api/backend/academies?limit=abc`(쿼리)와 `/api/backend/academies/abc`(경로)는 422,
+      없는 경로는 404다.
+    - `/`·`/app`은 200, `/check`는 307, `maxDuration: 30`이다.
+  - 가짜 DB라 `/app` 제출(실데이터·LLM) E2E는 운영 전환 뒤 스모크에서 본다.
+- **전환 전 막힌 점**: 백엔드 프로젝트 환경변수 7종(Production·Preview)이 모두 `sensitive` 유형이다.
+  - 대상: `DATABASE_URL`, `GROQ_API_KEY`, `HF_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL`,
+    `EMBEDDING_PROVIDER`, `VECTOR_STORE`
+  - Vercel이 값을 다시 보여주지 않아 CLI로도 대시보드로도 복사할 수 없다.
+  - Founder가 원래 출처(Supabase transaction pooler 6543 URL, Groq·HF 콘솔, 운영 설정값)에서
+    `ai-academy-advisor` 프로젝트에 다시 입력해야 한다.
+- **다음 순서**
+  1. Founder가 위 7종을 `ai-academy-advisor`의 Production·Preview에 입력한다.
+  2. PR을 머지한다. 이 단계와 순서가 바뀌어도 된다.
+  3. 프로젝트 설정을 Framework `services`, Root Directory 비움으로 바꾸고 재배포한다(API로 가능).
+  4. 프로덕션 스모크(`/app` 제출 포함)가 통과하면 `BACKEND_ORIGIN`을 지운다.
