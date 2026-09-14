@@ -164,15 +164,17 @@ Alembic이 정본이며 MCP `apply_migration`은 쓰지 않습니다.
 
 프로덕션 URL `https://ai-academy-advisor-ten.vercel.app`. 공개 정본·Preview·배포 체크 기준은
 **Vercel만**이다(Netlify는 2026-09-07 폐기). Services는 Vercel에서 아직 **Beta**다.
-대시보드 전환(아래 1·2)이 끝나기 전까지는 옛 2-프로젝트 구조(프론트 `BACKEND_ORIGIN` →
-`ai-academy-advisor-backend.vercel.app`)가 그대로 동작한다 — 전환 순서는 결정 파일 참고.
+운영 프로젝트 `ai-academy-advisor`는 2026-09-15에 Services로 전환했다. 옛 백엔드 프로젝트
+`ai-academy-advisor-backend`는 롤백에 대비해 잠시 남겨 두었다가 삭제한다.
 
 1. **프로젝트 설정**: Framework Preset `Services`, Root Directory는 비워 둔다(저장소 루트).
 2. **Environment Variables**(Production·Preview): 백엔드 변수(`DATABASE_URL`·`GROQ_API_KEY`·
    `HF_API_KEY`·`LLM_PROVIDER` 등, `.env.example` 참고)와 프론트 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`
    (선택, 네이버 지도 키)를 한 프로젝트에 둔다. 두 서비스가 같은 변수를 공유하므로 비밀값에
    `NEXT_PUBLIC_` 접두사를 붙이지 않는다 — Next.js는 그 접두사만 브라우저 번들에 넣는다.
-   `BACKEND_ORIGIN`은 두지 않는다.
+   `BACKEND_ORIGIN`은 두지 않는다. 값을 파일에서 줄째 복사하면 끝에 줄바꿈이 따라온다 —
+   2026-09-15 `GROQ_API_KEY`가 그렇게 들어가 LLM이 전부 fallback이 되고 오류 로그에 키가
+   찍혔다. 설정(`app/core/config.py`)이 키·provider 값의 앞뒤 공백을 지우지만, 입력할 때도 확인한다.
 3. **DB 커넥션**: Vercel Functions는 서버리스라 `DATABASE_URL`은 Supabase Supavisor
    **transaction pooler(포트 6543)** 를 쓴다. `backend/app/db/session.py`가 이 모드에 맞춰
    `NullPool` + `psycopg` `prepare_threshold=None`으로 이미 구성돼 있다 — 세션 풀러(5432)로
