@@ -16,28 +16,26 @@ function HeadlineLines({ lines }: { lines: readonly string[] }) {
 }
 
 interface PageHeroProps {
-  /** `/`·`/check` 인트로에서 true. 헤더에 이미 작은 로고가 있어 `/checklists`는 반복하지 않는다. */
+  /** 히어로 큰 로고. 헤더에 이미 작은 로고가 있으므로 페이지가 원할 때만 켠다. */
   logo?: boolean;
   badge: string;
   headline: string;
-  headlineLine2?: string;
-  /** sm 미만에서만 쓰는 h1 줄바꿈. 없으면 headline·headlineLine2 한 세트로 렌더한다. */
+  /** sm 미만에서만 쓰는 h1 줄바꿈. 없으면 headline 한 줄로 렌더한다. */
   headlineMobileLines?: readonly string[];
   support: string;
-  /** 즉시 효익 한 줄. `/`만 쓴다 — `/check`·`/checklists`는 각자 CTA 옆에 이미 같은 문구가 있다. */
+  /** 즉시 효익 한 줄. */
   reassurance?: string;
-  /** 주 CTA 또는 첫 콘텐츠. 페이지마다 다음에 오는 것이 다르다 —
-   *  `/`는 `/app`으로 가는 주 CTA와 신뢰 문구, `/check`·`/checklists`는 버튼. */
+  /** 주 CTA 또는 첫 콘텐츠. `/`는 `/app`으로 가는 주 CTA와 신뢰 문구. */
   children?: ReactNode;
 }
 
-/** 세 공개 페이지(`/`, `/check`, `/checklists`)가 공유하는 히어로 순서:
- *  상황 라벨 → h1(2줄 지원) → 설명 한 문단 → children. */
+/** 공개 히어로 순서: 상황 라벨 → h1 → 설명 한 문단 → children.
+ *  2026-09-14 `/check`·`/checklists` 퇴역 뒤로는 `/`(HomeHero)만 쓴다. 두 줄 제목
+ *  prop(`headlineLine2`)은 그 두 페이지의 공용 히어로 전용이라 함께 걷어냈다. */
 export function PageHero({
   logo = false,
   badge,
   headline,
-  headlineLine2,
   headlineMobileLines,
   support,
   reassurance,
@@ -69,26 +67,10 @@ export function PageHero({
             <span className="sm:hidden">
               <HeadlineLines lines={headlineMobileLines} />
             </span>
-            <span className="hidden sm:inline">
-              {headline}
-              {headlineLine2 ? (
-                <>
-                  <br />
-                  {headlineLine2}
-                </>
-              ) : null}
-            </span>
+            <span className="hidden sm:inline">{headline}</span>
           </>
         ) : (
-          <>
-            {headline}
-            {headlineLine2 ? (
-              <>
-                <br />
-                {headlineLine2}
-              </>
-            ) : null}
-          </>
+          headline
         )}
       </h1>
       <p className="hero-fade-up hero-fade-up-delay-2 mx-auto mt-4 max-w-md break-keep text-sm leading-relaxed text-ink-muted">

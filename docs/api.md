@@ -232,7 +232,7 @@ POST /recommendations/ai
 | 필드 | 값 | 의미 |
 |---|---|---|
 | `academy_id` | 정수 ≥ 1 \| null | 대상 학원 (없어도 됨) |
-| `event` | `phone` \| `website` \| `directions` \| `detail` \| `kakao_channel` \| `mini_check_started` \| `mini_check_completed` \| `mini_check_result_viewed` \| `mini_check_home_clicked` \| `home_check_clicked` \| `checklist_kakao_clicked` \| `home_explore_selected` \| `explore_check_clicked` \| `check_explore_clicked` | 전화/홈페이지/길찾기/상세보기/카카오 채널 추가(유기 유입)/미니 점검 퍼널/`home_check_clicked`는 홈'다니는 중'→`/check`/`mini_check_home_clicked`는 점검→홈/점검 경로 카카오 CTA/`home_explore_selected`는 홈'알아보는 중'→`/checklists`/`explore_check_clicked`는 `/checklists`→`/check`/`check_explore_clicked`는 `/check` 결과→`/checklists` |
+| `event` | `phone` \| `website` \| `directions` \| `detail` \| `kakao_channel` | 전화/홈페이지/길찾기/상세보기/카카오 채널 추가. `/check`·`/checklists`·홈 상황 카드 전용 퍼널 이벤트 9종(`mini_check_*`·`home_check_clicked`·`checklist_kakao_clicked`·`home_explore_selected`·`explore_check_clicked`·`check_explore_clicked`)은 2026-09-14에 퇴역해 422다 — 과거 `click_logs` 행은 그대로 남는다 |
 
 잘못된 `event`는 422, 존재하지 않는 `academy_id`는 404.
 
@@ -304,16 +304,17 @@ POST /consultation/questions
 }
 ```
 
-**LLM과 fallback**: 프롬프트는 JSON만 요구하고 학원 판정을 금지한다. 톤 few-shot은
-`checkData.ts`·`checklistsData.ts` 문장이다. `llm.chat` 예외, stub처럼 JSON이 아닌
-응답, 코드펜스 밖 파싱 실패, 유효 질문 3개 미만이면 **체크리스트 5문항**으로 대체한다.
-`used_fallback`이 그 출처다.
+**LLM과 fallback**: 프롬프트는 JSON만 요구하고 학원 판정을 금지한다. 톤 few-shot
+(`app/prompts/consultation.py`)과 fallback 문장(`app/services/consultation_service.py`)은
+백엔드가 정본이다 — 2026-09-14 `/check`·`/checklists` 퇴역 전 두 페이지의 문구를 그대로
+옮겨 왔다. `llm.chat` 예외, stub처럼 JSON이 아닌 응답, 코드펜스 밖 파싱 실패, 유효 질문
+3개 미만이면 **fallback 5문항**으로 대체한다. `used_fallback`이 그 출처다.
 
 | 조건 | fallback 출처 |
 |---|---|
-| `intent=find_new_academy` | 옮기기 전 체크리스트 |
-| `current_academy`가 있음 | `/check` 상담 문항 |
-| 그 외 (알아보는 중) | 등록 전 체크리스트 |
+| `intent=find_new_academy` | 옮기기 전 질문 (`FALLBACK_BEFORE_SWITCH`) |
+| `current_academy`가 있음 | 재원 상담 질문 (`FALLBACK_CURRENT`) |
+| 그 외 (알아보는 중) | 등록 전 질문 (`FALLBACK_BEFORE_ENROLL`) |
 
 기본 `LLM_PROVIDER=stub`이면 stub은 JSON을 만들지 않으므로 항상 fallback이다.
 `LLM_PROVIDER=groq`이면 실제 모델 JSON을 쓰고, 실패 시에만 fallback. 키가 없어도

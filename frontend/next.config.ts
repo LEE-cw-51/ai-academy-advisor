@@ -43,6 +43,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // `/check`(1분 학원 점검)·`/checklists`(상담 전 질문)는 2026-09-14에 퇴역했다 —
+  // `/app`이 상황 입력 → 후보 → 상담 질문을 한 흐름으로 맡는다
+  // (docs/decisions/2026-09-14-retire-check-and-checklists.md). 카카오 웰컴 메시지·
+  // 광고 초안의 옛 링크가 404가 되지 않게 `/app`으로 보낸다. 쿼리(utm)는 Next가
+  // 그대로 넘긴다. 307(permanent: false) — 308은 브라우저가 캐시해 되돌리기 어렵다.
+  async redirects() {
+    return [
+      { source: "/check", destination: "/app", permanent: false },
+      { source: "/checklists", destination: "/app", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

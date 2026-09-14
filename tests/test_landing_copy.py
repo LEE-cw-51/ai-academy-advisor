@@ -1,8 +1,9 @@
 """랜딩 카피의 실측 숫자·경로·이벤트가 정본·코드와 어긋나지 않는지 검사한다.
 
 2026-09-13 첫 MVP 확정: 메인(`/`)은 상황 분기 페이지가 아니라 `상황 입력 → 후보·상담 질문`
-도구(`/app`)로 보내는 페이지다. 상황 카드 두 장은 보조 퍼널로 남고, 준비 중 기능 예고·
-예시 화면 섹션은 없다. `/check`·`/checklists`는 공용 HeroSection 을 계속 쓴다.
+도구(`/app`)로 보내는 페이지다. 준비 중 기능 예고·예시 화면 섹션은 없다.
+2026-09-14: 보조 퍼널 `/check`(1분 학원 점검)·`/checklists`(상담 전 질문)와 홈 상황 카드를
+퇴역시키고 옛 URL은 `/app`으로 리다이렉트한다. 되돌아오지 않는지 감시한다.
 """
 
 import json
@@ -15,15 +16,11 @@ from tests.source_slice import slice_between
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ACADEMIES = REPO_ROOT / "data" / "academies"
-LANDING = REPO_ROOT / "frontend" / "src" / "components" / "landing"
-CHECKLISTS_DIR = REPO_ROOT / "frontend" / "src" / "components" / "checklists"
+FRONTEND = REPO_ROOT / "frontend"
+LANDING = FRONTEND / "src" / "components" / "landing"
 LANDING_FACTS = LANDING / "landingFacts.ts"
-HERO = LANDING / "HeroSection.tsx"
 PAGE_HERO = LANDING / "PageHero.tsx"
-TRACKED_LINK = LANDING / "TrackedLink.tsx"
 KAKAO_LINK = LANDING / "KakaoChannelLink.tsx"
-SITUATION_SECTION = LANDING / "SituationSection.tsx"
-SITUATION_CARD = LANDING / "SituationCard.tsx"
 GROUNDWORK_SECTION = LANDING / "GroundworkSection.tsx"
 LANDING_PAGE = LANDING / "LandingPage.tsx"
 LANDING_HEADER = LANDING / "LandingHeader.tsx"
@@ -32,19 +29,11 @@ STICKY_KAKAO = LANDING / "StickyKakaoBar.tsx"
 KAKAO_MODAL = LANDING / "KakaoChannelModal.tsx"
 KAKAO_CTA = LANDING / "KakaoChannelCta.tsx"
 LANDING_FOOTER = LANDING / "LandingFooter.tsx"
-CHECKLIST_DATA = CHECKLISTS_DIR / "checklistsData.ts"
-CHECKLIST_GROUP = CHECKLISTS_DIR / "ChecklistGroup.tsx"
-CHECKLISTS_PAGE = (
-    REPO_ROOT / "frontend" / "src" / "app" / "checklists" / "page.tsx"
-)
-CHECK_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "check" / "page.tsx"
-PRIVACY_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "privacy" / "page.tsx"
-MODAL = REPO_ROOT / "frontend" / "src" / "components" / "ui" / "Modal.tsx"
-MINI_CHECK = (
-    REPO_ROOT / "frontend" / "src" / "components" / "check" / "MiniAcademyCheck.tsx"
-)
-LAYOUT = REPO_ROOT / "frontend" / "src" / "app" / "layout.tsx"
-CLICK_EVENT_TYPES = REPO_ROOT / "frontend" / "src" / "lib" / "types.ts"
+PRIVACY_PAGE = FRONTEND / "src" / "app" / "privacy" / "page.tsx"
+MODAL = FRONTEND / "src" / "components" / "ui" / "Modal.tsx"
+LAYOUT = FRONTEND / "src" / "app" / "layout.tsx"
+NEXT_CONFIG = FRONTEND / "next.config.ts"
+CLICK_EVENT_TYPES = FRONTEND / "src" / "lib" / "types.ts"
 CLICK_EVENT_ENUM = REPO_ROOT / "backend" / "app" / "core" / "constants.py"
 
 # 2026-08-19 이전 3시점 카드가 쓰던 값. 되돌아오지 않는지 감시한다.
@@ -53,22 +42,34 @@ RETIRED_STAGE_EVENTS = (
     "home_stage_current_clicked",
     "home_stage_switch_clicked",
 )
-# 3페이지 퍼널 재구성이 도입한 값.
-FUNNEL_EVENTS = (
+# 2026-09-14 `/check`·`/checklists`·홈 상황 카드 퇴역과 함께 걷어낸 값.
+RETIRED_FUNNEL_EVENTS = (
+    "mini_check_started",
+    "mini_check_completed",
+    "mini_check_result_viewed",
+    "mini_check_home_clicked",
     "home_check_clicked",
+    "checklist_kakao_clicked",
     "home_explore_selected",
     "explore_check_clicked",
     "check_explore_clicked",
 )
+# 2026-09-14에 지운 라우트·컴포넌트. 되살아나지 않는지 감시한다.
+RETIRED_PATHS = (
+    FRONTEND / "src" / "app" / "check",
+    FRONTEND / "src" / "app" / "checklists",
+    FRONTEND / "src" / "components" / "check",
+    FRONTEND / "src" / "components" / "checklists",
+    LANDING / "HeroSection.tsx",
+    LANDING / "SituationSection.tsx",
+    LANDING / "SituationCard.tsx",
+    LANDING / "TrackedLink.tsx",
+)
 
 ALL_LANDING_FILES = [
     LANDING_FACTS,
-    HERO,
     PAGE_HERO,
-    TRACKED_LINK,
     KAKAO_LINK,
-    SITUATION_SECTION,
-    SITUATION_CARD,
     GROUNDWORK_SECTION,
     LANDING_PAGE,
     LANDING_HEADER,
@@ -77,9 +78,6 @@ ALL_LANDING_FILES = [
     KAKAO_MODAL,
     KAKAO_CTA,
     LANDING_FOOTER,
-    CHECKLIST_DATA,
-    CHECKLISTS_PAGE,
-    MINI_CHECK,
     MODAL,
 ]
 
@@ -122,18 +120,17 @@ def test_groundwork_slice_catches_literal_count_without_interpolation():
         assert "${MISA_ACADEMY_COUNT}" in mutated
 
 
-def test_tracked_link_and_kakao_link_do_not_latch_modified_clicks():
+def test_kakao_link_does_not_latch_modified_clicks():
     """수정 클릭(새 탭)에서 latch를 걸면, 같은 페이지에서 이어지는 일반 클릭이
-    계측되지 않는다 — TrackedLink/KakaoChannelLink 둘 다 수정 클릭을 감지해야 한다."""
-    for path in (TRACKED_LINK, KAKAO_LINK):
-        text = path.read_text(encoding="utf-8")
-        assert "metaKey" in text, f"{path.name} does not check metaKey"
-        assert "ctrlKey" in text, f"{path.name} does not check ctrlKey"
-        modified_at = text.index("modified")
-        latch_at = text.index("trackedRef.current = true")
-        assert modified_at < latch_at, (
-            f"{path.name}: modifier-click check must run before the latch is set"
-        )
+    계측되지 않는다 — KakaoChannelLink는 수정 클릭을 latch보다 먼저 감지해야 한다."""
+    text = KAKAO_LINK.read_text(encoding="utf-8")
+    assert "metaKey" in text
+    assert "ctrlKey" in text
+    modified_at = text.index("modified")
+    latch_at = text.index("trackedRef.current = true")
+    assert modified_at < latch_at, (
+        "modifier-click check must run before the latch is set"
+    )
 
 
 def test_hero_logo_uses_the_cropped_mark_not_the_padded_original():
@@ -144,38 +141,11 @@ def test_hero_logo_uses_the_cropped_mark_not_the_padded_original():
 
     assert 'src="/logo-mark.png"' in hero
     assert 'alt="학원콕"' in hero
+    assert 'tone="neutral"' in hero
     assert "우리 아이에게 맞는" not in hero
     assert 'src="/logo.png"' not in hero
     # 헤더 로고는 이번 변경 범위 밖이다 — 계속 원본을 쓴다.
     assert 'src="/logo.png"' in header
-
-
-def test_check_intro_reuses_home_hero():
-    """`/check` 인트로가 홈 HeroSection을 쓰면 배지 톤이 `/`·`/checklists`와 자동으로 같아진다."""
-    hero = PAGE_HERO.read_text(encoding="utf-8")
-    mini = MINI_CHECK.read_text(encoding="utf-8")
-
-    assert 'tone="neutral"' in hero
-    assert "HeroSection" in mini
-    assert "PageHero" not in mini
-    # 인트로 마크업을 더 이상 여기서 직접 그리지 않는다.
-    assert 'tone="warn"' not in mini
-
-
-def test_check_meta_frames_consultation_questions_not_launch_news():
-    """`/check` 메타는 출시 소식 대신 상담 질문 프레이밍을 쓴다."""
-    page = CHECK_PAGE.read_text(encoding="utf-8")
-    # metadata 블록은 description 한 줄 + `};` 로 끝난다 — 콤마 슬라이스는 본문 쉼표에 끊긴다.
-    description = slice_between(page, "description:", "\n};")
-    assert "상담" in description
-    assert "질문" in description
-    assert "출시 소식" not in description
-
-
-def test_result_disclaimer_badge_is_not_brand_colored():
-    """면책 고지는 AI·차별점 강조용 브랜드 오렌지와 의미가 다르다."""
-    mini = MINI_CHECK.read_text(encoding="utf-8")
-    assert '<Badge tone="neutral">학원 평가가 아닙니다</Badge>' in mini
 
 
 def test_reassurance_lines_do_not_nest_a_bare_middle_dot_inside_a_dot_list():
@@ -183,24 +153,18 @@ def test_reassurance_lines_do_not_nest_a_bare_middle_dot_inside_a_dot_list():
     끼어 있으면 항목 수를 오인하게 만든다 — 되돌아오기 방지 가드."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
 
-    cta_line = slice_between(facts, 'CTA_REASSURANCE = "', '";')
-    assert " · " in cta_line
-    assert "·" not in cta_line.replace(" · ", ""), (
-        f"CTA_REASSURANCE still nests a bare middle dot: {cta_line!r}"
-    )
-
-    consult_line = slice_between(facts, 'CONSULT_REASSURANCE = "', '";')
-    assert " · " in consult_line
-    assert "·" not in consult_line.replace(" · ", "")
-    # `/check`의 CHECK_CTA_HINT와 같은 3항목 " · " 배지 형식으로 통일했는지.
-    check_hint = slice_between(facts, 'CHECK_CTA_HINT = "', '";')
-    assert consult_line.split(" · ")[0] == check_hint.split(" · ")[0] == "로그인"
+    for const in ("CTA_REASSURANCE", "HERO_REASSURANCE"):
+        line = slice_between(facts, f'export const {const} = "', '";')
+        assert " · " in line
+        assert "·" not in line.replace(" · ", ""), (
+            f"{const} still nests a bare middle dot: {line!r}"
+        )
 
 
-def test_home_leads_with_explore_cta_and_keeps_situation_cards():
+def test_home_leads_with_explore_cta_and_has_no_situation_cards():
     """메인은 2026-09-13부터 주 CTA(`/app` 후보·상담 질문 정리) 하나로 시작한다.
-    상황 카드 두 장은 보조 퍼널로 그 아래, 근거는 맨 아래. 준비 중 기능 예고·예시 화면·
-    대기자 모달·공용 HeroSection 은 메인에서 뺐다."""
+    2026-09-14에 상황 카드(보조 퍼널)를 걷어내 히어로 아래는 근거 섹션뿐이다.
+    준비 중 기능 예고·예시 화면·대기자 모달·공용 HeroSection 도 되돌아오지 않는다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     page = LANDING_PAGE.read_text(encoding="utf-8")
 
@@ -218,19 +182,21 @@ def test_home_leads_with_explore_cta_and_keeps_situation_cards():
     assert "HOME_CTA_LABEL" in page
     # 신뢰 문구는 `/app`의 것을 그대로 쓴다 — 착지한 뒤 같은 말을 다시 만나게.
     assert "TRUST_NOTE" in page
-    assert page.index("<SituationSection") < page.index("<GroundworkSection")
 
-    # 옛 3시점 카드·상황 분기 히어로·준비 중 섹션으로 되돌아가지 않았는지.
-    # (HomeHero 설명 주석이 '공용 HeroSection 을 쓰지 않는다'고 적으므로 주석은 뺀다.)
-    assert "LIFECYCLE_STAGES" not in facts
+    # 설명 주석이 옛 이름을 언급하므로 주석은 빼고 실제 코드만 본다.
     page_code = _strip_comments(page)
+    assert page_code.index("<HomeHero") < page_code.index("<GroundworkSection")
     for gone in (
         "HeroSection",
+        "SituationSection",
         "PlannedFeaturesSection",
         "ServicePreviewSection",
         "WaitlistModal",
     ):
         assert gone not in page_code, f"{gone} still rendered on /"
+    facts_code = _strip_comments(facts)
+    assert "LIFECYCLE_STAGES" not in facts_code
+    assert "SITUATIONS" not in facts_code
     assert not (LANDING / "PlannedFeaturesSection.tsx").exists()
     assert not (LANDING / "ServicePreviewSection.tsx").exists()
 
@@ -260,27 +226,11 @@ def test_footer_keeps_status_copy_without_app_link():
 
 
 def test_home_has_no_sticky_cta_bar():
-    """분기 페이지에는 단일 행동이 없다 — 하단 고정 CTA가 가리킬 곳이 없다.
+    """하단 고정은 카카오 채널 바 하나다 — 주 CTA는 히어로 하나로 충분하다.
     (설명 주석에서 이름을 언급하는 것은 허용하고, 실제 렌더링 여부만 본다.)"""
     page = LANDING_PAGE.read_text(encoding="utf-8")
     assert "<StickyCtaBar" not in page
     assert '"./StickyCtaBar"' not in page
-
-
-def test_two_situation_cards_link_to_the_right_pages_with_events():
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    card = SITUATION_CARD.read_text(encoding="utf-8")
-
-    assert 'id: "explore"' in facts
-    assert 'id: "current"' in facts
-    assert 'href: "/checklists"' in facts
-    assert 'href: "/check"' in facts
-    assert 'event: "home_explore_selected"' in facts
-    # '다니는 중' 카드는 기존 home_check_clicked를 이어받는다 (지표 연속성).
-    assert 'event: "home_check_clicked"' in facts
-    # 세 번째 카드(옮기기 전)는 없다 — /checklists의 마지막 묶음이 그 맥락을 흡수했다.
-    assert facts.count("ctaLabel:") == 2
-    assert "TrackedLink" in card
 
 
 def _strip_comments(text: str) -> str:
@@ -291,11 +241,10 @@ def _strip_comments(text: str) -> str:
 
 
 def test_no_dead_stage_vocabulary_remains():
-    """되돌아오기 방지 가드: 3시점 카드·수량 프레이밍·근거 없는 새 약속·순위·적합성 확정·
-    출시 후 약속이 다시 들어오지 않는지. (설명 주석 안에서 옛 이름을 언급하는 것은
-    허용하고, 실제 카피·코드만 본다.) `우리 아이에게 계속 맞을까요?`(/check 질문형)는
-    `우리 아이에게 맞는`(확정형)을 품지 않으므로 통과한다."""
-    banned_everywhere = RETIRED_STAGE_EVENTS
+    """되돌아오기 방지 가드: 3시점 카드·퇴역 퍼널 이벤트·수량 프레이밍·근거 없는 새 약속·
+    순위·적합성 확정·출시 후 약속·1분 점검이 다시 들어오지 않는지. (설명 주석 안에서
+    옛 이름을 언급하는 것은 허용하고, 실제 카피·코드만 본다.)"""
+    banned_everywhere = (*RETIRED_STAGE_EVENTS, *RETIRED_FUNNEL_EVENTS)
     banned_copy = (
         "체크리스트 3종",
         "영수증 인증",
@@ -305,6 +254,9 @@ def test_no_dead_stage_vocabulary_remains():
         "정식 출시 후 제공",
         "AI 추천",
         "1순위",
+        # 2026-09-14
+        "1분 학원 점검",
+        "1분 점검",
     )
 
     for path in ALL_LANDING_FILES:
@@ -349,8 +301,6 @@ def test_every_kakao_entry_point_goes_through_the_modal_first():
     호출부가 직접 쓰면 팝업을 건너뛰고 바로 외부로 나간다."""
     callers = [
         GROUNDWORK_SECTION,
-        CHECKLISTS_PAGE,
-        MINI_CHECK,
         LANDING_FOOTER,
         STICKY_KAKAO,
     ]
@@ -366,123 +316,50 @@ def test_every_kakao_entry_point_goes_through_the_modal_first():
     assert "웰컴메시지" in modal
     assert "질문" in modal
 
-    # 점검 결과 경로만 별도 이벤트를 유지한다 (모달까지 그대로 전달되는지).
-    cta = KAKAO_CTA.read_text(encoding="utf-8")
-    assert "event" in cta
-    assert 'event="checklist_kakao_clicked"' in MINI_CHECK.read_text(encoding="utf-8")
+    # 2026-09-14: `/check` 결과 전용 이벤트가 퇴역해 카카오 링크는 `kakao_channel` 하나만 보낸다.
+    link_code = _strip_comments(KAKAO_LINK.read_text(encoding="utf-8"))
+    assert 'event: "kakao_channel"' in link_code
+    for path in (KAKAO_CTA, KAKAO_MODAL, KAKAO_LINK):
+        code_only = _strip_comments(path.read_text(encoding="utf-8"))
+        assert "KakaoTrackEvent" not in code_only, f"{path.name} still threads an event prop"
 
 
-def test_consult_groups_reference_every_before_enroll_item_exactly_once():
-    """설계안의 4묶음 매핑에서 빠졌던 '장기 학습 계획과 성장 방향'까지 포함해
-    before-enroll 12항목을 정확히 한 번씩만 참조하는지 검사한다."""
-    checklists_text = CHECKLIST_DATA.read_text(encoding="utf-8")
-
-    enroll_block = re.search(
-        r'id: "before-enroll".*?items: \[(.*?)\n    \],\n  \},\n  \{',
-        checklists_text,
-        re.DOTALL,
-    )
-    assert enroll_block is not None, "before-enroll block not found"
-    enroll_titles = set(re.findall(r'title: "([^"]+)"', enroll_block.group(1)))
-    assert len(enroll_titles) == 12, f"expected 12 before-enroll items, found {len(enroll_titles)}"
-
-    consult_block = re.search(
-        r"export const CONSULT_GROUPS: ConsultGroup\[\] = \[(.*?)\n\];",
-        checklists_text,
-        re.DOTALL,
-    )
-    assert consult_block is not None, "CONSULT_GROUPS not found"
-    refs = re.findall(
-        r'checklistId: "([a-z-]+)", itemTitle: "([^"]+)"', consult_block.group(1)
-    )
-    enroll_refs = [title for checklist_id, title in refs if checklist_id == "before-enroll"]
-    switch_refs = [title for checklist_id, title in refs if checklist_id == "before-switch"]
-
-    assert set(enroll_refs) == enroll_titles, (
-        f"CONSULT_GROUPS before-enroll refs {set(enroll_refs)} != actual items {enroll_titles}"
-    )
-    assert len(enroll_refs) == 12, "each before-enroll item must be referenced exactly once"
-    assert len(switch_refs) == 2, "이전 고민 묶음은 before-switch에서 2항목만 추가로 흡수한다"
-
-
-def test_consult_group_refs_resolve_against_checklist_titles():
-    """묶음이 참조하는 checklistId·title이 실제 CHECKLISTS 정본에 있는지(죽은 참조 방지)."""
-    text = CHECKLIST_DATA.read_text(encoding="utf-8")
-
-    checklist_blocks = dict(
-        re.findall(
-            r'id: "([a-z-]+)",[\s\S]*?items: \[([\s\S]*?)\n    \],\n  \}',
-            text,
-        )
-    )
-    assert set(checklist_blocks) >= {"before-enroll", "before-switch"}
-
-    consult_block = re.search(
-        r"export const CONSULT_GROUPS: ConsultGroup\[\] = \[(.*?)\n\];", text, re.DOTALL
-    )
-    assert consult_block is not None
-    refs = re.findall(
-        r'checklistId: "([a-z-]+)", itemTitle: "([^"]+)"', consult_block.group(1)
-    )
-    for checklist_id, item_title in refs:
-        items_text = checklist_blocks[checklist_id]
-        assert f'title: "{item_title}"' in items_text, (
-            f'"{item_title}" not found in checklist "{checklist_id}"'
-        )
-    assert "resolveConsultGroups" in text
-
-
-def test_checklist_items_are_numbered_continuously_across_the_whole_page():
-    """광고가 '질문 12가지'라고 말하므로 번호는 묶음 안이 아니라 페이지 전체에서
-    이어져야 한다 — page.tsx가 누적 오프셋을 계산해 ChecklistGroup에 넘기고,
-    ChecklistGroup이 실제로 그 번호를 항목 앞에 렌더하는지 확인한다."""
-    page = CHECKLISTS_PAGE.read_text(encoding="utf-8")
-    group = CHECKLIST_GROUP.read_text(encoding="utf-8")
-
-    assert "startIndex" in page, "page.tsx must compute a running offset per group"
-    assert "startIndex={startIndexes[index]}" in page or "startIndex={" in page
-    assert "startIndex" in group, "ChecklistGroup must accept the offset prop"
-    assert re.search(r"startIndex\s*\+\s*itemIndex\s*\+\s*1", group), (
-        "ChecklistGroup must render a page-wide item number, not a per-group one"
-    )
-
-
-def test_checklists_page_is_the_consult_landing_for_ad_a():
-    page = CHECKLISTS_PAGE.read_text(encoding="utf-8")
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-
-    assert "resolveConsultGroups" in page
-    assert "HeroSection" in page
-    assert "CONSULT_KAKAO_CTA_LABEL" in page
-    assert 'CONSULT_HEADLINE = "상담 전에 이 질문부터 챙기세요."' in facts
-    # 광고 A → /checklists, 하단에서 /check로 교차 CTA.
-    assert 'event="explore_check_clicked"' in page
-    assert 'href="/check"' in page
-
-
-def test_check_result_offers_consult_questions_before_home():
-    """새 학원 탐색을 과하게 밀지 않되, 상담 준비 자료로는 이어준다."""
-    mini = MINI_CHECK.read_text(encoding="utf-8")
-
-    kakao_at = mini.index("checklist_kakao_clicked")
-    consult_at = mini.index("check_explore_clicked")
-    home_at = mini.index('href="/"')
-    assert kakao_at < consult_at < home_at
-    assert 'href="/checklists"' in mini
-
-
-def test_new_funnel_events_exist_on_both_sides_of_the_wire():
-    """프론트에서 보내는 이벤트를 백엔드가 422로 거절하지 않게, 양쪽 정본을 함께 검사한다."""
+def test_retired_events_are_gone_on_both_sides_of_the_wire():
+    """퇴역 이벤트가 프론트 타입·백엔드 enum 어느 쪽에도 되살아나지 않게 한다.
+    한쪽에만 되살리면 프론트가 보낸 값을 백엔드가 422로 거절하거나 죽은 값이 남는다."""
     types_ts = CLICK_EVENT_TYPES.read_text(encoding="utf-8")
     constants_py = CLICK_EVENT_ENUM.read_text(encoding="utf-8")
 
-    for event in FUNNEL_EVENTS:
-        assert f'"{event}"' in types_ts, f"{event} missing from ClickEventType"
-        assert f'= "{event}"' in constants_py, f"{event} missing from ClickEvent"
+    assert '"kakao_channel"' in types_ts
+    assert '= "kakao_channel"' in constants_py
 
-    for event in RETIRED_STAGE_EVENTS:
+    for event in (*RETIRED_STAGE_EVENTS, *RETIRED_FUNNEL_EVENTS):
         assert f'"{event}"' not in types_ts, f"retired event {event} still in ClickEventType"
         assert f'= "{event}"' not in constants_py, f"retired event {event} still in ClickEvent"
+
+
+def test_check_and_checklists_are_retired_and_redirect_to_app():
+    """2026-09-14: `/check`·`/checklists`는 지웠지만 카카오 웰컴 메시지·광고 초안의 옛 링크가
+    404가 되지 않게 `/app`으로 임시(307) 리다이렉트한다 — 308은 브라우저가 캐시해 되돌리기
+    어렵다. 홈·공용 크롬·방침 페이지 어디에서도 두 경로로 보내지 않는다."""
+    for path in RETIRED_PATHS:
+        assert not path.exists(), f"retired path came back: {path.relative_to(REPO_ROOT)}"
+
+    config = NEXT_CONFIG.read_text(encoding="utf-8")
+    assert "async redirects()" in config
+    for source in ("/check", "/checklists"):
+        assert (
+            f'{{ source: "{source}", destination: "/app", permanent: false }}' in config
+        ), f"{source} must redirect to /app with a temporary (307) redirect"
+
+    for path in (*ALL_LANDING_FILES, PRIVACY_PAGE, LAYOUT):
+        code_only = _strip_comments(path.read_text(encoding="utf-8"))
+        for href in ('"/check"', '"/checklists"'):
+            assert href not in code_only, f"{href} still linked from {path.name}"
+
+    privacy_code = _strip_comments(PRIVACY_PAGE.read_text(encoding="utf-8"))
+    assert "1분" not in privacy_code
+    assert "/check" not in privacy_code
 
 
 def test_home_metadata_reflects_the_two_situations():
@@ -536,8 +413,8 @@ def test_header_status_notice_sits_beside_the_logo():
 
 
 def test_intro_pages_share_site_chrome_and_sticky_kakao():
-    """/`·`/check`·`/checklists`·`/privacy`가 같은 헤더·고정 카카오 바를 쓴다. `/app`은 제외."""
-    for path in (LANDING_PAGE, CHECK_PAGE, CHECKLISTS_PAGE, PRIVACY_PAGE):
+    """`/`·`/privacy`가 같은 헤더·고정 카카오 바를 쓴다. `/app`은 제외."""
+    for path in (LANDING_PAGE, PRIVACY_PAGE):
         text = path.read_text(encoding="utf-8")
         assert "SiteChrome" in text, f"{path.name} is missing SiteChrome"
         assert "<LandingHeader" not in text, f"{path.name} still mounts header directly"
@@ -559,32 +436,10 @@ def test_intro_pages_share_site_chrome_and_sticky_kakao():
     assert "상담 질문" in footer_cta
     assert "출시 알림 받기" not in footer_cta
 
-
-def test_funnel_pages_share_the_home_hero_copy():
-    """`/check`·`/checklists` 히어로는 공용 HeroSection(HERO_*)을 쓴다. `/privacy`는 방침
-    h1을 유지한다. 둘째 줄은 적합성 확정 대신 프로젝트 상위 목표(더 나은 질문과 판단)."""
-    checklists = CHECKLISTS_PAGE.read_text(encoding="utf-8")
-    mini = MINI_CHECK.read_text(encoding="utf-8")
+    # `/privacy`는 방침 h1을 유지하고 소개 히어로를 쓰지 않는다.
     privacy = PRIVACY_PAGE.read_text(encoding="utf-8")
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    hero = HERO.read_text(encoding="utf-8")
-
-    assert "HeroSection" in checklists
-    assert "CONSULT_HEADLINE" not in checklists
-    assert "HeroSection" in mini
-    assert "CHECK_INTRO_HEADLINE" not in mini
-    assert 'HERO_HEADLINE = "학원을 알아볼 때도, 다니는 동안에도"' in facts
-    assert 'HERO_HEADLINE_LINE2 = "더 나은 질문과 판단을 돕습니다"' in facts
-    for const in (
-        "HERO_BADGE",
-        "HERO_HEADLINE",
-        "HERO_HEADLINE_LINE2",
-        "HERO_HEADLINE_MOBILE_LINES",
-        "HERO_SUPPORT",
-    ):
-        assert const in hero, f"{const} not rendered by HeroSection"
     assert "개인정보처리방침" in privacy
-    assert "HeroSection" not in privacy
+    assert "PageHero" not in privacy
 
 
 def test_modal_portals_to_document_body():
