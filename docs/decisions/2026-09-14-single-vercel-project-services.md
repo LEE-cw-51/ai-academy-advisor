@@ -1,7 +1,7 @@
 # 프론트·백엔드를 Vercel 프로젝트 하나로 — Services
 
 - 날짜: 2026-09-14
-- 상태: 채택 (2026-09-15 운영 전환 완료, 노출된 Groq 키 교체 대기)
+- 상태: 채택 (2026-09-15 운영 전환 완료)
 - 대체:
   - `decision-log.md 2026-09-04 — 백엔드 호스팅을 Railway에서 Vercel Python Function으로 이전`
     중 "프론트와 별도의 Vercel 프로젝트(Root Directory `backend`)로 배포한다"와 프론트
@@ -168,8 +168,11 @@ Founder가 "프론트와 백엔드가 Vercel에서 다른 프로젝트인데 꼭
     - 조치: 설정에서 키·provider 값의 앞뒤 공백을 지운다(PR #55). 노출된 키는 Founder가 교체한다.
     - 기능이 멈춘 게 아니라 품질이 떨어진 것이고 롤백해도 키 노출은 그대로라, 롤백하지 않았다.
   - 확인이 통과한 뒤 `BACKEND_ORIGIN`(Production·Preview)을 지웠다.
+  - Founder가 `GROQ_API_KEY`를 새 키로 교체한 뒤 `main`을 다시 운영 배포했다
+    (`dpl_DPr62dQ2ziURT56zrLmv8ExFeufm`, `BACKEND_ORIGIN` 없이 빌드). 상담 질문이 `used_fallback=False`(1초),
+    AI 추천 이유가 LLM 문장으로 돌아왔고, health·학원 조회·`/`·`/app`·`/check` 307도 정상이었다.
   - **롤백**: 직전 운영 배포 `dpl_HaJ1tSf86kPb9xq4zrDTgvRH8LN2`(옛 2-프로젝트 빌드)를 promote한다.
     이 배포는 옛 백엔드 프로젝트를 부르므로, 그 프로젝트를 지운 뒤에는 이 방법을 쓸 수 없다.
 - **남은 일**
-  - Groq 키 교체 → 재배포 → `POST /api/backend/consultation/questions`가 `used_fallback=false`인지 확인
+  - Groq 콘솔에서 노출된 기존 키가 삭제됐는지 Founder가 확인한다(새 키 교체·재배포·`used_fallback=false` 확인은 2026-09-15 완료)
   - 1~2주 뒤 `ai-academy-advisor-backend` 프로젝트 삭제
