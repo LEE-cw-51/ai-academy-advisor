@@ -23,8 +23,8 @@ class GroqLLMProvider:
             headers={"Authorization": f"Bearer {self._api_key}"},
             json={"model": self._model, "messages": messages},
             # ai_recommendation_service._build_reason이 항목당 순차 호출하므로
-            # (최대 limit=10) 30초는 넘겨선 안 된다 — vercel.json maxDuration=30
-            # 예산을 개별 호출 하나가 다 써버릴 수 있다.
+            # (최대 limit=10) 30초는 넘겨선 안 된다 — 루트 vercel.json backend 서비스의
+            # maxDuration=30 예산을 개별 호출 하나가 다 써버릴 수 있다.
             timeout=8.0,
         )
         response.raise_for_status()

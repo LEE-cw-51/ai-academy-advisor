@@ -1,34 +1,26 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-// 백엔드는 별도 Vercel Python Function 프로젝트로 배포된다(Railway 이탈,
-// docs/decision-log.md 2026-09-04). 브라우저는 항상 같은 오리진의
-// /api/backend/*만 호출하고, Next.js 서버가 서버사이드로 실제 백엔드에
-// 프록시한다 — 프로덕션에서 CORS 설정 자체가 필요 없어진다.
-// BACKEND_ORIGIN은 NEXT_PUBLIC_이 아닌 서버 전용 env(Vercel 프로젝트 설정에서
-// 지정). 로컬 dev는 지정하지 않으면 로컬 백엔드를 그대로 가리킨다.
+// 브라우저는 항상 같은 오리진의 /api/backend/*만 호출한다 — CORS가 필요 없다.
 //
-// Vercel Production·Preview 빌드(`VERCEL_ENV`가 production/preview)에서
-// BACKEND_ORIGIN이 비어 있으면 rewrites가 조용히 localhost:8000으로 떨어져
-// 배포된 앱의 모든 API 호출이 깨진다 — 빌드 자체를 실패시켜 배포 시점에
-// 바로 드러나게 한다. CI·로컬은 `VERCEL_ENV`가 없으므로 기본값을 유지한다.
-// trailing slash는 destination에 `//academies` 같은 이중 슬래시를 만들어
-// FastAPI 라우팅이 매치하지 못하므로 여기서 제거한다(frontend/src/lib/api.ts의
-// NEXT_PUBLIC_API_URL 정규화와 동일 규칙).
+// Vercel: 저장소 루트 vercel.json의 Services가 이 경로를 같은 프로젝트의 backend
+// 서비스(FastAPI)로 보낸다(docs/decisions/2026-09-14-single-vercel-project-services.md).
+// 그 최상위 rewrite가 Next.js보다 먼저 요청을 받으므로 여기서는 프록시가 필요 없다.
+// 백엔드가 별도 프로젝트였을 때(2026-09-04~) 쓰던 BACKEND_ORIGIN 필수 가드는 걷어냈다.
+//
+// 프록시는 BACKEND_ORIGIN이 있을 때만 등록한다. 로컬·CI는 기본 localhost:8000을 쓴다.
+// Vercel 배포(Production·Preview)에서 BACKEND_ORIGIN을 남겨 두면 옛 2-프로젝트 구조로도
+// 동작한다 — 대시보드 전환 전에 이 코드가 먼저 배포되거나, 전환을 롤백할 때를 위한 것이다.
+// `vercel dev`는 VERCEL_ENV=development를 넣는데, 이것까지 배포로 치면 로컬 프록시가
+// 사라져 /api/backend/*가 Next 404가 된다 — 그래서 production·preview만 배포로 본다.
+// trailing slash는 destination에 `//academies` 같은 이중 슬래시를 만들어 FastAPI
+// 라우팅이 매치하지 못하므로 제거한다(frontend/src/lib/api.ts의 NEXT_PUBLIC_API_URL
+// 정규화와 동일 규칙).
 const vercelEnv = process.env.VERCEL_ENV;
-if (
-  (vercelEnv === "production" || vercelEnv === "preview") &&
-  !process.env.BACKEND_ORIGIN
-) {
-  throw new Error(
-    "BACKEND_ORIGIN이 설정되지 않았습니다 — Vercel Production/Preview 빌드는 " +
-      "실제 백엔드 오리진이 필요합니다 (Vercel 프로젝트 설정 > Environment Variables).",
-  );
-}
-const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || "http://localhost:8000").replace(
-  /\/+$/,
-  "",
-);
+const onVercel = vercelEnv === "production" || vercelEnv === "preview";
+const backendOrigin =
+  process.env.BACKEND_ORIGIN?.trim() || (onVercel ? "" : "http://localhost:8000");
+const BACKEND_ORIGIN = backendOrigin.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   // 저장소 루트에 다른 lockfile(예: 상위 폴더의 package-lock.json)이 있을 때
@@ -36,6 +28,7 @@ const nextConfig: NextConfig = {
   // 바뀌지 않는다.
   outputFileTracingRoot: path.join(__dirname, ".."),
   async rewrites() {
+    if (!BACKEND_ORIGIN) return [];
     return [
       {
         source: "/api/backend/:path*",

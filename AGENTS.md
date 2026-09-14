@@ -107,10 +107,12 @@ Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프�
 **`services/scoring.py`는 ORM/모델을 import하지 않는 순수 모듈**이고,
 **`recommendation_pipeline.py` 밖으로 ORM 객체나 열린 세션을 내보내지 않는다** (테스트로 강제됨).
 
-**목록·추천 응답의 좌표는 지도 표시에 필요하니 그대로 둔다.** 프로덕션은 프론트(Vercel)의
-`next.config.ts` rewrites가 백엔드로 same-origin 프록시하므로 `CORS_ORIGINS`가
-load-bearing이 아니다 — 로컬 직접 호출용으로만 JSON 배열 형식을 유지한다
-(2026-09-04, `docs/decision-log.md`).
+**목록·추천 응답의 좌표는 지도 표시에 필요하니 그대로 둔다.** 프로덕션은 Vercel 프로젝트
+하나에 프론트·백엔드를 Services로 올리고, 루트 `vercel.json`이 `/api/backend/*`를 같은 도메인의
+backend 서비스로 보내므로 `CORS_ORIGINS`가 load-bearing이 아니다 — 로컬 직접 호출용으로만
+JSON 배열 형식을 유지한다 (2026-09-04 `docs/decision-log.md`,
+2026-09-14 `docs/decisions/2026-09-14-single-vercel-project-services.md`).
+배포 라우팅·함수 예산(`maxDuration=30`)은 루트 `vercel.json`에 있고 `tests/test_deploy_config.py`가 지킨다.
 
 ## 8. 검증
 
