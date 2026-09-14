@@ -68,8 +68,8 @@ AI 구성요소(LLM·임베딩·벡터 스토어)는 벤더/모델 교체가 잦
 - 프로덕션: Vercel 프로젝트 하나에 [Services](https://vercel.com/docs/services)로
   프론트(Next.js)와 백엔드(FastAPI — Python Function 하나가 앱 전체를 서빙)를 함께
   배포한다 — 2026-09-14 (`docs/decisions/2026-09-14-single-vercel-project-services.md`).
-  루트 `vercel.json`이 `/api/backend/*`를 backend 서비스로 보내고 경로 앞부분을 떼며,
-  나머지는 frontend 서비스가 받는다. 그전(2026-09-04 Railway 이탈~)은 프론트·백엔드가
+  루트 `vercel.json`이 `/api/backend/*`를 backend 서비스로 보내고(앞부분은 FastAPI
+  `root_path`가 뗀다), 나머지는 frontend 서비스가 받는다. 그전(2026-09-04 Railway 이탈~)은 프론트·백엔드가
   별도 Vercel 프로젝트 둘이었다. 공개 URL·Preview·배포 체크 정본도 Vercel뿐이며,
   Netlify는 2026-09-07에 폐기.
   서버리스라 DB는 `NullPool` + Supabase transaction pooler(6543)를 쓴다

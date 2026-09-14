@@ -54,16 +54,30 @@ def test_backend_route_is_matched_before_the_frontend_catch_all():
     assert rewrites == [("/api/backend/(.*)", "backend"), ("/(.*)", "frontend")]
 
 
-def test_backend_service_strips_the_public_prefix():
-    """서비스는 원래 경로를 받는다 — 앞부분을 떼지 않으면 FastAPI가
-    /api/backend/academies 라우트를 찾다 404를 낸다."""
-    routes = _config()["services"]["backend"]["routes"]
-    assert routes == [
-        {
-            "src": "/api/backend/(.*)",
-            "transforms": [{"type": "request.path", "op": "set", "args": "/$1"}],
-        }
-    ]
+def test_backend_service_has_no_path_transform():
+    """서비스 routes의 request.path 변환은 2026-09-15 시험 배포에서 설정에는 들어갔지만
+    적용되지 않았다 — 접두사는 FastAPI root_path가 뗀다. 두 방식을 섞지 않는다."""
+    assert "routes" not in _config()["services"]["backend"]
+
+
+def test_fastapi_serves_prefixed_and_bare_paths():
+    """서비스는 /api/backend/…를 그대로 받는다. root_path가 없으면 모든 API가 FastAPI
+    404가 된다(시험 배포에서 실제로 났다). 접두사 없는 경로(로컬·옛 프로젝트)도 살아 있어야 한다."""
+    from fastapi.testclient import TestClient
+
+    from app.main import PUBLIC_PATH_PREFIX, app
+
+    rewrite_prefix = _config()["rewrites"][0]["source"].removesuffix("/(.*)")
+    assert PUBLIC_PATH_PREFIX == rewrite_prefix == "/api/backend"
+    assert app.root_path == PUBLIC_PATH_PREFIX
+
+    client = TestClient(app)
+    for path in ("/health", "/api/backend/health"):
+        assert client.get(path).status_code == 200, path
+    # 쿼리·경로 파라미터까지 FastAPI 검증에 닿는지 — DB 이전 단계라 422로 확인한다.
+    assert client.get("/api/backend/academies?limit=abc").status_code == 422
+    assert client.get("/api/backend/academies/abc").status_code == 422
+    assert client.get("/api/backend/no-such-route").status_code == 404
 
 
 def test_browser_calls_the_prefix_the_services_route_owns():

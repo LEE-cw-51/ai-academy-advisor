@@ -13,7 +13,18 @@ settings = get_settings()
 
 setup_logging()
 
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+# 브라우저는 같은 오리진의 /api/backend/*로 호출한다. Vercel Services(루트 vercel.json)는
+# 이 접두사를 붙인 원래 경로를 그대로 넘긴다 — 서비스 routes의 request.path 변환은
+# 2026-09-15 시험 배포에서 적용되지 않았다. 그래서 root_path로 접두사를 떼고 라우팅한다.
+# Starlette는 root_path로 시작하지 않는 경로를 그대로 매칭하므로, 접두사 없는 요청
+# (로컬 uvicorn·next dev 프록시·옛 백엔드 프로젝트·테스트)도 계속 동작한다.
+PUBLIC_PATH_PREFIX = "/api/backend"
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    root_path=PUBLIC_PATH_PREFIX,
+)
 
 app.add_middleware(
     CORSMiddleware,

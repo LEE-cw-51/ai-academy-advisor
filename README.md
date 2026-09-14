@@ -154,9 +154,11 @@ Alembic이 정본이며 MCP `apply_migration`은 쓰지 않습니다.
 (2026-09-14, `docs/decisions/2026-09-14-single-vercel-project-services.md`).
 저장소 루트 `vercel.json`이 두 서비스와 공개 라우팅을 정의한다.
 
-- `/api/backend/*` → `backend` 서비스(`backend/`, `app.main:app`). 서비스 `routes`의
-  `request.path` 변환이 앞부분을 떼서 FastAPI는 `/academies`처럼 원래 라우트를 본다.
-  함수 설정(`maxDuration=30`, `excludeFiles`)도 이 서비스 안에 있다.
+- `/api/backend/*` → `backend` 서비스(`backend/`, `app.main:app`). 서비스는 접두사가 붙은
+  원래 경로를 받으므로 FastAPI `root_path="/api/backend"`(`app/main.py`)가 앞부분을 떼고
+  라우팅한다 — 접두사 없는 로컬 호출도 그대로 동작한다. 서비스 `routes`의 `request.path`
+  변환은 시험 배포에서 적용되지 않아 쓰지 않는다. 함수 설정(`maxDuration=30`,
+  `excludeFiles`)은 이 서비스 안에 있다.
 - 그 밖의 모든 경로 → `frontend` 서비스(`frontend/`). 브라우저는 같은 오리진만 호출하므로
   **CORS 설정이 필요 없다**.
 

@@ -34,8 +34,12 @@ Founder가 "프론트와 백엔드가 Vercel에서 다른 프로젝트인데 꼭
 - 저장소 루트 `vercel.json`에 `frontend`(Next.js)와 `backend`(FastAPI, `app.main:app`)
   서비스를 둔다.
   - 최상위 rewrite 순서: `/api/backend/(.*)` → backend, 그 뒤에 `/(.*)` → frontend.
-  - 서비스는 원래 경로를 받는다. backend 서비스 `routes`의 `request.path` 변환(`/$1`)이
-    `/api/backend`를 떼서 FastAPI 라우트와 코드는 그대로다.
+  - 서비스는 접두사가 붙은 원래 경로를 받는다. FastAPI `root_path="/api/backend"`
+    (`backend/app/main.py`의 `PUBLIC_PATH_PREFIX`)가 앞부분을 떼고 라우팅한다.
+    - 라우트 정의는 그대로다.
+    - 접두사 없는 요청(로컬 uvicorn·`next dev` 프록시·옛 백엔드 프로젝트·테스트)도 계속 동작한다.
+    - 처음에는 서비스 `routes`의 `request.path` 변환(`/$1`)을 썼다. 2026-09-15 시험 배포에서
+      설정에는 들어갔지만 적용되지 않아 모든 API가 FastAPI 404였고, 그래서 바꿨다(아래 검증 참고).
   - 함수 설정(`maxDuration=30`, `excludeFiles`)은 backend 서비스의 `functions`로 옮기고
     `backend/vercel.json`을 지운다. Services 모드에서는 `functions`를 최상위에 둘 수 없다.
 - 브라우저는 지금처럼 `/api/backend/*`만 호출한다(`frontend/src/lib/api.ts` 불변).
@@ -48,15 +52,20 @@ Founder가 "프론트와 백엔드가 Vercel에서 다른 프로젝트인데 꼭
 - 계약은 `tests/test_deploy_config.py`가 지킨다. pytest와 `npm run build`는 루트
   `vercel.json`을 읽지 않기 때문이다.
   - 서비스 두 개, entrypoint, `maxDuration=30`
-  - rewrite 순서, 경로 변환
-  - `backend/vercel.json` 부재, `next.config.ts` 필수 가드 부재
+  - rewrite 순서, FastAPI `root_path`(접두사 있는·없는 경로 모두 200, 쿼리·경로 파라미터 422)
+  - backend 서비스에 `routes` 변환 없음, `backend/vercel.json` 부재, `next.config.ts` 필수 가드 부재
 
 ## 검토한 대안·트레이드오프
 
 - **두 프로젝트 유지**: 지금 잘 동작하고 Beta 위험이 없다. 대신 위의 반쪽 Preview·분리 배포·
   설정 분산을 계속 떠안는다.
-- **FastAPI를 경로 아래에 마운트(`/api/backend`)**: Starlette 1.3.1이라 동작하지만 앱 코드와
-  로컬 호출 경로가 바뀐다. 설정만으로 되는 `request.path` 변환을 골랐다.
+- **서비스 `routes`의 `request.path` 변환**: 공식 문서 예시와 같은 형태라 처음에 골랐다. 시험
+  배포에서 설정에는 들어갔지만 적용되지 않았다.
+- **ASGI 래퍼로 접두사 떼기**: 로컬 결과는 `root_path`와 같았다. 하지만 `app`이 FastAPI
+  인스턴스가 아니게 돼 Vercel의 FastAPI 감지 흐름을 벗어난다.
+- **FastAPI `root_path`**(채택): 한 줄이고 `app`이 그대로 FastAPI다.
+  - Starlette 1.3.1은 root_path로 시작하지 않는 경로를 그대로 매칭해서, 접두사 없는 호출도 동작한다.
+  - 부수 효과는 OpenAPI `servers`에 `/api/backend`가 들어가는 정도다.
 - **Services의 위험**: 아직 Beta다. 서비스별 `functions` 경로 표기는 문서에 예시가 없어 시험
   배포에서 확인해야 한다. 공유 환경변수라 프론트 빌드 환경에도 백엔드 비밀값이 들어간다
   (Next.js는 `NEXT_PUBLIC_*`만 번들에 넣으므로 노출되지 않는다).
