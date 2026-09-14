@@ -27,7 +27,7 @@ from app.services.scoring import ScoredAcademy
 
 logger = logging.getLogger(__name__)
 
-# `backend/vercel.json`의 `maxDuration=30`(서버리스 함수 전체 예산) 대비 여유를 둔다.
+# 루트 `vercel.json` backend 서비스의 `maxDuration=30`(서버리스 함수 전체 예산) 대비 여유를 둔다.
 # 요청 시작 시점부터 추적한다 — `build_context`(embed 최대 ~10s) 뒤에야 예산을
 # 열면 embed+LLM 창이 겹쳐 하드캡을 넘을 수 있다. 남은 시간이 Groq httpx
 # timeout(8.0)보다 짧으면 LLM을 시작하지 않고 `_fallback_reason`으로 넘어간다.

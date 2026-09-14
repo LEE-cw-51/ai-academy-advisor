@@ -11,9 +11,12 @@ import type {
 } from "./types";
 import { ApiError } from "./types";
 
-// next.config.ts의 rewrites()가 /api/backend/*를 실제 백엔드로 프록시한다
-// (같은 오리진 — CORS 불필요). NEXT_PUBLIC_API_URL을 지정하면 프록시를
-// 우회해 백엔드를 직접 호출할 수 있다(예: 로컬에서 프론트 없이 API만 테스트).
+// 같은 오리진의 /api/backend/*만 호출한다 — CORS 불필요. Vercel에서는 루트
+// vercel.json의 Services가 이 경로를 backend 서비스로 보내고, 로컬에서는
+// next.config.ts의 rewrites()가 BACKEND_ORIGIN(기본 localhost:8000)으로 프록시한다.
+// 이 접두사는 tests/test_deploy_config.py가 vercel.json 라우트와 함께 지킨다.
+// NEXT_PUBLIC_API_URL을 지정하면 프록시를 우회해 백엔드를 직접 호출할 수 있다
+// (예: 로컬에서 프론트 없이 API만 테스트).
 const DEFAULT_API_URL = "/api/backend";
 
 export function getApiBaseUrl(): string {

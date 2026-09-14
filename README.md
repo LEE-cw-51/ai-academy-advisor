@@ -147,45 +147,52 @@ Alembic이 정본이며 MCP `apply_migration`은 쓰지 않습니다.
 에이전트가 사용할 MCP 도구: `list_tables`, `list_extensions`, `execute_sql`(read_only SELECT).
 `apply_migration`은 쓰지 않습니다.
 
-## 배포 (Vercel, 백엔드+프론트 분리 프로젝트)
+## 배포 (Vercel, 프로젝트 하나 · Services)
 
-백엔드(FastAPI)와 프론트(Next.js)는 **각각 별도의 Vercel 프로젝트**로 배포한다
-(2026-09-04, Railway 고정비를 피하기 위한 이전 — `docs/decision-log.md`).
-공개 프론트 정본·Preview·배포 체크 기준은 **Vercel만**이다. Netlify
-(`academykok.netlify.app`)는 쓰지 않으며, Founder가 Netlify 사이트 `academykok`의
-Git 연동을 해제해야 PR에 `netlify/.../deploy-preview` 체크가 남지 않는다
-(2026-09-07, 저장소만으로는 불가). 프로덕션 프론트
-`https://ai-academy-advisor-ten.vercel.app`, 백엔드
-`https://ai-academy-advisor-backend.vercel.app`.
-백엔드는 `backend/pyproject.toml`의 `[tool.vercel] entrypoint = "app.main:app"`로
-`app/main.py`의 FastAPI 인스턴스 전체가 서버리스 함수 하나로 서빙된다.
+프론트(Next.js)와 백엔드(FastAPI)는 **Vercel 프로젝트 하나**에
+[Services](https://vercel.com/docs/services)로 함께 배포한다
+(2026-09-14, `docs/decisions/2026-09-14-single-vercel-project-services.md`).
+저장소 루트 `vercel.json`이 두 서비스와 공개 라우팅을 정의한다.
 
-1. **백엔드 프로젝트**: 이 GitHub 리포를 연동하고 Root Directory를 `backend`로 지정한다.
-   Variables에 `DATABASE_URL`(Supabase, 위 절 참고)·`OPENAI_API_KEY`·`GROQ_API_KEY` 등을 설정한다.
-2. **DB 커넥션**: Vercel Functions는 서버리스라 `DATABASE_URL`은 Supabase Supavisor
+- `/api/backend/*` → `backend` 서비스(`backend/`, `app.main:app`). 서비스 `routes`의
+  `request.path` 변환이 앞부분을 떼서 FastAPI는 `/academies`처럼 원래 라우트를 본다.
+  함수 설정(`maxDuration=30`, `excludeFiles`)도 이 서비스 안에 있다.
+- 그 밖의 모든 경로 → `frontend` 서비스(`frontend/`). 브라우저는 같은 오리진만 호출하므로
+  **CORS 설정이 필요 없다**.
+
+프로덕션 URL `https://ai-academy-advisor-ten.vercel.app`. 공개 정본·Preview·배포 체크 기준은
+**Vercel만**이다(Netlify는 2026-09-07 폐기). Services는 Vercel에서 아직 **Beta**다.
+대시보드 전환(아래 1·2)이 끝나기 전까지는 옛 2-프로젝트 구조(프론트 `BACKEND_ORIGIN` →
+`ai-academy-advisor-backend.vercel.app`)가 그대로 동작한다 — 전환 순서는 결정 파일 참고.
+
+1. **프로젝트 설정**: Framework Preset `Services`, Root Directory는 비워 둔다(저장소 루트).
+2. **Environment Variables**(Production·Preview): 백엔드 변수(`DATABASE_URL`·`GROQ_API_KEY`·
+   `HF_API_KEY`·`LLM_PROVIDER` 등, `.env.example` 참고)와 프론트 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`
+   (선택, 네이버 지도 키)를 한 프로젝트에 둔다. 두 서비스가 같은 변수를 공유하므로 비밀값에
+   `NEXT_PUBLIC_` 접두사를 붙이지 않는다 — Next.js는 그 접두사만 브라우저 번들에 넣는다.
+   `BACKEND_ORIGIN`은 두지 않는다.
+3. **DB 커넥션**: Vercel Functions는 서버리스라 `DATABASE_URL`은 Supabase Supavisor
    **transaction pooler(포트 6543)** 를 쓴다. `backend/app/db/session.py`가 이 모드에 맞춰
    `NullPool` + `psycopg` `prepare_threshold=None`으로 이미 구성돼 있다 — 세션 풀러(5432)로
    바꾸면 동시 요청이 늘 때 커넥션이 금방 바닥난다.
-3. **프론트 프로젝트**: Root Directory `frontend`. `next.config.ts`의 `rewrites()`가
-   `/api/backend/*`를 서버 전용 env `BACKEND_ORIGIN`(백엔드 프로젝트의 프로덕션 URL)으로
-   프록시한다 — 브라우저는 항상 같은 오리진만 호출하므로 **CORS 설정이 아예 필요 없다**.
-   `NEXT_PUBLIC_API_URL`은 프록시를 우회해 백엔드를 직접 호출하고 싶을 때만 설정한다.
-4. `main` 브랜치에 push하면 두 프로젝트 모두 자동 배포된다. CLI로 재배포할 때는
-   **저장소 루트**에서 실행한다 — `frontend/`만 올리면 Root Directory=`frontend` 설정과
-   어긋나 실패한다.
-5. DB 마이그레이션은 로컬에서 Supabase 세션 풀러(5432)로 1회 실행한다.
+4. **Preview**: PR마다 같은 커밋의 프론트와 백엔드가 함께 배포된다. Preview 백엔드도 운영
+   Supabase를 쓰므로, 마이그레이션이 필요한 PR은 머지 전에 적용한다.
+5. `main` 브랜치에 push하면 자동 배포된다. CLI는 **저장소 루트**에서 실행한다. 운영과 같은
+   라우팅을 로컬에서 확인하려면 저장소 루트에서 `vercel dev -L`을 쓴다. 단 Windows에서는
+   Vercel CLI 59.11.0의 Python 서비스 dev 서버가 경로를 이스케이프하지 않아(`C:\Users\...`의
+   `\U`) 백엔드가 뜨지 않는다 — WSL이나 Preview 배포로 확인한다. 저장소 루트의 `.vercel`
+   연결이 옛 Next.js 프로젝트를 가리키는 동안에는 `vercel dev`가 Services가 아니라 `next dev`만
+   띄운다.
+6. DB 마이그레이션은 로컬에서 Supabase 세션 풀러(5432)로 1회 실행한다.
 
 ```bash
 cd backend && uv run alembic upgrade head
 ```
 
-로컬 개발 흐름(`docker compose up --build`, 또는 `uv run uvicorn app.main:app`)은 이
-설정과 무관하게 그대로 사용할 수 있다. `backend/Dockerfile`·`docker-compose.yml`은
-로컬 전용으로 유지한다.
-
-프론트 Environment Variables (Production)의 `NEXT_PUBLIC_NAVER_MAP_CLIENT_ID`(선택,
-네이버 지도 키)는 위 배포 절차의 `BACKEND_ORIGIN`과 함께 백엔드 프로젝트가 아니라
-**프론트 프로젝트**에 설정한다. 자세한 안내는 [frontend/README.md](frontend/README.md).
+로컬 개발 흐름(`docker compose up --build`, 또는 `uv run uvicorn app.main:app` + `npm run dev`)은
+이 설정과 무관하게 그대로 사용할 수 있다 — `next dev`가 `/api/backend/*`를 `localhost:8000`으로
+프록시한다. `backend/Dockerfile`·`docker-compose.yml`은 로컬 전용으로 유지한다.
+자세한 프론트 안내는 [frontend/README.md](frontend/README.md).
 
 ## 프로젝트 구조
 

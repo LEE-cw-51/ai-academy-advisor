@@ -29,8 +29,8 @@ class OpenAIEmbeddingProvider:
             f"{self._base_url}/embeddings",
             headers={"Authorization": f"Bearer {self._api_key}"},
             json={"model": self._model, "input": texts, "dimensions": self._dim},
-            # 요청당 1회 호출(recommendation_pipeline.build_context) — vercel.json
-            # maxDuration=30 예산에서 LLM 추천-이유 호출들에 쓸 여유를 남긴다.
+            # 요청당 1회 호출(recommendation_pipeline.build_context) — 루트 vercel.json
+            # backend 서비스의 maxDuration=30 예산에서 LLM 추천-이유 호출들에 쓸 여유를 남긴다.
             timeout=10.0,
         )
         response.raise_for_status()
