@@ -49,8 +49,15 @@ export const FOOTER_KAKAO_CTA_LABEL = "카카오톡 채널 추가하고 상담 �
 /** data/academies/*.json 중 주소에 "미사"가 포함된 건수.
  *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다. GROUNDWORK_BODY·
  *  GROUNDWORK_SOURCE_NOTE가 이 숫자를 보간하므로, 여기 값이 바뀌면 화면 문구도
- *  같이 바뀐다 (하드코딩된 별도 문자열로 어긋나지 않게). */
+ *  같이 바뀐다 (하드코딩된 별도 문자열로 어긋나지 않게).
+ *  운영 DB(Supabase)는 411행이다 — 덕풍동 1곳이 더 있다. 화면 수치는 JSON 주소 기준이다. */
 export const MISA_ACADEMY_COUNT = 410;
+/** 위 수량의 출처와 수집 기준일. 수량은 고정된 제품 약속이 아니라 기준일이 있는 데이터
+ *  현황이라, 화면에는 반드시 출처·기준일과 함께 쓴다 (docs/project.md 2026-09-18,
+ *  docs/data-strategy.md "사업 검증용 집계 원칙"). 기준일은 data/README.md "현재
+ *  들어있는 데이터"의 수집일과 같아야 한다 — 테스트가 대조한다. */
+export const MISA_ACADEMY_COUNT_SOURCE = "경기데이터드림 학원·교습소 현황";
+export const MISA_ACADEMY_COUNT_AS_OF = "2026-07-10";
 
 /** 메인 하단. 지금 확인 가능한 사실(위 학원 수)과 후보 정리가 그 사실 위에서 돌아간다는
  *  것을 말한다. "정식 출시 후 제공"은 `/app`이 주 CTA가 되며 사실이 아니게 돼 뺐다.
@@ -59,7 +66,7 @@ export const GROUNDWORK_HEADING = "학원콕이 쌓아가는 근거";
 export const GROUNDWORK_BODY =
   `하남 미사 등록 학원 ${MISA_ACADEMY_COUNT}곳의 공개 정보와 확인일을 바탕으로 확인해 볼 후보를 정리합니다. 확인되지 않은 정보는 미확인으로 표시합니다.`;
 export const GROUNDWORK_SOURCE_NOTE =
-  `${MISA_ACADEMY_COUNT}곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소`;
+  `${MISA_ACADEMY_COUNT}곳 = ${MISA_ACADEMY_COUNT_SOURCE} ${MISA_ACADEMY_COUNT_AS_OF} 수집 기준, 주소에 '미사'가 포함된 등록 학원·교습소`;
 
 /** `/` 검색·공유 메타. 알아보는 중·다니는 중 두 상황 모두 `/app`의 상황 선택이 받는다 —
  *  다니는 중을 따로 받던 1분 점검(`/check`)은 2026-09-14에 퇴역했다. */

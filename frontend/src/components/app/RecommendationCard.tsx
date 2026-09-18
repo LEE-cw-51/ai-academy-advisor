@@ -9,11 +9,14 @@ import {
   EVIDENCE_TOGGLE_HIDE_LABEL,
   EVIDENCE_TOGGLE_LABEL,
   MATCHED_CONDITIONS_LABEL,
+  NAME_SIGNAL_HELPER,
+  NAME_SIGNAL_LABEL,
   REVIEW_EVIDENCE_HEADING,
   UNCONFIRMED_VALUE,
   VERIFIED_AT_LABEL,
   WHY_CANDIDATE_HEADING,
   conditionLabel,
+  signalLabel,
   subjectBadges,
 } from "./exploreCopy";
 
@@ -31,7 +34,9 @@ interface RecommendationCardProps {
  * → 왜 이 후보인지 → 정보 확인일 → 전화·상세·길찾기.
  *
  * 확인된 조건·조건과 다른 점·리뷰 스니펫은 "근거 더 보기" 토글 뒤에 둔다 — 투명성
- * 필드는 계속 보여 주되 첫 시선을 차지하지 않게. `score`는 응답 내 상대값이라
+ * 필드는 계속 보여 주되 첫 시선을 차지하지 않게. 그 안에서도 등록 정보와 맞는 조건과
+ * 학원 이름에서 추정한 신호(`subject_name`)는 다른 줄이다 — 사실과 런타임 탐색 신호를
+ * 학부모가 구분할 수 있어야 한다 (Phase 5c 1개월차). `score`는 응답 내 상대값이라
  * 표시하지 않는다. `unknown_conditions`도 나열하지 않는다 — 컬럼 대부분이 아직
  * null이라 미확인 목록이 사실보다 길어진다(상세 모달이 한 줄로 묶어 보여 준다).
  * 전화번호는 글자로 찍지 않는다 — 전화 버튼이 열고, 상세 모달이 보여 준다.
@@ -58,9 +63,14 @@ export function RecommendationCard({
   // 모르는 백엔드 키는 conditionLabel 이 빈 문자열로 숨긴다. 라벨이 하나도 안 남으면
   // "확인된 조건:" 뒤가 비므로, 토글·행 표시는 원본 배열이 아니라 라벨 기준으로 판단한다.
   const matchedLabels = matched_conditions.map(conditionLabel).filter(Boolean);
+  // 같은 배열을 신호 사전으로 한 번 더 읽는다 — 두 사전은 키가 겹치지 않는다.
+  const signalLabels = matched_conditions.map(signalLabel).filter(Boolean);
   const conflictLabels = conflicts.map(conditionLabel).filter(Boolean);
   const hasEvidence =
-    matchedLabels.length > 0 || conflictLabels.length > 0 || Boolean(review);
+    matchedLabels.length > 0 ||
+    signalLabels.length > 0 ||
+    conflictLabels.length > 0 ||
+    Boolean(review);
   const evidenceId = `candidate-evidence-${academy.id}`;
 
   return (
@@ -118,6 +128,14 @@ export function RecommendationCard({
             {matchedLabels.length > 0 ? (
               <p className="break-words text-xs text-ink-subtle">
                 {MATCHED_CONDITIONS_LABEL}: {matchedLabels.join(", ")}
+              </p>
+            ) : null}
+
+            {signalLabels.length > 0 ? (
+              // 등록 정보와 맞는 조건 아래, 별도 줄. 같은 문장에 섞지 않는다.
+              <p className="mt-1 break-words text-xs text-ink-subtle">
+                {NAME_SIGNAL_LABEL}: {signalLabels.join(", ")}
+                <span className="block">{NAME_SIGNAL_HELPER}</span>
               </p>
             ) : null}
 

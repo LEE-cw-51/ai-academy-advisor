@@ -91,10 +91,38 @@ def test_budget_three_way():
 
 
 def test_subject_name_match():
+    """이름에만 과목이 보이면 점수는 컬럼 매치와 같지만 키는 `subject_name` 이다 —
+    등록 정보가 아닌 런타임 탐색 신호를 "확인된 조건"과 섞지 않는다 (2026-09-19).
+    컬럼이 비어 있으면 과목 사실은 여전히 미확인이다."""
     req = RecommendationRequest(limit=3)
     result = score_one(_academy(name="하늘수학"), req, subjects=["수학"])
     assert result.score == pytest.approx(WEIGHT_SUBJECT)
+    assert result.matched == ["subject_name"]
+    assert result.unknown == ["subject"]
+    assert result.conflicts == []
+
+
+def test_subject_name_match_with_confirmed_other_subjects_is_signal_not_conflict():
+    """컬럼이 확인됐는데 이름만 맞으면 신호로만 남긴다 — category 로 채운 subjects 는
+    불완전할 수 있어 conflicts 로 단정하지 않는다. 점수도 그대로다."""
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="하늘수학", subjects=["영어"]), req, subjects=["수학"]
+    )
+    assert result.score == pytest.approx(WEIGHT_SUBJECT)
+    assert result.matched == ["subject_name"]
+    assert result.unknown == []
+    assert result.conflicts == []
+
+
+def test_list_match_wins_over_name_signal():
+    """컬럼과 이름이 둘 다 맞으면 사실(`subject`)만 남긴다 — 같은 과목을 두 줄에 찍지 않는다."""
+    req = RecommendationRequest(limit=3)
+    result = score_one(
+        _academy(name="하늘수학", subjects=["수학"]), req, subjects=["수학"]
+    )
     assert result.matched == ["subject"]
+    assert result.score == pytest.approx(WEIGHT_SUBJECT)
 
 
 def test_subject_list_match():
@@ -142,7 +170,9 @@ def test_subject_etc_label_matches_name():
         subjects=[SubjectHit("기타", "피아노")],
     )
     assert result.score == pytest.approx(WEIGHT_SUBJECT)
-    assert result.matched == ["subject"]
+    # 세부 라벨은 비어 있고 이름에만 보인다 — 신호 키. subjects 자체는 확인돼 unknown 아님.
+    assert result.matched == ["subject_name"]
+    assert result.unknown == []
 
 
 def test_subject_etc_label_matches_detail():
