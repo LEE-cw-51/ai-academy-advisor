@@ -63,3 +63,13 @@ tmp_audit_out/
 .claude/skills/*
 !.claude/skills/landing-funnel-change/
 .vercel
+
+# .agents/skills 도 .cursor/.claude 와 같은 규칙 — 범용 스킬 payload(archify 는 218파일·8.7MB)는
+# 무시하고, 설치 기록은 skills-lock.json 이 맡는다. 프로젝트 전용 스킬만 예외로 추적한다.
+.agents/skills/*
+!.agents/skills/web-design-guidelines/
+
+# archify 렌더 산출물(HTML ~0.8MB)·전달 스냅샷은 docs/design HTML 과 같은 이유로 무시한다.
+# 다이어그램 정본은 *.architecture.json 명세 하나다.
+docs/diagrams/*.html
+docs/diagrams/.archify-delivery-*/
