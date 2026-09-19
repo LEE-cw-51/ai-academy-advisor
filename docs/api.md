@@ -186,7 +186,9 @@ POST /recommendations/ai
 }
 ```
 
-**`reason`**: 학부모용 짧은 한국어 문장(2–3문장). 확인된 사실만 말한다.
+**`reason`**: 학부모용 짧은 한국어 문장(2–3문장). 확인된 사실만 말한다. 이름에서 추정한
+과목 신호(`subject_name`)는 확인된 조건으로 세지 않고, 폴백 문장은 그것이 등록 정보가
+아님을 밝힌다.
 `matched=`·`unknown=`·`[stub-llm]`·`적합도:` 같은 채점 덤프는 반환하지 않는다.
 기본 stub과, 덤프처럼 보이는 LLM 출력은 규칙 기반 폴백 문장으로 바꾼다.
 `score`는 이유 문장에 넣지 않는다.
@@ -198,7 +200,8 @@ POST /recommendations/ai
 
 | 키 | 출처 |
 |---|---|
-| `subject` | 질문 과목 휴리스틱(이름·`subjects` 매치). 검증된 컬럼이 아니라 추정 신호 |
+| `subject` | 질문 과목이 등록 정보(`subjects` 버킷 또는 `subject_detail` 라벨)와 맞음 — 확인된 사실 |
+| `subject_name` | 질문 과목이 **학원 이름에만** 보임(부분일치). 등록 정보가 아닌 런타임 탐색 신호라 `matched`에 있어도 "확인된 조건"으로 세지 않는다. `subjects`가 비어 있으면 `subject`는 `unknown`에 함께 남는다. 점수는 `subject`와 같다(2026-09-19, `docs/decisions/2026-09-19-round1-engineering-scope.md`) |
 | `level_elementary` / `level_middle` / `level_high` | 학교급 3상태 |
 | `class_small_group` / `class_group` / `class_one_on_one` | 수업형태 3상태 |
 | `curriculum_seonhaeng` / `curriculum_naesin` / `curriculum_suneung` | 커리큘럼 3상태 |

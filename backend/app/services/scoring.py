@@ -122,18 +122,34 @@ def _subject_signal(
         return 0.0
 
     listed = academy.subjects
+    name_only_hit = False
     for hit in hits:
         term = hit.label if hit.subject == "기타" else hit.subject
         if term is None:
             continue
-        name_hit = term in academy.name
         if hit.subject == "기타":
             list_hit = academy.subject_detail == term
         else:
             list_hit = bool(listed) and term in listed
-        if name_hit or list_hit:
+        if list_hit:
+            # 등록 정보(subjects 버킷 / subject_detail 라벨)로 확인된 과목 — 사실.
             matched.append("subject")
             return WEIGHT_SUBJECT
+        if term in academy.name:
+            name_only_hit = True
+
+    if name_only_hit:
+        # 학원 이름에만 과목이 보인다. 점수는 컬럼 매치와 같게 주되(랭킹 불변), 투명성
+        # 키는 `subject_name` 으로 갈라 카드가 "등록 정보와 맞는 조건"이 아니라 "이름에서
+        # 추정한 신호"로 보여 주게 한다 — Phase 5c 1개월차의 사실·런타임 탐색 신호 구분
+        # (docs/decisions/2026-09-19-round1-engineering-scope.md). 컬럼이 비어 있으면
+        # 과목 사실은 여전히 미확인이라 unknown 에도 남긴다. 컬럼이 확인됐는데 이름만
+        # 맞는 경우는 conflicts 에 넣지 않는다 — 지역검색 category 로 채운 subjects 는
+        # 불완전할 수 있어 "다른 점"으로 단정하면 과잉 충돌이 된다.
+        matched.append("subject_name")
+        if listed is None:
+            unknown.append("subject")
+        return WEIGHT_SUBJECT
 
     if listed is None:
         unknown.append("subject")

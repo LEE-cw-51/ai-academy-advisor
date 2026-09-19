@@ -361,6 +361,45 @@ def test_candidate_card_reads_why_then_verified_then_actions():
     assert "a.subjects" in map_panel
 
 
+def test_card_separates_name_signals_from_registered_facts():
+    """학원 이름에만 과목이 보이는 경우(백엔드 `subject_name`)는 등록 정보가 아니다.
+    카드는 '등록 정보와 맞는 조건'과 '학원 이름에서 추정한 신호'를 다른 줄로 적고,
+    한 키가 두 사전에 동시에 있지 않다 (Phase 5c 1개월차: 사실·탐색 신호·미확인 구분,
+    docs/decisions/2026-09-19-round1-engineering-scope.md)."""
+    copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    card = REC_CARD.read_text(encoding="utf-8")
+
+    assert 'MATCHED_CONDITIONS_LABEL = "등록 정보와 맞는 조건"' in copy
+    assert 'NAME_SIGNAL_LABEL = "학원 이름에서 추정한 신호"' in copy
+    helper = slice_between(copy, "NAME_SIGNAL_HELPER =", ";")
+    assert "확인된 것은 아니" in helper
+
+    conditions = copy.split("CONDITION_LABELS: Record<string, string> = {", 1)[1].split(
+        "};", 1
+    )[0]
+    signals = copy.split("SIGNAL_LABELS: Record<string, string> = {", 1)[1].split(
+        "};", 1
+    )[0]
+    assert "subject_name" in signals
+    assert "subject_name" not in conditions
+    condition_keys = set(re.findall(r"^\s*(\w+):", conditions, re.M))
+    signal_keys = set(re.findall(r"^\s*(\w+):", signals, re.M))
+    assert signal_keys and condition_keys.isdisjoint(signal_keys)
+    # 모르는 키는 raw 로 새지 않는다 — conditionLabel 과 같은 원칙.
+    fn = slice_between(copy, "export function signalLabel", "\n}")
+    assert '?? ""' in fn
+    assert "?? key" not in fn
+
+    assert "matched_conditions.map(signalLabel)" in card
+    assert "signalLabels" in slice_between(card, "const hasEvidence =", ";")
+    jsx = rec_card_jsx(card)
+    assert jsx.index("MATCHED_CONDITIONS_LABEL") < jsx.index("NAME_SIGNAL_LABEL")
+    assert "NAME_SIGNAL_HELPER" in jsx
+    # 사실 줄과 신호 줄은 서로 다른 <p> 다 — 한 문장에 이어 붙이지 않는다.
+    between = jsx.split("MATCHED_CONDITIONS_LABEL", 1)[1].split("NAME_SIGNAL_LABEL", 1)[0]
+    assert "</p>" in between
+
+
 def test_style_tags_feed_consultation_questions_not_ai_query():
     """소수정예·선행 같은 태그는 후보 조건이 아니라 상담 질문 힌트다."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")
