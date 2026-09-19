@@ -303,3 +303,21 @@ uv run python -m app.cli.ingest_trait_labels [--dry-run] [--limit N]
 학부모의 질문과 탐색 행동을 학원 대상 수요 정보로 검토할 때는 개별 학부모·아동·학원을 식별할 수 없는 집계 단위로만 다룬다. 초기에는 지역·학년·과목·상담 확인 항목처럼 넓은 단위에서 시작하며, 최소 표본이 확보되지 않으면 학원별 리포트나 소표본 결과를 산출하지 않는다. 원장에게 보여 주는 리포트 시안은 현재 판매 상품이 아니라 수요 검증 자료다.
 
 집계 결과가 학원의 지불 여부에 따라 후보 순서, AI 근거, 추천 논리를 바꾸는 구조가 되어서는 안 된다. 수익화는 무료 탐색의 유용성·데이터 신뢰·반복 사용이 확인된 뒤 별도의 제품·법무·개인정보 검토를 거쳐 결정한다. 원시 인터뷰 기록과 개인정보는 Git 정본에 저장하지 않는다.
+
+### 집계 CLI (2026-09-19)
+
+`app.cli.demand_report`가 `search_history`·`click_logs`를 기간별로 학년군·과목·지역·커리큘럼
+버킷과 행동 유형으로만 센다 (`docs/decisions/2026-09-19-round1-engineering-scope.md`). 원문
+질의는 출력하지 않고, 검색 표본이 `--min-total`(기본 20) 미만이면 리포트를 만들지 않으며,
+`--min-cell`(기본 5) 미만인 셀은 `<5`로 가린다. 학원별 행은 `--by-academy`를 켠 경우에만,
+그것도 최소 셀 이상인 학원만 id로 낸다. 상담 확인 항목 축은 상담 질문 요청을 저장하지 않아
+아직 없다 (Founder 결정 2026-09-19).
+
+```bash
+cd backend
+# DATABASE_URL = Supabase session pooler 5432 (읽기만 한다)
+uv run python -m app.cli.demand_report --since 2026-08-19 --out ../tmp_audit_out/demand-2026-09.md
+```
+
+출력 파일은 커밋하지 않는다(`tmp_audit_out/`은 gitignored). 억제는 초기 시안용 단순 규칙이라
+가려진 셀이 하나뿐이면 합계에서 역산될 수 있다 — 표본이 커지면 규칙을 다시 본다.

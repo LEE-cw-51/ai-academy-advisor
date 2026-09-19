@@ -1,5 +1,7 @@
 """engagement 로그 + 리뷰 조회 데이터 접근 계층."""
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,6 +25,28 @@ def create_click_log(
     db.commit()
     db.refresh(row)
     return row
+
+
+def list_search_history(
+    db: Session, since: datetime, until: datetime
+) -> list[SearchHistory]:
+    """[since, until) 구간의 질문 기록. 비식별 집계 리포트(app.cli.demand_report) 전용 읽기."""
+    stmt = (
+        select(SearchHistory)
+        .where(SearchHistory.created_at >= since, SearchHistory.created_at < until)
+        .order_by(SearchHistory.id)
+    )
+    return list(db.scalars(stmt).all())
+
+
+def list_click_logs(db: Session, since: datetime, until: datetime) -> list[ClickLog]:
+    """[since, until) 구간의 외부 행동 기록. 위와 같은 용도."""
+    stmt = (
+        select(ClickLog)
+        .where(ClickLog.created_at >= since, ClickLog.created_at < until)
+        .order_by(ClickLog.id)
+    )
+    return list(db.scalars(stmt).all())
 
 
 def create_feedback(db: Session, rating: str, comment: str | None) -> Feedback:
