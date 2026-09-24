@@ -44,7 +44,13 @@ export const LOADING_LABEL = "후보와 질문을 정리하는 중…";
 export const QUESTIONS_HEADING = "상담에서 확인할 질문";
 export const CANDIDATES_HEADING = "지금 조건으로 확인해 볼 후보예요";
 export const WHY_CANDIDATE_HEADING = "왜 이 후보를 보여드렸나요?";
-export const MATCHED_CONDITIONS_LABEL = "확인된 조건";
+export const MATCHED_CONDITIONS_LABEL = "등록 정보와 맞는 조건";
+// 학원 이름에만 과목이 보이는 경우(백엔드 `subject_name`)는 등록 정보가 아니라 런타임 탐색
+// 신호다. "등록 정보와 맞는 조건"과 같은 줄에 섞지 않고 따로 적는다 — Phase 5c 1개월차의
+// 점검 항목(공개 사실 / 탐색 신호 / 미확인의 구분, docs/decisions/2026-09-19-round1-engineering-scope.md).
+export const NAME_SIGNAL_LABEL = "학원 이름에서 추정한 신호";
+export const NAME_SIGNAL_HELPER =
+  "등록 정보로 확인된 것은 아니에요. 상담에서 확인해 주세요.";
 export const ASK_AT_CONSULTATION_HEADING = "상담에서 확인할 점";
 export const CONFLICTS_HEADING = "조건과 다른 점";
 export const REVIEW_EVIDENCE_HEADING = "공개 리뷰 (주관적 경험)";
@@ -153,6 +159,17 @@ export function conditionLabel(key: string): string {
   // 모르는 백엔드 키는 raw 로 새지 않게 숨긴다 (relaxedNotes 와 같은 원칙).
   // 호출부는 빈 문자열을 걸러 쓰는 것이 이상적이지만, 폴백만으로도 키 유출은 막는다.
   return CONDITION_LABELS[key] ?? "";
+}
+
+/** 런타임 탐색 신호 키의 학부모용 이름. CONDITION_LABELS 와 키가 겹치면 안 된다 —
+ *  같은 키가 두 줄에 다 찍히면 사실과 신호의 구분이 무너진다 (테스트가 지킨다).
+ *  `matched_conditions` 배열 하나를 두 사전으로 갈라 읽는다. */
+export const SIGNAL_LABELS: Record<string, string> = {
+  subject_name: "과목",
+};
+
+export function signalLabel(key: string): string {
+  return SIGNAL_LABELS[key] ?? "";
 }
 
 /** 배지 표시용 과목 목록. 버킷 "기타"는 세부 라벨(subject_detail)이 있으면

@@ -48,8 +48,16 @@ export const FOOTER_KAKAO_CTA_LABEL = "카카오톡 채널 추가하고 상담 �
 
 /** data/academies/*.json 중 주소에 "미사"가 포함된 건수.
  *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다.
- *  홈 화면 카피에서는 더 이상 쓰지 않는다(2026-09-25 근거 구간 제거). */
+ *  홈 화면 카피에서는 더 이상 쓰지 않는다(2026-09-25 근거 구간 제거).
+ *  운영 DB(Supabase)는 411행이다. 덕풍동 1곳이 더 있다. 이 상수는 JSON 주소 기준이다.
+ *  출처·기준일은 아래 SOURCE·AS_OF 에 둔다. */
 export const MISA_ACADEMY_COUNT = 410;
+/** 위 수량의 출처와 수집 기준일. 수량은 고정된 제품 약속이 아니라 기준일이 있는 데이터
+ *  현황이라, 화면에는 반드시 출처·기준일과 함께 쓴다 (docs/project.md 2026-09-18,
+ *  docs/data-strategy.md "사업 검증용 집계 원칙"). 기준일은 data/README.md "현재
+ *  들어있는 데이터"의 수집일과 같아야 한다 — 테스트가 대조한다. */
+export const MISA_ACADEMY_COUNT_SOURCE = "경기데이터드림 학원·교습소 현황";
+export const MISA_ACADEMY_COUNT_AS_OF = "2026-07-10";
 
 /** `/` 검색·공유 메타. 알아보는 중·다니는 중 두 상황 모두 `/app`의 상황 선택이 받는다 —
  *  다니는 중을 따로 받던 1분 점검(`/check`)은 2026-09-14에 퇴역했다. */

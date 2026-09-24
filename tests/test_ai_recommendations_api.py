@@ -193,7 +193,11 @@ def test_ai_recommend_exposes_transparency_lists(client, db_session):
         json={"query": "고1 내신 미사 수학학원"},
     )
     item = response.json()["items"][0]
-    assert "subject" in item["matched_conditions"]
+    # 시드는 subjects 가 전부 NULL 이라 과목은 이름에서만 보인다 — 사실이 아닌 신호 키로
+    # 오고, 과목 사실은 미확인으로 남는다 (2026-09-19).
+    assert "subject_name" in item["matched_conditions"]
+    assert "subject" not in item["matched_conditions"]
+    assert "subject" in item["unknown_conditions"]
     assert "region" in item["matched_conditions"]
     assert "level_high" in item["unknown_conditions"]
     assert "curriculum_naesin" in item["unknown_conditions"]
@@ -369,6 +373,34 @@ def test_fallback_reason_does_not_count_items_the_card_never_lists(
         # 세면 안 되는 건 화면에 없는 unknown 쪽이다.
         assert "미확인 항목" not in item["reason"]
         assert "등록 정보에서 확인되지 않은 항목" in item["reason"]
+
+
+def test_fallback_reason_does_not_count_name_signal_as_registered_fact(
+    client, db_session, monkeypatch
+):
+    """이름에만 과목이 보이는 후보의 폴백 문장은 그 신호를 '등록 정보와 맞는' 개수에
+    넣지 않고, 등록 정보로 확인된 게 아니라고 밝힌다 (2026-09-19)."""
+    seed_null_fact_academies(db_session)
+    monkeypatch.setattr(
+        "app.services.ai_recommendation_service.get_llm_provider",
+        lambda: _ExplodingLLM(),
+    )
+    # region(미사)은 사실, 과목은 이름 신호 → 사실 1개만 센다.
+    body = client.post(
+        "/recommendations/ai", json={"query": "고1 내신 미사 수학학원"}
+    ).json()
+    top = body["items"][0]
+    assert top["academy"]["name"] == "하늘수학"
+    assert "1개 항목" in top["reason"]
+    assert "2개 항목" not in top["reason"]
+    assert "학원 이름에서 추정" in top["reason"]
+
+    # 지역 없이 과목만 — 사실 0개, 신호만 있는 경우의 머리 문장.
+    body = client.post("/recommendations/ai", json={"query": "수학"}).json()
+    top = body["items"][0]
+    assert top["academy"]["name"] == "하늘수학"
+    assert top["reason"].startswith("학원 이름에 찾으시는 과목이 보여")
+    assert "등록 정보와 맞아" not in top["reason"]
 
 
 def test_ai_recommend_falls_back_when_provider_init_fails(

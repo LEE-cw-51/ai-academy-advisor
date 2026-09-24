@@ -116,6 +116,22 @@ def test_groundwork_copy_is_gone_from_landing_facts():
     assert "MISA_ACADEMY_COUNT" in facts_code
 
 
+def test_academy_count_carries_source_and_as_of_date():
+    """학원 수량은 고정된 제품 약속이 아니라 기준일이 있는 데이터 현황이다 (2026-09-18,
+    docs/project.md·data-strategy.md). 출처·수집 기준일 없이 숫자만 적지 않고, 기준일은
+    data/README.md "현재 들어있는 데이터"가 말하는 수집일과 같아야 한다."""
+    facts = LANDING_FACTS.read_text(encoding="utf-8")
+    source = re.search(r'MISA_ACADEMY_COUNT_SOURCE = "([^"]+)";', facts)
+    as_of = re.search(r'MISA_ACADEMY_COUNT_AS_OF = "([^"]+)";', facts)
+    assert source and source.group(1).strip()
+    assert as_of and re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of.group(1)), as_of
+    assert "GROUNDWORK_SOURCE_NOTE" not in facts
+
+    data_readme = (REPO_ROOT / "data" / "README.md").read_text(encoding="utf-8")
+    current = data_readme.split("## 현재 들어있는 데이터", 1)[1]
+    assert f"{as_of.group(1)} 기준" in current
+
+
 def test_kakao_link_does_not_latch_modified_clicks():
     """수정 클릭(새 탭)에서 latch를 걸면, 같은 페이지에서 이어지는 일반 클릭이
     계측되지 않는다 — KakaoChannelLink는 수정 클릭을 latch보다 먼저 감지해야 한다."""

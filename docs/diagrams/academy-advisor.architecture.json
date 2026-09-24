@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "학원콕 — 프로젝트 구조",
+    "output": "academy-advisor.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1060, 640],
+    "views": [
+      {
+        "id": "request-path",
+        "label": "요청 경로",
+        "focus": ["users", "frontend", "api", "services", "repositories", "supabase"],
+        "note": "학부모 브라우저에서 API 호출까지의 계층형 흐름"
+      },
+      {
+        "id": "ai-path",
+        "label": "AI 추천 경로",
+        "focus": ["services", "providers", "groq", "huggingface", "supabase"],
+        "note": "recommendation_pipeline과 provider 포트를 통한 AI 연동"
+      }
+    ]
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "학부모", "sublabel": "Browser", "pos": [40, 300], "size": [120, 60] },
+    { "id": "frontend", "type": "frontend", "label": "Next.js 15", "sublabel": "frontend/", "pos": [200, 300], "size": [140, 60], "tag": "/ · /app" },
+    { "id": "api", "type": "backend", "label": "API Routers", "sublabel": "backend/app/api/", "pos": [370, 300], "size": [140, 60] },
+    { "id": "services", "type": "backend", "label": "Services", "sublabel": "backend/app/services/", "pos": [540, 300], "size": [140, 60], "tag": "scoring · pipeline" },
+    { "id": "repositories", "type": "backend", "label": "Repositories", "sublabel": "backend/app/repositories/", "pos": [710, 300], "size": [150, 60] },
+    { "id": "supabase", "type": "database", "label": "Supabase Postgres", "sublabel": "academies · pgvector", "pos": [890, 300], "size": [150, 60] },
+    { "id": "groq", "type": "external", "label": "Groq", "sublabel": "LLM", "pos": [540, 130], "size": [120, 60] },
+    { "id": "providers", "type": "backend", "label": "Providers", "sublabel": "backend/app/providers/", "pos": [710, 130], "size": [140, 60], "tag": "Protocol 포트" },
+    { "id": "huggingface", "type": "external", "label": "HuggingFace", "sublabel": "BGE-M3 embedding", "pos": [890, 130], "size": [150, 60] },
+    { "id": "seed-data", "type": "cloud", "label": "data/academies", "sublabel": "JSON 시드·백업", "pos": [710, 480], "size": [150, 60], "tag": "git only" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Vercel Services (vercel.json)", "wraps": ["frontend", "api"] },
+    { "kind": "security-group", "label": "Backend 계층 (api → services → repositories)", "wraps": ["api", "services", "repositories", "providers"] }
+  ],
+  "connections": [
+    { "id": "users-to-frontend", "from": "users", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "frontend-to-api", "from": "frontend", "to": "api", "label": "/api/backend/*", "labelDy": 54 },
+    { "id": "api-to-services", "from": "api", "to": "services", "label": "Depends", "labelDy": 54 },
+    { "id": "services-to-repos", "from": "services", "to": "repositories", "label": "조회·저장", "labelDy": 54 },
+    { "id": "repos-to-db", "from": "repositories", "to": "supabase", "label": "SQLAlchemy", "labelDy": 54 },
+    { "id": "services-to-providers", "from": "services", "to": "providers", "label": "factory.get_*()", "fromSide": "top", "toSide": "bottom" },
+    { "id": "providers-to-groq", "from": "providers", "to": "groq", "label": "chat", "fromSide": "left", "toSide": "right", "labelDy": -24 },
+    { "id": "providers-to-hf", "from": "providers", "to": "huggingface", "label": "embed", "fromSide": "right", "toSide": "left", "labelDy": -24 },
+    { "id": "providers-to-vectors", "from": "providers", "to": "supabase", "label": "pgvector", "variant": "dashed", "fromSide": "right", "toSide": "top" },
+    { "id": "seed-to-db", "from": "seed-data", "to": "supabase", "label": "import_academies CLI", "variant": "dashed", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "프론트엔드",
+      "items": [
+        "Next.js 15 + TypeScript + Tailwind",
+        "랜딩(/)과 탐색 앱(/app) — 지도·후보 카드",
+        "Vercel frontend 서비스로 배포"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "백엔드 계층",
+      "items": [
+        "api/ — HTTP·검증 (academies, recommendations, engagement)",
+        "services/ — 비즈니스 로직·추천 파이프라인",
+        "repositories/ — DB 접근 캡슐화",
+        "models/ · schemas/ · core/ · dependencies/"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "데이터·AI",
+      "items": [
+        "운영 정본: Supabase academies (Studio 수정)",
+        "data/academies/*.json — 시드·백업만",
+        "providers/ — LLM·임베딩·벡터·리뷰 소스 교체 가능",
+        "POST /recommendations와 /recommendations/ai는 분리된 계약"
+      ]
+    }
+  ]
+}

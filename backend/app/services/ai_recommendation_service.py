@@ -51,6 +51,15 @@ _CONDITION_LABELS = {
     "region": "지역",
 }
 
+# 등록 정보가 아니라 런타임 탐색 신호인 키. "확인된 조건"으로 세거나 쓰지 않는다
+# (scoring._subject_signal — 학원 이름에만 과목이 보이는 경우).
+_SIGNAL_KEYS = frozenset({"subject_name"})
+
+
+def _fact_keys(keys: Sequence[str]) -> list[str]:
+    return [key for key in keys if key not in _SIGNAL_KEYS]
+
+
 _REASON_SYSTEM_PROMPT = (
     "학부모에게 이 학원을 확인해 볼 후보로 정리한 이유를 2–3문장으로 쓴다. "
     "확인된 사실만 근거로 삼고 미확인 항목은 단정하지 마라. "
@@ -75,10 +84,18 @@ def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
     벤더 장애·모델 폐기(2026-09-04 Groq llama-3.3 폐기로 전 요청 500)가
     나도 탐색 응답 자체는 살아 있어야 한다.
     """
-    if scored.matched:
+    facts = _fact_keys(scored.matched)
+    name_signal = "subject_name" in scored.matched
+    if facts:
+        # 이름 신호는 세지 않는다 — 카드가 "등록 정보와 맞는 조건"에 넣지 않는 항목이다.
         head = (
-            f"입력하신 조건 중 {len(scored.matched)}개 항목이 "
+            f"입력하신 조건 중 {len(facts)}개 항목이 "
             "등록 정보와 맞아 확인해 볼 후보로 정리했습니다."
+        )
+    elif name_signal:
+        head = (
+            "학원 이름에 찾으시는 과목이 보여 확인해 볼 후보로 정리했습니다. "
+            "과목 정보 자체는 아직 등록 정보로 확인되지 않았습니다."
         )
     else:
         head = (
@@ -86,6 +103,10 @@ def _fallback_reason(scored: ScoredAcademy, relaxed: Sequence[str]) -> str:
             "조건과 관련해 확인해 볼 후보로 정리했습니다."
         )
     parts = [head]
+    if facts and name_signal:
+        parts.append(
+            "과목은 학원 이름에서 추정한 것이라 등록 정보로는 아직 확인되지 않았습니다."
+        )
     if scored.unknown:
         # 개수를 세지 않는다 — 카드는 unknown_conditions 를 나열하지 않으므로
         # "N개"라고 하면 사용자가 볼 수 없는 목록을 가리키게 된다
@@ -125,12 +146,17 @@ def _reason_user_prompt(
         for e in evidence
     ]
     evidence_text = " / ".join(evidence_snippets) or "(근거 리뷰 없음)"
-    matched_labels = _condition_labels(scored.matched)
+    matched_labels = _condition_labels(_fact_keys(scored.matched))
     lines = [
         f"질문: {query}",
         f"학원명: {academy.name}",
         f"확인된 조건: {matched_labels or '없음'}",
     ]
+    if "subject_name" in scored.matched:
+        lines.append(
+            "이름에서 추정한 신호: 과목 (학원 이름에 과목이 보일 뿐 등록 정보가 아니다 — "
+            "확인된 사실처럼 쓰지 마라)"
+        )
     if "region" in relaxed:
         lines.append("지역 조건이 완화되었습니다. 그 지역에 있다고 쓰지 마세요.")
     lines.append(f"근거 리뷰(발췌, 원문 붙여넣기 금지): {evidence_text}")
