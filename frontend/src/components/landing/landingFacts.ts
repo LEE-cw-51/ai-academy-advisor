@@ -47,19 +47,9 @@ export const HEADER_STATUS_NOTICE =
 export const FOOTER_KAKAO_CTA_LABEL = "카카오톡 채널 추가하고 상담 질문 받기";
 
 /** data/academies/*.json 중 주소에 "미사"가 포함된 건수.
- *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다. GROUNDWORK_BODY·
- *  GROUNDWORK_SOURCE_NOTE가 이 숫자를 보간하므로, 여기 값이 바뀌면 화면 문구도
- *  같이 바뀐다 (하드코딩된 별도 문자열로 어긋나지 않게). */
+ *  tests/test_landing_copy.py 가 JSON 정본과 일치하는지 검사한다.
+ *  홈 화면 카피에서는 더 이상 쓰지 않는다(2026-09-25 근거 구간 제거). */
 export const MISA_ACADEMY_COUNT = 410;
-
-/** 메인 하단. 지금 확인 가능한 사실(위 학원 수)과 후보 정리가 그 사실 위에서 돌아간다는
- *  것을 말한다. "정식 출시 후 제공"은 `/app`이 주 CTA가 되며 사실이 아니게 돼 뺐다.
- *  결정 로그에 근거가 없는 약속(영수증 인증 리뷰 등)은 여기에 쓰지 않는다. */
-export const GROUNDWORK_HEADING = "학원콕이 쌓아가는 근거";
-export const GROUNDWORK_BODY =
-  `하남 미사 등록 학원 ${MISA_ACADEMY_COUNT}곳의 공개 정보와 확인일을 바탕으로 확인해 볼 후보를 정리합니다. 확인되지 않은 정보는 미확인으로 표시합니다.`;
-export const GROUNDWORK_SOURCE_NOTE =
-  `${MISA_ACADEMY_COUNT}곳 = 경기도 공공데이터 기준 미사 지역 등록 학원·교습소`;
 
 /** `/` 검색·공유 메타. 알아보는 중·다니는 중 두 상황 모두 `/app`의 상황 선택이 받는다 —
  *  다니는 중을 따로 받던 1분 점검(`/check`)은 2026-09-14에 퇴역했다. */

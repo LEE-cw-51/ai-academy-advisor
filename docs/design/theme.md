@@ -17,16 +17,16 @@
 |------|-----|------|
 | `canvas` | `#faf9f5` | 페이지 배경 |
 | `surface` | `#FFFFFF` | 카드·패널 |
-| `surface-muted` | `#F9FAFB` | 보조 서피스 |
-| `surface-subtle` | `#F3F4F6` | 입력·리스트 배경 |
+| `surface-muted` | `#F4EFE6` | 보조 서피스. 캔버스와 같은 따뜻한 회색 |
+| `surface-subtle` | `#ECE6DA` | 입력·리스트 배경 |
 | `brand` | `#F5A623` | Primary CTA |
 | `brand-dark` | `#D98C0E` | Hover / 강조 |
 | `ink` | `#1E2B3C` | 본문·헤드라인 |
 | `ink-strong` | `#111827` | 강한 텍스트 |
 | `ink-muted` | `#374151` | 보조 본문 |
-| `ink-subtle` | `#6B7280` | 캡션·힌트 |
-| `border` | `#E5E7EB` | 기본 보더 |
-| `border-soft` | `#E7EBF0` | 소프트 보더 |
+| `ink-subtle` | `#6E665A` | 캡션·힌트. 본문보다 한 단계 따뜻한 회색 |
+| `border` | `#DED6C8` | 기본 보더 |
+| `border-soft` | `#E6E0D4` | 소프트 보더 |
 | `success-bg` / `success` | `#F0FDF4` / `#15803D` | 성공 |
 | `warn-bg` / `warn` | `#FEF3C7` / `#B45309` | 알림·디스클레이머 |
 | `kakao` | `#FEE500` | 카카오 CTA |
@@ -34,14 +34,14 @@
 ## 타이포
 
 - 본문/UI: **Noto Sans KR** (Google Fonts)
-- 헤드라인: 굵은 weight, ink 색
+- 헤드라인: Semibold(600), ink 색. Black(900)은 쓰지 않는다
 - 본문: 짧고 읽기 쉬운 문장
 
 ## 레이아웃·형태
 
 - 카드: 둥근 모서리(~12px) + 부드러운 그림자
 - 버튼: ~8px radius
-- 랜딩 첫 화면: 축소 로고 + 헤드라인 + 한 줄 서포트 + 상태 배지 + CTA. CTA 아래 약속은 카드 없이 좌측 보더 텍스트.
+- 랜딩 첫 화면(`/`): 왼쪽 정렬 축소 로고 + 상태 배지 + 헤드라인 + 한 줄 서포트 + CTA·신뢰 문구. 근거 구간·법적 푸터·하단 카카오 고정 바는 두지 않는다(문의·방침·카카오는 `/privacy`).
 - 보조 본문은 `ink-muted`, 법적 각주·캡션만 `ink-subtle`.
 - 앱 셸: 좌 채팅/추천, 우 지도/리스트 (동일 시각 언어)
 

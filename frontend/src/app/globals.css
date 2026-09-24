@@ -4,11 +4,21 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  color-scheme: light;
+}
+
 body {
   /* 토큰이 RGB 채널값이라 rgb()로 감싼다 (src/styles/tokens.css 주석 참고). */
   color: rgb(var(--color-ink));
   background: rgb(var(--color-canvas));
   font-family: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+  text-wrap: pretty;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
 }
 
 .hero-wash {

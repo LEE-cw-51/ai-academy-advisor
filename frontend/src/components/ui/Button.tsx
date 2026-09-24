@@ -13,7 +13,7 @@ const variantClass: Record<Variant, string> = {
 };
 
 const baseClass =
-  "inline-flex items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-sm font-semibold transition-[background-color,transform,opacity] duration-200 ease-out active:scale-[0.98] motion-reduce:active:scale-100 disabled:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
 export function buttonClassName(options?: {
   variant?: Variant;

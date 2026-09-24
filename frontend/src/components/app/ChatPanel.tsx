@@ -300,7 +300,7 @@ export function ChatPanel({
       {/* 페이지 h1 은 항상 있다. 제출 뒤엔 요약 칩이 시선을 받으므로 sr-only 로
           내리고, 래퍼는 contents 로 두어 flex gap 에 빈 칸을 남기지 않는다. */}
       <div className={hasSubmitted ? "contents" : "space-y-2"}>
-        <h1 id="explore-heading" className={hasSubmitted ? "sr-only" : "text-2xl font-black leading-tight text-ink sm:text-3xl break-keep"}>
+        <h1 id="explore-heading" className={hasSubmitted ? "sr-only" : "text-2xl font-semibold leading-snug text-ink sm:text-3xl break-keep"}>
           {FORM_HEADING}
         </h1>
         {!hasSubmitted ? (
@@ -427,7 +427,7 @@ export function ChatPanel({
               type="button"
               disabled={loading || !canSubmit}
               onClick={() => void runQuery()}
-              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-bold text-ink-strong transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-ink-strong transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-brand-dark active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
             >
               {loading ? LOADING_LABEL : SUBMIT_LABEL}
             </button>

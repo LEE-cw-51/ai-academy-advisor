@@ -191,13 +191,13 @@ export function AppShell() {
   const dualColumn = hasExplored || Boolean(activeQuery);
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
-      <header className="border-b border-border bg-surface/80 backdrop-blur">
+    <div className="flex min-h-dvh flex-col bg-canvas">
+      <header className="border-b border-border-soft bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
             aria-label="학원콕 홈"
-            className="text-lg font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="text-lg font-semibold tracking-tight text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {APP_TITLE}
           </Link>
