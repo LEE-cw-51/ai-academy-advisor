@@ -7,16 +7,18 @@
 :root {
   --color-canvas: 250 249 245; /* #faf9f5 */
   --color-surface: 255 255 255; /* #ffffff */
-  --color-surface-muted: 249 250 251; /* #f9fafb */
-  --color-surface-subtle: 243 244 246; /* #f3f4f6 */
+  /* 캔버스가 따뜻한 종이색이라 보조 면·경계·캡션도 같은 따뜻한 회색으로 둔다.
+     예전 #f9fafb·#e5e7eb 계열은 차가운 Tailwind 회색이라 종이와 따로 놀았다. */
+  --color-surface-muted: 244 239 230; /* #f4efe6 */
+  --color-surface-subtle: 236 230 218; /* #ece6da */
   --color-brand: 245 166 35; /* #f5a623 */
   --color-brand-dark: 217 140 14; /* #d98c0e */
   --color-ink: 30 43 60; /* #1e2b3c */
   --color-ink-strong: 17 24 39; /* #111827 */
   --color-ink-muted: 55 65 81; /* #374151 */
-  --color-ink-subtle: 107 114 128; /* #6b7280 */
-  --color-border: 229 231 235; /* #e5e7eb */
-  --color-border-soft: 231 235 240; /* #e7ebf0 */
+  --color-ink-subtle: 110 102 90; /* #6e665a */
+  --color-border: 222 214 200; /* #ded6c8 */
+  --color-border-soft: 230 224 212; /* #e6e0d4 */
   --color-success-bg: 240 253 244; /* #f0fdf4 */
   --color-success: 21 128 61; /* #15803d */
   --color-warn-bg: 254 243 199; /* #fef3c7 */
@@ -24,6 +26,6 @@
   --color-kakao: 254 229 0; /* #fee500 */
   --radius-card: 12px;
   --radius-btn: 8px;
-  --shadow-card: 0 4px 24px rgba(30, 43, 60, 0.08);
-  --shadow-soft: 0 2px 12px rgba(30, 43, 60, 0.06);
+  --shadow-card: 0 10px 28px rgba(62, 48, 28, 0.06);
+  --shadow-soft: 0 2px 8px rgba(62, 48, 28, 0.05);
 }

@@ -42,7 +42,7 @@ export function PageHero({
   children,
 }: PageHeroProps) {
   return (
-    <section className="hero-wash mx-auto max-w-5xl px-4 pb-10 pt-8 text-center sm:px-6 sm:pt-16">
+    <section className="hero-wash mx-auto max-w-5xl px-4 pb-12 pt-8 text-left sm:px-6 sm:pt-14">
       {logo ? (
         // logo-mark.png는 원본 logo.png(정사각 캔버스, 헤더가 계속 쓴다)에서
         // 투명 여백을 잘라낸 버전이다 — 실제 글자가 표시 영역을 꽉 채우게 한다.
@@ -52,7 +52,7 @@ export function PageHero({
           width={1061}
           height={675}
           priority
-          className="hero-fade-up mx-auto h-28 w-auto sm:h-32"
+          className="hero-fade-up h-20 w-auto sm:h-24"
         />
       ) : null}
       <Badge
@@ -61,7 +61,7 @@ export function PageHero({
       >
         {badge}
       </Badge>
-      <h1 className="hero-fade-up hero-fade-up-delay-1 mx-auto mt-4 max-w-2xl break-keep text-3xl font-black leading-tight text-ink sm:text-4xl">
+      <h1 className="hero-fade-up hero-fade-up-delay-1 mt-5 max-w-2xl break-keep text-3xl font-semibold leading-snug text-ink sm:text-4xl">
         {headlineMobileLines ? (
           <>
             <span className="sm:hidden">
@@ -73,7 +73,7 @@ export function PageHero({
           headline
         )}
       </h1>
-      <p className="hero-fade-up hero-fade-up-delay-2 mx-auto mt-4 max-w-md break-keep text-sm leading-relaxed text-ink-muted">
+      <p className="hero-fade-up hero-fade-up-delay-2 mt-4 max-w-[40rem] break-keep text-base leading-relaxed text-ink-muted">
         {support}
       </p>
       {reassurance ? (

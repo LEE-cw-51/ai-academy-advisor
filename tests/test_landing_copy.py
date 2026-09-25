@@ -21,7 +21,6 @@ LANDING = FRONTEND / "src" / "components" / "landing"
 LANDING_FACTS = LANDING / "landingFacts.ts"
 PAGE_HERO = LANDING / "PageHero.tsx"
 KAKAO_LINK = LANDING / "KakaoChannelLink.tsx"
-GROUNDWORK_SECTION = LANDING / "GroundworkSection.tsx"
 LANDING_PAGE = LANDING / "LandingPage.tsx"
 LANDING_HEADER = LANDING / "LandingHeader.tsx"
 SITE_CHROME = LANDING / "SiteChrome.tsx"
@@ -55,6 +54,7 @@ RETIRED_FUNNEL_EVENTS = (
     "check_explore_clicked",
 )
 # 2026-09-14에 지운 라우트·컴포넌트. 되살아나지 않는지 감시한다.
+# 2026-09-25: GroundworkSection도 홈에서 걷어냈다.
 RETIRED_PATHS = (
     FRONTEND / "src" / "app" / "check",
     FRONTEND / "src" / "app" / "checklists",
@@ -64,13 +64,13 @@ RETIRED_PATHS = (
     LANDING / "SituationSection.tsx",
     LANDING / "SituationCard.tsx",
     LANDING / "TrackedLink.tsx",
+    LANDING / "GroundworkSection.tsx",
 )
 
 ALL_LANDING_FILES = [
     LANDING_FACTS,
     PAGE_HERO,
     KAKAO_LINK,
-    GROUNDWORK_SECTION,
     LANDING_PAGE,
     LANDING_HEADER,
     SITE_CHROME,
@@ -101,23 +101,19 @@ def test_misa_academy_count_matches_json_source():
     )
 
 
-def test_groundwork_copy_interpolates_the_academy_count_not_a_literal():
-    """GROUNDWORK_BODY/SOURCE_NOTE가 리터럴 "410"을 박아두면 MISA_ACADEMY_COUNT가
-    바뀌어도 화면 문구가 따라가지 않는다 — 반드시 그 상수를 보간해야 한다."""
+def test_groundwork_copy_is_gone_from_landing_facts():
+    """2026-09-25: 홈 근거 구간과 함께 GROUNDWORK_* 카피를 걷어냈다.
+    MISA_ACADEMY_COUNT는 JSON 건수 검사용으로만 남긴다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
-    note = slice_between(facts, "GROUNDWORK_SOURCE_NOTE =", ";")
-    assert "${MISA_ACADEMY_COUNT}" in body
-    assert "${MISA_ACADEMY_COUNT}" in note
-
-
-def test_groundwork_slice_catches_literal_count_without_interpolation():
-    """[:200]·EOF 슬라이스는 리터럴 410을 박아도 통과했다 — 경계 슬라이스는 잡아야 한다."""
-    facts = LANDING_FACTS.read_text(encoding="utf-8")
-    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
-    mutated = body.replace("${MISA_ACADEMY_COUNT}", "410")
-    with pytest.raises(AssertionError):
-        assert "${MISA_ACADEMY_COUNT}" in mutated
+    facts_code = _strip_comments(facts)
+    for gone in (
+        "GROUNDWORK_HEADING",
+        "GROUNDWORK_BODY",
+        "GROUNDWORK_SOURCE_NOTE",
+        "학원콕이 쌓아가는 근거",
+    ):
+        assert gone not in facts_code, f"{gone} still in landingFacts.ts"
+    assert "MISA_ACADEMY_COUNT" in facts_code
 
 
 def test_academy_count_carries_source_and_as_of_date():
@@ -129,11 +125,7 @@ def test_academy_count_carries_source_and_as_of_date():
     as_of = re.search(r'MISA_ACADEMY_COUNT_AS_OF = "([^"]+)";', facts)
     assert source and source.group(1).strip()
     assert as_of and re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of.group(1)), as_of
-
-    note = slice_between(facts, "GROUNDWORK_SOURCE_NOTE =", ";")
-    assert "${MISA_ACADEMY_COUNT_SOURCE}" in note
-    assert "${MISA_ACADEMY_COUNT_AS_OF}" in note
-    assert "기준" in note
+    assert "GROUNDWORK_SOURCE_NOTE" not in facts
 
     data_readme = (REPO_ROOT / "data" / "README.md").read_text(encoding="utf-8")
     current = data_readme.split("## 현재 들어있는 데이터", 1)[1]
@@ -183,7 +175,7 @@ def test_reassurance_lines_do_not_nest_a_bare_middle_dot_inside_a_dot_list():
 
 def test_home_leads_with_explore_cta_and_has_no_situation_cards():
     """메인은 2026-09-13부터 주 CTA(`/app` 후보·상담 질문 정리) 하나로 시작한다.
-    2026-09-14에 상황 카드(보조 퍼널)를 걷어내 히어로 아래는 근거 섹션뿐이다.
+    2026-09-25에 근거 구간도 걷어내 홈은 히어로만 남긴다.
     준비 중 기능 예고·예시 화면·대기자 모달·공용 HeroSection 도 되돌아오지 않는다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     page = LANDING_PAGE.read_text(encoding="utf-8")
@@ -202,11 +194,15 @@ def test_home_leads_with_explore_cta_and_has_no_situation_cards():
     assert "HOME_CTA_LABEL" in page
     # 신뢰 문구는 `/app`의 것을 그대로 쓴다 — 착지한 뒤 같은 말을 다시 만나게.
     assert "TRUST_NOTE" in page
+    # 히어로·CTA는 왼쪽 정렬.
+    assert "items-start" in page
+    assert "text-left" in PAGE_HERO.read_text(encoding="utf-8")
 
     # 설명 주석이 옛 이름을 언급하므로 주석은 빼고 실제 코드만 본다.
     page_code = _strip_comments(page)
-    assert page_code.index("<HomeHero") < page_code.index("<GroundworkSection")
+    assert "<HomeHero" in page_code
     for gone in (
+        "GroundworkSection",
         "HeroSection",
         "SituationSection",
         "PlannedFeaturesSection",
@@ -219,6 +215,7 @@ def test_home_leads_with_explore_cta_and_has_no_situation_cards():
     assert "SITUATIONS" not in facts_code
     assert not (LANDING / "PlannedFeaturesSection.tsx").exists()
     assert not (LANDING / "ServicePreviewSection.tsx").exists()
+    assert not (LANDING / "GroundworkSection.tsx").exists()
 
 
 def test_home_support_promises_candidates_and_questions_from_inputs():
@@ -246,11 +243,15 @@ def test_footer_keeps_status_copy_without_app_link():
 
 
 def test_home_has_no_sticky_cta_bar():
-    """하단 고정은 카카오 채널 바 하나다 — 주 CTA는 히어로 하나로 충분하다.
+    """홈에는 StickyCtaBar도 StickyKakaoBar도 없다 — 주 CTA는 히어로 하나로 충분하다.
     (설명 주석에서 이름을 언급하는 것은 허용하고, 실제 렌더링 여부만 본다.)"""
     page = LANDING_PAGE.read_text(encoding="utf-8")
-    assert "<StickyCtaBar" not in page
-    assert '"./StickyCtaBar"' not in page
+    page_code = _strip_comments(page)
+    assert "<StickyCtaBar" not in page_code
+    assert '"./StickyCtaBar"' not in page_code
+    # 홈은 SiteChrome 기본값(footer·kakaoBar 끔)을 쓴다 — prop을 넘기지 않는다.
+    assert "footer" not in page_code
+    assert "kakaoBar" not in page_code
 
 
 def _strip_comments(text: str) -> str:
@@ -287,21 +288,12 @@ def test_no_dead_stage_vocabulary_remains():
             assert banned not in code_only, f"{banned} still referenced in {path.name}"
 
 
-def test_groundwork_no_longer_defers_candidates_to_launch():
-    """`/app`이 주 CTA가 된 뒤 '정식 출시 후 제공'은 사실이 아니다 (2026-09-13) — 근거
-    섹션은 지금 확인 가능한 사실(학원 수·확인일)만 말한다. 출시 전 고지는 푸터가 계속 맡는다."""
+def test_footer_status_copy_keeps_pre_launch_notice():
+    """출시 전 고지는 푸터 카피가 계속 맡는다. 근거 구간은 2026-09-25에 없앴다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
-
-    body = slice_between(facts, "GROUNDWORK_BODY =", ";")
-    assert "정식 출시 후" not in body
-    assert "${MISA_ACADEMY_COUNT}" in body
-    assert "확인일" in body
-
     footer = slice_between(facts, "FOOTER_STATUS_COPY =", '";')
     assert "정식 출시 전" in footer
-
-    groundwork = GROUNDWORK_SECTION.read_text(encoding="utf-8")
-    assert "GROUNDWORK_BODY" in groundwork
+    assert "GROUNDWORK_BODY" not in facts
 
 
 def test_kakao_reward_is_question_framed_not_a_count():
@@ -311,16 +303,23 @@ def test_kakao_reward_is_question_framed_not_a_count():
 
     reward_note = slice_between(facts, "KAKAO_REWARD_NOTE =", ";")
     assert "상담" in reward_note
-    assert "KAKAO_REWARD_LABEL" in GROUNDWORK_SECTION.read_text(encoding="utf-8")
+    reward_label = slice_between(facts, 'KAKAO_REWARD_LABEL = "', '"')
+    assert "상담 질문" in reward_label
+    assert "상담" in modal
+    assert "질문" in modal
     assert "체크리스트 3종" not in modal
+    # 고정 바 CTA도 같은 프레이밍.
+    footer_cta = slice_between(facts, "FOOTER_KAKAO_CTA_LABEL =", ";")
+    assert "상담 질문" in footer_cta
+    assert "FOOTER_KAKAO_CTA_LABEL" in STICKY_KAKAO.read_text(encoding="utf-8")
 
 
 def test_every_kakao_entry_point_goes_through_the_modal_first():
     """카카오로 나가기 전 보상·고지 팝업을 반드시 거치게 한다.
     외부로 실제로 나가는 링크(KakaoChannelLink)는 모달 안에만 있어야 한다 —
-    호출부가 직접 쓰면 팝업을 건너뛰고 바로 외부로 나간다."""
+    호출부가 직접 쓰면 팝업을 건너뛰고 바로 외부로 나간다.
+    2026-09-25: 홈 근거 구간의 카카오 CTA는 없앴고, 푸터·고정 바만 `/privacy`에서 켠다."""
     callers = [
-        GROUNDWORK_SECTION,
         LANDING_FOOTER,
         STICKY_KAKAO,
     ]
@@ -432,18 +431,33 @@ def test_header_status_notice_sits_beside_the_logo():
     assert "Badge" not in header
 
 
-def test_intro_pages_share_site_chrome_and_sticky_kakao():
-    """`/`·`/privacy`가 같은 헤더·고정 카카오 바를 쓴다. `/app`은 제외."""
+def test_intro_pages_share_site_chrome_footer_and_kakao_opt_in():
+    """`/`·`/privacy`가 같은 SiteChrome(헤더)을 쓴다. 푸터·고정 카카오 바는 기본 끔이고
+    `/privacy`만 켠다. `/app`은 제외."""
     for path in (LANDING_PAGE, PRIVACY_PAGE):
         text = path.read_text(encoding="utf-8")
         assert "SiteChrome" in text, f"{path.name} is missing SiteChrome"
         assert "<LandingHeader" not in text, f"{path.name} still mounts header directly"
         assert "<LandingFooter" not in text, f"{path.name} still mounts footer directly"
 
+    home = _strip_comments(LANDING_PAGE.read_text(encoding="utf-8"))
+    assert "footer" not in home
+    assert "kakaoBar" not in home
+
+    privacy_code = _strip_comments(PRIVACY_PAGE.read_text(encoding="utf-8"))
+    assert "footer" in privacy_code
+    assert "kakaoBar" in privacy_code
+
     chrome = SITE_CHROME.read_text(encoding="utf-8")
-    assert "LandingHeader" in chrome
-    assert "LandingFooter" in chrome
-    assert "StickyKakaoBar" in chrome
+    chrome_code = _strip_comments(chrome)
+    assert "LandingHeader" in chrome_code
+    assert "LandingFooter" in chrome_code
+    assert "StickyKakaoBar" in chrome_code
+    assert "footer = false" in chrome_code
+    assert "kakaoBar = false" in chrome_code
+    # 하단 8rem 패딩은 카카오 바를 켤 때만.
+    assert "kakaoBar" in chrome
+    assert "8rem" in chrome
 
     bar = STICKY_KAKAO.read_text(encoding="utf-8")
     assert "KakaoChannelCta" in bar
