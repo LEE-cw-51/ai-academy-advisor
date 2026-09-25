@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <SiteChrome>
+    <SiteChrome footer kakaoBar>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-black text-ink">개인정보처리방침</h1>
+        <h1 className="text-2xl font-semibold text-ink">개인정보처리방침</h1>
         <p className="mt-2 text-sm text-ink-subtle">
           시행일: 2026-08-15 · 개정일: 2026-09-14
         </p>
