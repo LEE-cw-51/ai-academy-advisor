@@ -5,7 +5,7 @@ import type {
 } from "react";
 
 const fieldClass =
-  "w-full rounded-btn border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:bg-surface-subtle";
+  "w-full rounded-input border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:bg-surface-subtle";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;

@@ -3,8 +3,9 @@ import type { HTMLAttributes, ReactNode } from "react";
 type Tone = "brand" | "neutral" | "success" | "warn" | "rank";
 
 const toneClass: Record<Tone, string> = {
-  // 텍스트는 ink — brand-dark(#d98c0e)는 밝은 배경에서 2.7:1 로 AA 미달 (2026-09-13 axe).
-  brand: "bg-brand/15 text-ink",
+  // brand 톤도 주황을 쓰지 않는다 — 주황은 CTA·선택 상태에만 (2026-09-25).
+  // API 호환을 위해 tone 이름은 유지하고 면은 neutral과 같게 둔다.
+  brand: "bg-surface-subtle text-ink",
   neutral: "bg-surface-subtle text-ink-muted",
   success: "bg-success-bg text-success",
   warn: "bg-warn-bg text-warn",
