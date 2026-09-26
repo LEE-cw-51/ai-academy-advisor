@@ -52,6 +52,11 @@ function AcademySearchContent() {
       setSearching(false);
       return;
     }
+    setResults([]);
+    setActiveQuery("");
+    setSearchTotal(null);
+    setListError("");
+    setSelectedId(null);
     setSearching(true);
     try {
       const res = await fetchAllAcademies({ q });
@@ -65,6 +70,10 @@ function AcademySearchContent() {
       );
     } catch {
       if (seq !== searchSeq.current) return;
+      setResults([]);
+      setActiveQuery("");
+      setSearchTotal(null);
+      setSelectedId(null);
       setListError(SEARCH_ERROR);
     } finally {
       if (seq === searchSeq.current) setSearching(false);
@@ -171,9 +180,10 @@ function AcademySearchContent() {
               type="submit"
               variant="secondary"
               disabled={searching}
+              aria-live="polite"
               className="shrink-0 rounded-full px-5"
             >
-              {SEARCH_LABEL}
+              {searching ? "검색 중…" : SEARCH_LABEL}
             </Button>
           </form>
 
