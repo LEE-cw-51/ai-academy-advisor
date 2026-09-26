@@ -415,13 +415,16 @@ def test_meta_description_slice_catches_removed_brokerage_notice():
         assert "중개" in description
 
 
-def test_header_status_notice_sits_beside_the_logo():
-    """헤더 문장은 출시 전·판매 없음만 말한다. '소개용 랜딩 페이지'는 `/app`을 주 CTA로
+def test_header_status_notice_lives_below_hero_not_in_header():
+    """출시 전·중개 없음 고지는 삭제하지 않되, 히어로와 경쟁하지 않게 헤더 옆에서
+    홈 하단으로 내린다 (2026-09-25). '소개용 랜딩 페이지'는 `/app`을 주 CTA로
     연결한 뒤 사실과 어긋나 2026-09-13에 뺐다."""
     facts = LANDING_FACTS.read_text(encoding="utf-8")
     header = LANDING_HEADER.read_text(encoding="utf-8")
+    page = LANDING_PAGE.read_text(encoding="utf-8")
 
-    assert "HEADER_STATUS_NOTICE" in header
+    assert "HEADER_STATUS_NOTICE" not in header
+    assert "HEADER_STATUS_NOTICE" in page
     notice = slice_between(facts, "HEADER_STATUS_NOTICE =", ";")
     assert "정식 출시" in notice
     assert "중개" in notice

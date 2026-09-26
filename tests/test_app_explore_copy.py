@@ -4,8 +4,9 @@
 표현 원칙(docs/decision-log.md 2026-09-08 · 2026-09-13): 검색창은 학원명·주소·전화만
 약속한다, 카드는 이름 → 배지 → 왜 이 후보인지 → 확인일 → 다음 행동이고 근거는 토글 뒤,
 태그는 상담 질문 힌트일 뿐 후보 조건이 아니다.
-한 흐름(2026-09-13): 상황 입력 → 후보 → 상담 질문 → 후보 위치. 제출·검색 전에는 지도를
-그리지 않는다(대기 모드 없음). 키워드 검색은 '이미 알고 있는 학원 찾기' 토글 뒤의 보조다.
+한 흐름(2026-09-25): 상황 입력 → 상담 질문 → 후보 → 후보 위치. 제출 전에는 지도를
+그리지 않는다(대기 모드 없음). 키워드 검색은 `/app/search`(이미 알고 있는 학원 찾기)로
+분리한다 — `/app`에는 그 페이지 링크만 남긴다 (2026-09-26).
 마운트 시 전체 fetch 없음, 짧은 폼·글자 제출, 제출 후 조건 요약으로 접기는 그대로다.
 """
 
@@ -30,10 +31,13 @@ LANDING_PAGE = (
 CHAT_PANEL = APP / "ChatPanel.tsx"
 REC_CARD = APP / "RecommendationCard.tsx"
 APP_SHELL = APP / "AppShell.tsx"
+ACADEMY_SEARCH = APP / "AcademySearchPage.tsx"
+APP_EXPLORE_HEADER = APP / "AppExploreHeader.tsx"
 EXPLORE_COPY = APP / "exploreCopy.ts"
 DETAIL_MODAL = APP / "AcademyDetailModal.tsx"
 MAP_PANEL = APP / "MapPanel.tsx"
 APP_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "app" / "page.tsx"
+SEARCH_PAGE = REPO_ROOT / "frontend" / "src" / "app" / "app" / "search" / "page.tsx"
 API_TS = LIB / "api.ts"
 TYPES_TS = LIB / "types.ts"
 
@@ -145,6 +149,7 @@ def test_explore_copy_uses_candidate_not_recommendation_language():
             ("RecommendationCard.tsx", card),
             ("ChatPanel.tsx", chat),
             ("AppShell.tsx", shell),
+            ("AcademySearchPage.tsx", ACADEMY_SEARCH.read_text(encoding="utf-8")),
             ("MapPanel.tsx", map_panel),
             ("AcademyDetailModal.tsx", modal),
         ):
@@ -183,6 +188,7 @@ def test_score_is_not_rendered_as_stars_percent_or_trust():
         CHAT_PANEL,
         REC_CARD,
         APP_SHELL,
+        ACADEMY_SEARCH,
         EXPLORE_COPY,
         DETAIL_MODAL,
         APP / "MapPanel.tsx",
@@ -199,10 +205,12 @@ def test_score_is_not_rendered_as_stars_percent_or_trust():
 
 def test_app_shell_chrome_does_not_block_explore_as_coming_soon():
     shell = APP_SHELL.read_text(encoding="utf-8")
+    header = APP_EXPLORE_HEADER.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
 
     assert "출시 준비 중" not in shell
-    assert "APP_NO_BROKERAGE" in shell
+    assert "출시 준비 중" not in header
+    assert "APP_NO_BROKERAGE" in header
     assert "중개" in copy
     assert "예약" in copy
     assert "결제" in copy
@@ -252,18 +260,25 @@ def test_consultation_form_maps_required_api_fields():
 
 
 def test_app_shell_keyword_search_uses_existing_academies_q():
-    """검색창은 기존 GET /academies?q=만 쓴다 — 새 엔드포인트·별도 검색 API 금지."""
+    """검색창은 기존 GET /academies?q=만 쓴다 — 새 엔드포인트·별도 검색 API 금지.
+    UI는 /app/search 에 둔다. api.ts 에 `/search` 문자열을 넣지 않는다."""
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
     shell = APP_SHELL.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
     api = API_TS.read_text(encoding="utf-8")
 
-    assert "SEARCH_PLACEHOLDER" in shell
-    assert "SEARCH_HELPER" in shell
-    assert "SEARCH_CLEAR_LABEL" in shell
-    assert "BACK_TO_CANDIDATES_LABEL" in shell  # 검색이 후보 지도를 덮었을 때 복귀
-    assert "searchNoResults" in shell
-    assert "searchResultCount" in shell  # total 기반 "검색 결과 N개 학원"
-    assert "fetchAllAcademies" in shell
+    assert "SEARCH_PLACEHOLDER" in search
+    assert "SEARCH_HELPER" in search
+    assert "BACK_TO_CONDITIONS_LABEL" in search
+    assert "searchNoResults" in search
+    assert "searchResultCount" in search  # total 기반 "검색 결과 N개 학원"
+    assert "fetchAllAcademies({ q })" in search
+    # /app 에는 검색 폼이 없고 링크만.
+    assert 'href="/app/search"' in shell
+    assert "SEARCH_MODE_LABEL" in shell
+    assert "SEARCH_PLACEHOLDER" not in shell
+    assert "BACK_TO_CANDIDATES_LABEL" not in search
+    assert "SEARCH_OVERRIDES_CANDIDATES" not in search
 
     # 검색창 카피는 DB가 실제로 찾는 것(학원명·주소·전화)만 약속한다 — 과목 예시 금지.
     placeholder_line = next(
@@ -272,11 +287,6 @@ def test_app_shell_keyword_search_uses_existing_academies_q():
     assert "학원명·주소·전화" in placeholder_line
     for subject in ("국어", "영어", "수학", "과학"):
         assert subject not in placeholder_line
-    clear_line = next(
-        line for line in copy.splitlines() if "SEARCH_CLEAR_LABEL =" in line
-    )
-    # 제출 전 지도는 빈 상태라 검색 해제가 전체 디렉터리("전체 보기")를 약속하면 안 된다.
-    assert "전체 보기" not in clear_line
     assert "SEARCH_CLEAR_LABEL" in copy
     assert "검색 결과 ${total}개 학원" in copy
     assert "학원명·주소·전화에 '${q}'" in copy
@@ -286,14 +296,15 @@ def test_app_shell_keyword_search_uses_existing_academies_q():
     assert "/academies" in api
     assert "/search" not in api
     # 빈 q로 411곳을 올리지 않는다. 키워드가 있을 때만 fetch.
-    assert 'runSearch("")' not in shell
-    assert "fetchAllAcademies({ q })" in shell
+    assert 'runSearch("")' not in search
+    assert "fetchAllAcademies({ q })" in search
 
 
 def test_map_list_card_shows_phone_and_opens_canonical_detail():
     """지도 목록은 정본 전화만 보여주고, 카드 클릭은 GET /academies/{id} 상세 모달을 연다."""
     map_panel = (APP / "MapPanel.tsx").read_text(encoding="utf-8")
     shell = APP_SHELL.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     modal = DETAIL_MODAL.read_text(encoding="utf-8")
     types = TYPES_TS.read_text(encoding="utf-8")
@@ -309,6 +320,7 @@ def test_map_list_card_shows_phone_and_opens_canonical_detail():
 
     assert "AcademyDetailModal" in shell
     assert "onOpenDetail" in shell
+    assert "AcademyDetailModal" in search
     assert "AcademyDetailModal" not in chat
 
     assert "fetchAcademyDetail" in modal
@@ -475,15 +487,16 @@ def test_subject_helpers_split_form_and_results():
     assert "SUBJECT_HELPER" in candidates_block
 
 
-def test_results_show_candidates_before_questions():
-    """결과는 후보 → 상담 질문 순 (2026-09-13). 후보가 주 산출물이고 질문은 그 후보와
-    함께 들고 갈 것이라 뒤에 온다. 후보 5건은 백엔드에 그대로 청하고 화면에서 자르지
-    않는다. 옛 EMPTY_RESULTS 는 NO_CANDIDATES(+검색 힌트)로 대체됐다."""
+def test_results_show_questions_before_candidates():
+    """결과는 상담 질문 → 후보 순 (2026-09-25). 질문은 후보와 함께 들고 갈 점검
+    목록이라 위에 두고, 후보는 그 아래 장소 정보로 이어진다. 후보 5건은 백엔드에
+    그대로 청하고 화면에서 자르지 않는다. 옛 EMPTY_RESULTS 는 NO_CANDIDATES(+검색
+    힌트)로 대체됐다."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
     jsx = component_jsx(chat)
 
-    assert jsx.index("{CANDIDATES_HEADING}") < jsx.index("{QUESTIONS_HEADING}")
+    assert jsx.index("{QUESTIONS_HEADING}") < jsx.index("{CANDIDATES_HEADING}")
     assert "requestAiRecommendations(trimmed, 5)" in chat
     assert "items.slice(" not in chat
     assert "EMPTY_RESULTS" not in chat
@@ -511,28 +524,42 @@ def test_state_copy_is_user_facing_with_next_action():
 
 def test_app_page_has_h1_and_title():
     """`/app`에도 h1 과 문서 제목이 있어야 한다 — 없으면 탭·공유·스크린리더가 페이지를
-    이름 없이 만난다. 색인은 계속 막는다 (noindex)."""
+    이름 없이 만난다. 색인은 계속 막는다 (noindex). `/app/search`도 같다."""
     chat = CHAT_PANEL.read_text(encoding="utf-8")
     page = APP_PAGE.read_text(encoding="utf-8")
+    search_page = SEARCH_PAGE.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
 
     assert '<h1 id="explore-heading"' in chat
     assert "FORM_HEADING" in chat
     assert "title:" in page
     assert "robots" in page
     assert "index: false" in page
+    assert "title:" in search_page
+    assert "robots" in search_page
+    assert "index: false" in search_page
+    assert 'id="academy-search-heading"' in search
+    assert "SEARCH_MODE_LABEL" in search
 
 
-def test_back_to_candidates_skips_full_list_refetch():
-    """검색 해제(후보로 돌아가기·검색 지우기)는 GET /academies를 다시 치지 않는다."""
-    shell = APP_SHELL.read_text(encoding="utf-8")
-    fn = slice_between(
-        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
+def test_keyword_search_empty_q_does_not_fetch_full_list():
+    """빈 q·미제출은 GET /academies를 치지 않는다. 검색 해제도 전체 목록을 다시 올리지 않는다."""
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
+    run_search = slice_between(
+        search, "const runSearch = useCallback(", "}, []);"
     )
 
-    assert "nextCandidateSelectedId" in fn
-    assert 'setActiveQuery("")' in fn
-    assert "runSearch" not in fn
-    assert "fetchAllAcademies" not in fn
+    assert "if (!q)" in run_search
+    assert run_search.index("if (!q)") < run_search.index("fetchAllAcademies")
+    assert "fetchAllAcademies({ q })" in run_search
+    # 빈 제출은 URL·fetch 를 하지 않는다.
+    submit = slice_between(
+        search,
+        "const onSearchSubmit = useCallback(",
+        "[searchInput, urlQ, router, runSearch],",
+    )
+    assert "if (!q) return;" in submit
+    assert 'runSearch("")' not in search
 
 
 def test_concern_placeholder_does_not_seed_empty_filter_keywords():
@@ -548,19 +575,25 @@ def test_concern_placeholder_does_not_seed_empty_filter_keywords():
     assert "다시 검색해 보세요" not in EXPLORE_COPY.read_text(encoding="utf-8")
 
 
-def test_app_stays_one_route_keyword_search_is_map_helper():
-    """질문/검색 전용 라우트를 만들지 않는다. 키워드 검색은 지도 위 보조다."""
+def test_keyword_search_lives_on_app_search_route():
+    """이름·주소·전화 검색은 `/app/search`. `/app`에는 그 링크만. 루트 `/search`·
+    `/questions` 전용 라우트는 만들지 않는다."""
     app_pages = REPO_ROOT / "frontend" / "src" / "app"
     assert (app_pages / "app" / "page.tsx").exists()
+    assert (app_pages / "app" / "search" / "page.tsx").exists()
     assert not (app_pages / "search").exists()
     assert not (app_pages / "questions").exists()
 
     shell = APP_SHELL.read_text(encoding="utf-8")
-    # DOM 순서 = 모바일 순서: 상황 입력이 지도·검색보다 앞.
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
+    # DOM 순서 = 모바일 순서: 상황 입력이 지도보다 앞.
     assert shell.index("<ChatPanel") < shell.index("<MapPanel")
-    assert "SEARCH_PLACEHOLDER" in shell
+    assert 'href="/app/search"' in shell
+    assert "SEARCH_MODE_LABEL" in shell
     assert "MAP_HEADING_CANDIDATES" in shell
-    assert "BACK_TO_CANDIDATES_LABEL" in shell
+    assert "SEARCH_PLACEHOLDER" in search
+    assert 'href="/app"' in search
+    assert "BACK_TO_CONDITIONS_LABEL" in search
 
 
 def test_data_strategy_fill_priority_forbids_name_heuristics():
@@ -584,51 +617,40 @@ def test_decision_log_records_expression_principles():
 
 
 def test_app_shell_does_not_fetch_all_academies_on_mount():
-    """제출 전 지도 없음 — 마운트 시 useEffect로 전체 GET /academies를 치지 않는다."""
+    """제출 전 지도 없음 — /app 마운트 시 GET /academies를 치지 않는다.
+    키워드 조회는 /app/search 에서만, 비어 있지 않은 q로만."""
     shell = APP_SHELL.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
 
-    # useEffect 자체는 금지하지 않는다 — 포커스 관리·리사이즈처럼 정당한 용도가 있고,
-    # 금지해 봐야 useLayoutEffect·데이터 훅으로 쓴 진짜 마운트 fetch 는 통과한다.
-    # 실제 규칙: 목록 fetch 는 runSearch 안에서만, runSearch 는 제출 핸들러에서만.
-    assert shell.count("fetchAllAcademies(") == 1  # import 줄은 괄호가 없다
+    assert "fetchAllAcademies" not in shell
+    assert search.count("fetchAllAcademies(") == 1  # import 줄은 괄호가 없다
     run_search = slice_between(
-        shell, "const runSearch = useCallback(", "}, [recItems]);"
+        search, "const runSearch = useCallback(", "}, []);"
     )
     assert "fetchAllAcademies({ q })" in run_search
     assert run_search.index("if (!q)") < run_search.index("fetchAllAcademies")
-    assert shell.count("void runSearch(") == 1
-    submit = slice_between(
-        shell,
-        "const onSearchSubmit = useCallback(",
-        "[runSearch, searchInput, onSearchClear],",
-    )
-    assert "void runSearch(searchInput)" in submit
-    assert 'runSearch("")' not in shell
-    assert "fetchAllAcademies({ q })" in shell
+    assert 'runSearch("")' not in search
 
 
 def test_search_responses_are_sequence_guarded():
-    """검색 해제·연속 검색 뒤 늦게 온 응답이 상태를 덮으면 안 된다.
+    """연속 검색 뒤 늦게 온 응답이 상태를 덮으면 안 된다.
 
-    fetchAllAcademies 응답을 쓰는 모든 경로(성공·실패·finally)와 해제 핸들러가
-    같은 일련번호를 본다.
+    fetchAllAcademies 응답을 쓰는 모든 경로(성공·실패·finally)가 같은 일련번호를 본다.
     """
-    shell = APP_SHELL.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
 
-    assert "useRef" in shell
-    assert "const searchSeq = useRef(0)" in shell
+    assert "useRef" in search
+    assert "const searchSeq = useRef(0)" in search
     # 요청 시작 시 번호를 올리고, 응답 반영 전에 최신인지 확인한다.
-    assert "const seq = ++searchSeq.current" in shell
-    assert shell.count("if (seq !== searchSeq.current) return;") == 2
-    assert "if (seq === searchSeq.current) setSearching(false);" in shell
-    # 검색 해제도 진행 중인 요청을 무효화한다.
-    assert "searchSeq.current += 1;" in shell.split("const onSearchClear", 1)[1]
+    assert "const seq = ++searchSeq.current" in search
+    assert search.count("if (seq !== searchSeq.current) return;") == 2
+    assert "if (seq === searchSeq.current) setSearching(false);" in search
 
 
 def test_explore_query_responses_are_sequence_guarded():
     """상황 제출 더블클릭·Enter 연타 뒤 늦게 온 응답이 상태를 덮으면 안 된다.
 
-    AppShell searchSeq 와 같이 요청 시작 시 번호를 올리고, 반영·finally 전에 최신인지 본다.
+    AcademySearchPage searchSeq 와 같이 요청 시작 시 번호를 올리고, 반영·finally 전에 최신인지 본다.
     """
     chat = CHAT_PANEL.read_text(encoding="utf-8")
 
@@ -783,78 +805,49 @@ def test_relaxed_banner_uses_sentences_not_backend_filter_keys():
     assert "region: REGION" in chat
 
 
-def test_empty_search_and_clear_share_candidate_pin_restore():
-    """빈 검색과 '후보로 돌아가기'는 같은 핀 복원을 쓴다. !q 분기가
-    무조건 setSelectedId(null)이면 후보는 보이는데 하이라이트만 빠진다."""
+def test_map_renders_only_after_explore_on_app():
+    """/app 은 조건 제출 전에는 지도를 그리지 않는다 — 입력이 주인공이다 (2026-09-13).
+    제출 뒤(로딩·후보 0건 포함) 후보 핀만. 키워드 검색 지도는 /app/search."""
     shell = APP_SHELL.read_text(encoding="utf-8")
-
-    helper = slice_between(shell, "function nextCandidateSelectedId(", "\n}")
-    assert "recItems.length === 0" in helper
-    assert "recItems[0]" in helper
-    assert "setSelectedId(null)" not in helper
-
-    empty_branch = slice_between(shell, "if (!q) {", "return;")
-    assert "nextCandidateSelectedId" in empty_branch
-    assert "setSelectedId(null)" not in empty_branch
-
-    clear = slice_between(
-        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
-    )
-    assert "nextCandidateSelectedId" in clear
-
-    submit = slice_between(
-        shell,
-        "const onSearchSubmit = useCallback(",
-        "[runSearch, searchInput, onSearchClear],",
-    )
-    assert "onSearchClear()" in submit
-    assert 'runSearch("")' not in shell
-
-
-def test_map_renders_only_after_explore_or_search():
-    """제출·검색 전에는 지도를 그리지 않는다 — 입력이 주인공이다 (2026-09-13).
-    MapMode 는 candidates·search 둘뿐이고, 제출 뒤(로딩·후보 0건 포함) 검색 중이 아니면
-    candidates 다. 후보 0건 안내는 MAP_EMPTY_CANDIDATES, 옛 대기 힌트(MAP_EMPTY_HINT ·
-    '조건을 보내면…')는 없다. 키워드 검색창은 토글 뒤에 접혀 있다."""
-    shell = APP_SHELL.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
 
-    assert 'type MapMode = "candidates" | "search"' in shell
-    mode = slice_between(shell, "const mapMode: MapMode =", ";")
-    assert "activeQuery" in mode
-    assert "idle" not in mode
-    assert "hasExplored" not in mode
-
-    # 조건부 렌더 — 제출했거나 검색 중일 때만 MapPanel 이 트리에 올라간다.
-    assert "hasExplored || activeQuery" in shell
+    assert "hasExplored" in shell
+    assert "activeQuery" not in shell
+    assert 'mapMode' not in shell
+    assert "searchOpen" not in shell
+    assert "aria-expanded" not in shell
+    # 조건부 렌더 — 제출했을 때만 MapPanel 이 트리에 올라간다.
+    assert "{hasExplored ? (" in shell
     assert "<MapPanel" in shell
-    # 후보 모드는 왼쪽 카드가 목록이라 지도 아래 목록을 감춘다.
-    assert 'hideList={mapMode === "candidates"}' in shell
+    assert "hideList" in shell
     assert "MAP_EMPTY_CANDIDATES" in shell
     assert "MAP_EMPTY_HINT" not in shell
     assert "MAP_HEADING_IDLE" not in shell
     assert "MAP_EMPTY_HINT" not in copy
     assert "조건을 보내면 후보 위치가 여기에 표시됩니다" not in copy
 
-    # 키워드 검색은 토글 뒤의 보조 — 기본 화면에 검색창을 펼쳐 두지 않고,
-    # 검색 해제가 토글도 닫는다.
+    # /app 은 학원 찾기 링크만. 검색 폼·토글은 /app/search.
     assert "SEARCH_MODE_LABEL" in shell
-    assert "const [searchOpen, setSearchOpen] = useState(false)" in shell
-    assert "aria-expanded={searchOpen}" in shell
-    clear = slice_between(
-        shell, "const onSearchClear = useCallback(", "}, [recItems]);"
-    )
-    assert "setSearchOpen(false)" in clear
+    assert 'href="/app/search"' in shell
+    assert "SEARCH_PLACEHOLDER" not in shell
+    assert "SEARCH_PLACEHOLDER" in search
+    assert "hasResults" in search
+    assert "MAP_HEADING_SEARCH" in search
 
 
 def test_map_headings_distinguish_candidates_and_search():
     """지도는 제출·검색 뒤에만 그리므로 대기(idle) 헤딩은 없다 (2026-09-13). 남은 두 모드
     후보·검색은 헤딩이 서로 달라야 지금 지도가 무엇을 보여 주는지 읽힌다."""
     copy = EXPLORE_COPY.read_text(encoding="utf-8")
+    shell = APP_SHELL.read_text(encoding="utf-8")
+    search = ACADEMY_SEARCH.read_text(encoding="utf-8")
 
     assert 'MAP_HEADING_CANDIDATES = "후보 위치"' in copy
     assert 'MAP_HEADING_SEARCH = "검색 결과"' in copy
     assert "MAP_HEADING_IDLE" not in copy
+    assert "MAP_HEADING_CANDIDATES" in shell
+    assert "MAP_HEADING_SEARCH" in search
 
     headings = {
         line.split("= ", 1)[1]

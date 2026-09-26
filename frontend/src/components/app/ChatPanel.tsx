@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Chip } from "@/components/ui";
 import {
   requestAiRecommendations,
@@ -23,7 +24,6 @@ import {
   LOADING_LABEL,
   MORE_DETAILS_HIDE_LABEL,
   MORE_DETAILS_LABEL,
-  NO_CANDIDATES,
   NO_CANDIDATES_SEARCH_HINT,
   QUESTIONS_ERROR,
   QUESTIONS_HEADING,
@@ -86,6 +86,8 @@ interface ChatPanelProps {
   onSelectAcademy: (id: number | null) => void;
   selectedAcademyId: number | null;
   onOpenDetail: (id: number) => void;
+  /** 제목 옆(제출 후엔 조건 요약 줄 오른쪽)에 두는 /app/search 링크. */
+  searchSlot?: React.ReactNode;
 }
 
 // AI 후보 쿼리. 태그(소수정예·선행 등)는 넣지 않는다 — 백엔드 intent 파서가
@@ -119,6 +121,7 @@ export function ChatPanel({
   onSelectAcademy,
   selectedAcademyId,
   onOpenDetail,
+  searchSlot,
 }: ChatPanelProps) {
   const [grade, setGrade] = useState<string | null>("중2");
   const [school, setSchool] = useState("");
@@ -143,7 +146,7 @@ export function ChatPanel({
   const [formExpanded, setFormExpanded] = useState(true);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
   // 상황 제출 일련번호. 최신 요청만 상태에 반영한다 — 더블 서브밋·Enter 연타로
-  // 늦게 온 응답이 새 결과를 덮어쓰는 것을 막는다 (AppShell searchSeq 와 동일).
+  // 늦게 온 응답이 새 결과를 덮어쓰는 것을 막는다 (AcademySearchPage searchSeq 와 동일).
   const querySeq = useRef(0);
 
   const query = useMemo(
@@ -298,11 +301,27 @@ export function ChatPanel({
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
       {/* 페이지 h1 은 항상 있다. 제출 뒤엔 요약 칩이 시선을 받으므로 sr-only 로
-          내리고, 래퍼는 contents 로 두어 flex gap 에 빈 칸을 남기지 않는다. */}
+          내리고, 학원 찾기 링크는 조건 요약 줄로 옮긴다. 제출 전엔 제목 행에 둔다
+          (좁은 화면: 제목 다음 줄 오른쪽 / sm+: 같은 줄). */}
       <div className={hasSubmitted ? "contents" : "space-y-2"}>
-        <h1 id="explore-heading" className={hasSubmitted ? "sr-only" : "text-2xl font-semibold leading-snug text-ink sm:text-3xl break-keep"}>
-          {FORM_HEADING}
-        </h1>
+        <div
+          className={
+            hasSubmitted
+              ? "contents"
+              : "flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-3"
+          }
+        >
+          <h1 id="explore-heading"
+            className={
+              hasSubmitted
+                ? "sr-only"
+                : "w-full break-keep text-2xl font-semibold leading-snug text-ink sm:min-w-0 sm:flex-1 sm:text-3xl"
+            }
+          >
+            {FORM_HEADING}
+          </h1>
+          {!hasSubmitted ? searchSlot : null}
+        </div>
         {!hasSubmitted ? (
           <>
             <p className="break-keep text-sm text-ink-muted">{FORM_SUPPORT}</p>
@@ -312,16 +331,17 @@ export function ChatPanel({
       </div>
 
       {hasSubmitted && !formExpanded ? (
-        <div className="rounded-card border border-border-soft bg-surface-muted px-3 py-2.5">
+        <div className="rounded-card bg-surface-muted px-3 py-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* 제출 시점 스냅샷. 아래 후보·질문을 만든 조건이 그대로 적힌다. */}
-            <p className="min-w-0 break-words text-sm font-medium text-ink">
+            <p className="min-w-0 flex-1 break-words text-sm font-medium text-ink">
               {conditionSummary}
             </p>
+            {searchSlot}
             <button
               type="button"
               onClick={() => setFormExpanded(true)}
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {EDIT_CONDITIONS_LABEL}
             </button>
@@ -335,6 +355,11 @@ export function ChatPanel({
         </div>
       ) : (
         <>
+          {hasSubmitted ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {searchSlot}
+            </div>
+          ) : null}
           <div className="space-y-3.5">
             <FilterRow label="상황" labelId="explore-intent-label">
               {INTENTS.map((option) => (
@@ -391,7 +416,7 @@ export function ChatPanel({
                   value={subjectDetail}
                   onChange={(e) => setSubjectDetail(e.target.value)}
                   placeholder={SUBJECT_DETAIL_PLACEHOLDER}
-                  className="w-full rounded-card border border-border bg-surface px-3 py-2 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                  className="w-full rounded-input border border-border bg-surface px-3 py-2 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                 />
                 <p className="text-xs text-ink-subtle">
                   {SUBJECT_DETAIL_HELPER}
@@ -404,50 +429,20 @@ export function ChatPanel({
           </div>
 
           <div className="space-y-2.5">
-            <label className="sr-only" htmlFor="explore-concern">
-              고민
-            </label>
-            <textarea
-              id="explore-concern"
-              name="note"
-              rows={3}
-              disabled={loading}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void runQuery();
-                }
-              }}
-              placeholder="예) 질문하면 잘 받아주는지, 오답은 어떻게 봐 주는지 궁금해요."
-              className="w-full resize-none rounded-card border border-border bg-surface px-4 py-3.5 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
-            />
-            <button
-              type="button"
-              disabled={loading || !canSubmit}
-              onClick={() => void runQuery()}
-              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-ink-strong transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-brand-dark active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
-            >
-              {loading ? LOADING_LABEL : SUBMIT_LABEL}
-            </button>
-          </div>
-
-          <div className="space-y-2.5">
             <button
               type="button"
               disabled={loading}
               aria-expanded={moreDetailsOpen}
               aria-controls="explore-more-details"
               onClick={() => setMoreDetailsOpen((open) => !open)}
-              className="inline-flex min-h-11 items-center text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {moreDetailsOpen ? MORE_DETAILS_HIDE_LABEL : MORE_DETAILS_LABEL}
             </button>
             {moreDetailsOpen ? (
               <div
                 id="explore-more-details"
-                className="space-y-3.5 rounded-card border border-border-soft bg-surface-muted px-3 py-3"
+                className="space-y-3.5 rounded-card bg-surface-muted px-3 py-3"
               >
                 <FilterRow label="학교" htmlFor="explore-school">
                   <input
@@ -459,7 +454,7 @@ export function ChatPanel({
                     disabled={loading}
                     placeholder="학교 이름을 입력하세요 (예: 미사중학교)"
                     onChange={(e) => setSchool(e.target.value)}
-                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                   />
                 </FilterRow>
 
@@ -473,7 +468,7 @@ export function ChatPanel({
                     disabled={loading}
                     placeholder="현재 다니는 학원 (없으면 비워 두세요)"
                     onChange={(e) => setCurrentAcademy(e.target.value)}
-                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                   />
                 </FilterRow>
 
@@ -506,6 +501,36 @@ export function ChatPanel({
             ) : null}
           </div>
 
+          <div className="space-y-2.5">
+            <label className="sr-only" htmlFor="explore-concern">
+              고민
+            </label>
+            <textarea
+              id="explore-concern"
+              name="note"
+              rows={3}
+              disabled={loading}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void runQuery();
+                }
+              }}
+              placeholder="예) 질문하면 잘 받아주는지, 오답은 어떻게 봐 주는지 궁금해요."
+              className="w-full resize-none rounded-input border border-border bg-surface px-4 py-3.5 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+            />
+            <button
+              type="button"
+              disabled={loading || !canSubmit}
+              onClick={() => void runQuery()}
+              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-ink-strong transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-brand-dark active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+            >
+              {loading ? LOADING_LABEL : SUBMIT_LABEL}
+            </button>
+          </div>
+
           {hasSubmitted ? (
             <div className="space-y-1.5">
               {/* 이 버튼이 버그의 진입점이었다 — 접기만 하므로 접기 전에 경고가 보여야 한다. */}
@@ -518,7 +543,7 @@ export function ChatPanel({
               <button
                 type="button"
                 onClick={() => setFormExpanded(false)}
-                className="inline-flex min-h-11 items-center self-start text-sm text-ink-subtle underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="inline-flex min-h-11 items-center self-start text-sm text-ink-subtle underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {SHOW_RESULTS_LABEL}
               </button>
@@ -527,20 +552,21 @@ export function ChatPanel({
         </>
       )}
 
-      {/* 로딩 상태는 늘 같은 live region 에 쓴다 — 비어 있을 땐 sr-only 로 자리만 남긴다. */}
+      {/* 로딩은 카드형 스켈레톤. live region 은 스크린리더용으로만 둔다. */}
       <p
         role="status"
         aria-live="polite"
-        className={loading ? "text-sm text-ink-subtle" : "sr-only"}
+        className="sr-only"
       >
         {loading ? LOADING_LABEL : null}
       </p>
+      {loading ? <ResultsSkeleton /> : null}
 
       {anyError ? (
         <div
           role="alert"
           aria-live="assertive"
-          className="space-y-1.5 rounded-card border border-warn/30 bg-warn-bg px-3 py-2.5 text-sm text-warn"
+          className="space-y-1.5 rounded-card bg-warn-bg px-3 py-2.5 text-sm text-warn"
         >
           {candidatesError ? <p className="break-keep">{CANDIDATES_ERROR}</p> : null}
           {questionsError ? <p className="break-keep">{QUESTIONS_ERROR}</p> : null}
@@ -548,7 +574,7 @@ export function ChatPanel({
             type="button"
             disabled={loading}
             onClick={() => void runQuery()}
-            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {RETRY_LABEL}
           </button>
@@ -556,7 +582,7 @@ export function ChatPanel({
       ) : null}
 
       {relaxed.length > 0 ? (
-        <div className="space-y-0.5 rounded-card border border-border-soft bg-surface-muted px-3 py-2 text-xs text-ink-subtle">
+        <div className="space-y-0.5 rounded-card bg-surface-muted px-3 py-2 text-xs text-ink-subtle">
           {/* 어떤 조건이 어떻게 넓어졌는지 문장으로. 백엔드 키(region·q)는 노출하지 않는다. */}
           <p>{RELAXED_HEADING}</p>
           {relaxedSentences.map((note) => (
@@ -565,8 +591,35 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      {/* 결과 순서: 후보 → 상담 질문. 후보 카드가 먼저 보이고, 질문은 그 뒤에 이어진다. */}
+      {/* 결과 순서: 상담 질문 → 후보 (2026-09-25). 모바일 DOM = 입력 → 질문 → 후보 → 지도. */}
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+        {questions.length > 0 ? (
+          <section
+            aria-labelledby="explore-questions-heading"
+            className="space-y-2"
+          >
+            <h2
+              id="explore-questions-heading"
+              className="text-sm font-semibold text-ink"
+            >
+              {QUESTIONS_HEADING}
+            </h2>
+            {questionsDisclaimer ? (
+              <p className="text-xs text-ink-subtle">{questionsDisclaimer}</p>
+            ) : null}
+            <ol className="space-y-2.5">
+              {questions.map((question, idx) => (
+                <li key={`${question.topic}-${idx}`} className="text-sm text-ink">
+                  <p className="font-medium">
+                    {idx + 1}. {question.topic}
+                  </p>
+                  <p className="mt-0.5 text-ink-muted">{question.prompt}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
         {items.length > 0 ? (
           <section
             aria-labelledby="explore-candidates-heading"
@@ -593,46 +646,14 @@ export function ChatPanel({
         ) : null}
 
         {noCandidates ? (
-          <div className="space-y-2 rounded-card border border-border-soft bg-surface-muted px-3 py-3">
-            <p className="break-keep text-sm text-ink">{NO_CANDIDATES}</p>
-            <button
-              type="button"
-              onClick={() => setFormExpanded(true)}
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          <p className="break-keep text-sm text-ink-muted">
+            <Link
+              href="/app/search"
+              className="underline underline-offset-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              {EDIT_CONDITIONS_LABEL}
-            </button>
-            <p className="break-keep text-xs text-ink-subtle">
               {NO_CANDIDATES_SEARCH_HINT}
-            </p>
-          </div>
-        ) : null}
-
-        {questions.length > 0 ? (
-          <section
-            aria-labelledby="explore-questions-heading"
-            className="space-y-2 rounded-card border border-border-soft bg-surface-muted px-3 py-3"
-          >
-            <h2
-              id="explore-questions-heading"
-              className="text-sm font-semibold text-ink"
-            >
-              {QUESTIONS_HEADING}
-            </h2>
-            {questionsDisclaimer ? (
-              <p className="text-xs text-ink-subtle">{questionsDisclaimer}</p>
-            ) : null}
-            <ol className="space-y-2">
-              {questions.map((question, idx) => (
-                <li key={`${question.topic}-${idx}`} className="text-sm text-ink">
-                  <p className="font-medium">
-                    {idx + 1}. {question.topic}
-                  </p>
-                  <p className="mt-0.5 text-ink-muted">{question.prompt}</p>
-                </li>
-              ))}
-            </ol>
-          </section>
+            </Link>
+          </p>
         ) : null}
       </div>
     </div>
@@ -692,10 +713,38 @@ function ChangedConditionsNotice({
         type="button"
         disabled={disabled}
         onClick={onResubmit}
-        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {RESUBMIT_LABEL}
       </button>
     </p>
+  );
+}
+
+/** 로딩 = 카드형 스켈레톤. 원형 스피너로 대체하지 않는다 (2026-09-25). */
+function ResultsSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden="true">
+      <div className="space-y-2">
+        <div className="h-4 w-36 animate-pulse rounded bg-surface-subtle" />
+        <div className="h-3 w-full animate-pulse rounded bg-surface-subtle" />
+        <div className="h-3 w-5/6 animate-pulse rounded bg-surface-subtle" />
+        <div className="h-3 w-4/6 animate-pulse rounded bg-surface-subtle" />
+      </div>
+      {[0, 1].map((i) => (
+        <div
+          key={i}
+          className="space-y-2 rounded-card bg-surface p-4 shadow-soft"
+        >
+          <div className="h-4 w-40 animate-pulse rounded bg-surface-subtle" />
+          <div className="h-3 w-full animate-pulse rounded bg-surface-subtle" />
+          <div className="h-3 w-3/4 animate-pulse rounded bg-surface-subtle" />
+          <div className="mt-2 flex gap-2">
+            <div className="h-9 w-14 animate-pulse rounded-btn bg-surface-subtle" />
+            <div className="h-9 w-14 animate-pulse rounded-btn bg-surface-subtle" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

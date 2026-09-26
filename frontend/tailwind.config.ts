@@ -42,10 +42,17 @@ export default {
         kakao: "rgb(var(--color-kakao) / <alpha-value>)",
       },
       fontFamily: {
-        sans: ['"Noto Sans KR"', "sans-serif"],
+        sans: [
+          "Pretendard",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       borderRadius: {
         card: "var(--radius-card)",
+        input: "var(--radius-input)",
         btn: "var(--radius-btn)",
       },
       boxShadow: {

@@ -12,19 +12,24 @@ body {
   /* 토큰이 RGB 채널값이라 rgb()로 감싼다 (src/styles/tokens.css 주석 참고). */
   color: rgb(var(--color-ink));
   background: rgb(var(--color-canvas));
-  font-family: var(--font-noto-sans-kr), "Noto Sans KR", sans-serif;
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui,
+    sans-serif;
+  font-weight: 400;
   text-wrap: pretty;
 }
 
 h1,
 h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
+/* 주황 wash는 쓰지 않는다 — brand는 CTA·선택 상태에만. */
 .hero-wash {
   background: radial-gradient(
-    ellipse 80% 60% at 50% 0%,
-    rgb(var(--color-brand) / 0.06),
+    ellipse 80% 55% at 30% 0%,
+    rgb(var(--color-surface-muted) / 0.9),
     transparent 70%
   );
 }

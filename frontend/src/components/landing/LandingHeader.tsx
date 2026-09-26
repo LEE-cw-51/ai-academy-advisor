@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HEADER_STATUS_NOTICE } from "./landingFacts";
 
-/** 로고 옆에 운영 전·판매 없음 고지를 둔다. 배지 형태는 쓰지 않는다 —
- *  2026-08-16이 헤더에서 뺀 것은 스크롤 내내 따라다니는 배지였다. */
+/** 홈·방침이 공유하는 헤더. 로고만 둔다 — 출시 전·중개 없음 고지는 히어로와
+ *  경쟁하지 않게 홈에서는 결과물 칸 아래로 내렸다 (2026-09-25). 문구 상수는
+ *  landingFacts에 그대로 두고 LandingPage가 렌더한다. */
 export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border-soft bg-canvas/90 backdrop-blur">
@@ -11,7 +11,7 @@ export function LandingHeader() {
         <Link
           href="/"
           aria-label="학원콕 홈"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <Image
             src="/logo.png"
@@ -22,9 +22,6 @@ export function LandingHeader() {
             className="h-9 w-9 sm:h-10 sm:w-10"
           />
         </Link>
-        <p className="break-keep text-xs leading-snug text-ink-muted">
-          {HEADER_STATUS_NOTICE}
-        </p>
       </div>
     </header>
   );

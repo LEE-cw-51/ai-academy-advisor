@@ -27,12 +27,12 @@ export function Chip({
       disabled={disabled}
       className={[
         "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-3.5 py-1.5 text-sm transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         disabled && !selected ? "cursor-not-allowed opacity-50" : "",
         disabled && selected ? "cursor-default" : "",
         selected
           ? selectedClass
-          : "border-border bg-surface font-medium text-ink-muted hover:border-brand/60 hover:text-ink",
+          : "border-border bg-surface font-medium text-ink-muted hover:border-ink/30 hover:text-ink",
         className,
       ]
         .filter(Boolean)

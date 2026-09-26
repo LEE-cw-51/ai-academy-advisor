@@ -6,7 +6,7 @@
  * - 검색창은 DB가 실제로 찾는 것(학원명·주소·전화)만 약속한다. 과목 예시를 넣지 않는다.
  * - 카드는 이름 → 과목 배지 → 왜 이 후보인지 → 확인일 → 다음 행동. score 비표시.
  * - 태그(소수정예·선행 등)는 검색 조건이 아니라 상담 질문 힌트다. AI 쿼리에 넣지 않는다.
- * - 한 흐름: 상황 입력 → 후보 → 상담 질문 → 후보 위치. 검색·지도는 결과 뒤의 보조다.
+ * - 한 흐름: 상황 입력 → 상담 질문 → 후보 → 후보 위치. 검색·지도는 결과 뒤의 보조다.
  */
 
 export const APP_TITLE = "학원콕";
@@ -70,8 +70,11 @@ export const CANDIDATES_ERROR =
   "후보를 불러오지 못했어요. 잠시 후 다시 보내 주세요.";
 export const NO_CANDIDATES =
   "지금 조건에 맞는 후보를 찾지 못했어요. 과목이나 고민 문장을 조금 바꿔 다시 보내 보세요.";
+// 빈 결과 화면에는 이 한 문장만 보여 학원 찾기 페이지로 이끈다. 검색은 /app 아래가
+// 아니라 /app/search 링크라 "아래"라고 가리키지 않는다. NO_CANDIDATES는 카피
+// 계약·테스트용으로 유지한다.
 export const NO_CANDIDATES_SEARCH_HINT =
-  "이미 알고 있는 학원이 있다면 아래에서 이름으로 찾을 수 있어요.";
+  "이미 알고 있는 학원이 있다면 학원 찾기에서 이름으로 찾을 수 있어요.";
 
 // 완화 배너 — 백엔드 relaxed 는 필터 키(`q`·`region`)라 그대로 찍으면 영문 키가
 // 그대로 보인다. region 은 폼에 지역 행이 없는데도 쿼리에 늘 들어가는 고정값
@@ -110,18 +113,15 @@ export const MAP_UNAVAILABLE =
   "지도를 표시할 수 없어요. 후보 카드의 길찾기는 그대로 쓸 수 있어요.";
 export const MAP_LOADING = "지도 준비 중…";
 
-// 검색 모드 — 기본 흐름(상황 입력 → 후보)의 보조. 기존 GET /academies?q=
-// (학원명·주소·전화 부분 일치)를 그대로 쓴다. 과목·조건은 여기서 찾지 않는다.
+// 학원 찾기 — /app/search. 기존 GET /academies?q= (학원명·주소·전화 부분 일치)를
+// 그대로 쓴다. 과목·조건은 여기서 찾지 않는다. /app 에는 이 페이지로 가는 링크만.
 export const SEARCH_MODE_LABEL = "이미 알고 있는 학원 찾기";
-export const SEARCH_MODE_HIDE_LABEL = "학원 찾기 닫기";
 export const SEARCH_PLACEHOLDER = "학원명·주소·전화 (예: 미사강변, 031-796)";
 export const SEARCH_LABEL = "검색";
 export const SEARCH_HELPER =
   "아는 학원을 이름·주소·전화로 찾아요. 과목·조건은 상황 입력에서 정리해요.";
 export const SEARCH_CLEAR_LABEL = "검색 지우기";
-export const SEARCH_OVERRIDES_CANDIDATES =
-  "검색 중에는 후보 대신 검색 결과가 지도에 표시돼요.";
-export const BACK_TO_CANDIDATES_LABEL = "후보로 돌아가기";
+export const BACK_TO_CONDITIONS_LABEL = "조건 입력으로 돌아가기";
 export const SEARCH_ERROR =
   "검색하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
