@@ -1,0 +1,69 @@
+# 보안 스캐너. pytest·프론트 빌드(ci.yml)와 나눠, 스캐너 실패가 테스트 실패와 섞이지 않게 한다.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    # semgrep/semgrep-action@v1 은 config·publishToken 만 있고 ERROR 필터가 없다. 폐기됨.
+    # 앱 토큰 없이 커뮤니티 규칙의 ERROR 만 실패시킨다.
+    container:
+      image: semgrep/semgrep:1.178.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep ERROR
+        run: |
+          semgrep scan \
+            --config p/python \
+            --config p/typescript \
+            --config p/secrets \
+            --severity ERROR \
+            --error \
+            --metrics=off
+
+  dependency-review:
+    # 이 액션은 PR diff 전용이라 push 에는 돌리지 않는다.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          # 기본값(runtime, license-check true)이면 개발 의존성 high 는 통과하고
+          # 라이선스로도 실패한다. 계획은 PR이 새로 들이는 high/critical 만 막는다.
+          fail-on-scopes: runtime, development, unknown
+          license-check: false
+
+  trivy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # config 만. 이미지 빌드·fs·vuln 스캔은 하지 않는다.
+      # cache 기본값은 actions/cache 를 쓰는데, 그건 actions: write 가 필요하다.
+      - name: Trivy config backend/Dockerfile
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: backend/Dockerfile
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          cache: "false"
+      - name: Trivy config docker-compose.yml
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: docker-compose.yml
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          cache: "false"
