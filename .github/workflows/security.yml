@@ -17,7 +17,7 @@ jobs:
     container:
       image: semgrep/semgrep:1.178.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Semgrep ERROR
         run: |
           semgrep scan \
@@ -36,7 +36,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
@@ -48,7 +48,7 @@ jobs:
   trivy-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # config 만. 이미지 빌드·fs·vuln 스캔은 하지 않는다.
       # cache 기본값은 actions/cache 를 쓰는데, 그건 actions: write 가 필요하다.
       - name: Trivy config backend/Dockerfile
