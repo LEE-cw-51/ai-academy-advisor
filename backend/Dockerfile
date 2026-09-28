@@ -1,13 +1,15 @@
 FROM python:3.12-slim
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir uv \
+    && useradd --create-home --uid 1000 --shell /usr/sbin/nologin app
 
 WORKDIR /app
 
-COPY pyproject.toml ./
+COPY --chown=app:app pyproject.toml ./
+USER app
 RUN uv sync --no-install-project
 
-COPY . .
+COPY --chown=app:app . .
 RUN uv sync
 
 EXPOSE 8000
