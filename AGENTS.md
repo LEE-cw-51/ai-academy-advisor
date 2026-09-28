@@ -126,6 +126,8 @@ cd backend && uv run python -m app.cli.export_academies ../data/backups/YYYY-MM-
 머지됐다는 사실을 검증 완료로 치지 않는다. 데이터·추천·provider를 건드렸으면 회귀 테스트를 하나 남긴다.
 pgvector 전용 경로는 `PGVECTOR_TEST_DATABASE_URL`을 설정해야 실제로 돈다 (기본 테스트에선 스킵).
 
+보안 정책은 [SECURITY.md](SECURITY.md)다. 제보 방법·범위·지원 버전과 PR 게이트(security 워크플로)는 그 파일에만 둔다.
+
 ## 9. 인계
 
 PR 본문에 **무엇을 왜 했고, 어디까지 됐고, 다음에 뭘 하면 되는지**를 남긴다.
