@@ -85,7 +85,8 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
   (임포트 GUC 우회), `academy_fact_revisions` 이력 (Supabase Studio 운영용)
 - `0007_academy_fact_revisions_rls.py` — `academy_fact_revisions`에 정책 없는 RLS
   ENABLE + `REVOKE ALL … FROM anon, authenticated` (Data API 잠금). Studio·
-  service_role은 계속 접근. `academies` 전체 RLS·MVP 로그인은 범위 밖.
+  service_role은 계속 접근. (2026-09-29 `0011`로 `academies` 등 나머지 public 테이블도
+  동일 잠금 — MVP 사용자 로그인·anon READ policy는 도입하지 않음.)
 - `0008_subjects_taxonomy_4_and_subject_detail.py` — `subject_detail` 컬럼 추가(전
   dialect), Postgres 전용: `과학` 등 4종 밖 subjects·기타 없는 subject_detail 사전
   검사(위반 시 중단) → 과목 CHECK 4종 재생성 + subject_detail 결합 CHECK. downgrade는
@@ -102,6 +103,10 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
   적용된 DB만 존재 검사 후 rename 한다(신규 DB에서는 no-op). 중복 인덱스
   `ix_academy_trait_labels_academy_id`도 제거 — 유니크 제약
   `(academy_id, label, source_url)`의 선두 컬럼이 같은 조회를 커버한다.
+- `0011_lock_public_tables_data_api.py` — Postgres: `academies`·`reviews`·engagement
+  4테이블·`alembic_version`에 정책 없는 RLS + `REVOKE ALL … FROM anon, authenticated`
+  (`0007`/`0009`와 동일 Data API 잠금). `postgres`·`service_role`·Studio·FastAPI
+  `DATABASE_URL`·Cursor/Claude Supabase MCP는 유지. 상세: [`docs/decisions/2026-09-29-supabase-data-api-rls-lock.md`](decisions/2026-09-29-supabase-data-api-rls-lock.md).
 
 ### academy_trait_labels (Postgres, 주관 언급 메타)
 
