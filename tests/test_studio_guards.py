@@ -43,6 +43,13 @@ MIGRATION_0008_PATH = (
     / "versions"
     / "0008_subjects_taxonomy_4_and_subject_detail.py"
 )
+MIGRATION_0011_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "0011_lock_public_tables_from_data_api.py"
+)
 
 
 def test_subjects_check_allows_null_and_taxonomy():
@@ -162,6 +169,29 @@ def test_migration_0007_locks_fact_revisions_from_data_api():
     assert "anon" in source
     assert "authenticated" in source
     assert 'down_revision = "0006"' in source
+
+
+def test_migration_0011_locks_remaining_public_tables_from_data_api():
+    """나머지 public 테이블 Data API 잠금 — 정책 없는 RLS + anon/authenticated REVOKE."""
+    source = MIGRATION_0011_PATH.read_text(encoding="utf-8")
+    assert 'down_revision = "0010"' in source
+    assert "ROW LEVEL SECURITY" in source
+    assert "REVOKE ALL ON TABLE" in source
+    assert "anon, authenticated" in source
+    for table in (
+        "academies",
+        "reviews",
+        "search_history",
+        "click_logs",
+        "feedback",
+        "waitlist",
+        "alembic_version",
+    ):
+        assert f'"{table}"' in source
+    # 이미 잠긴 테이블을 다시 열거나 정책을 만들지 않는다.
+    assert "CREATE POLICY" not in source
+    assert "academy_fact_revisions" not in source
+    assert "academy_trait_labels" not in source
 
 
 def test_migration_0008_taxonomy_and_subject_detail():

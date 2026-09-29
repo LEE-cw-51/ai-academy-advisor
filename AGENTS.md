@@ -91,6 +91,11 @@ AI 구성요소(LLM·임베딩·벡터)는 `app/providers/`의 Protocol 뒤에�
 Editor로 일상 수정한다. `data/academies/*.json`은 시드·백업 덤프이며 git 이력은 참고용이다.
 컷오버·재해복구만 `import_academies --force`(또는 `ALLOW_ACADEMY_IMPORT=1`)로 JSON→DB.
 학원 사실용 **공개** 쓰기 API는 만들지 않는다. 스키마 변경은 Alembic만.
+`public` 스키마는 Supabase Data API에 노출된다. RLS가 꺼져 있고 `anon`에
+GRANT가 있으면 프로젝트 URL만으로 읽기·수정·삭제가 된다. 새 테이블은
+`0007`/`0011`처럼 정책 없는 RLS + `REVOKE ALL … FROM anon, authenticated`로
+잠근다. 이 잠금은 사용자 로그인이 아니다. Studio와 FastAPI는 `postgres`·
+`service_role`(RLS 우회)로 그대로 접근한다.
 확인 안 된 값은 `null` (3상태: `true`=있음 / `false`=없음 / `null`=미확인).
 이름에 "수학"이 있다고 `subjects`·`subject_detail`을 추측해 채우지 않는다 (지역검색
 `category` 근거만). `subjects`는 4종(`국어`·`영어`·`수학`·`기타`), 세부 이름은

@@ -32,7 +32,7 @@
 
 - **모듈 의존** — `api → services → repositories`. 벤더 SDK는 `app/providers/` 포트 밖에서 호출하지 않는다.
 - **결합** — `services/scoring.py`는 ORM·모델을 import하지 않는다. `recommendation_pipeline.py` 밖으로 ORM 객체나 열린 세션을 넘기지 않는다.
-- **인증·인가** — 새 민감 테이블은 migration `0007`과 같은 RLS+REVOKE(정책 없는 RLS, `anon`·`authenticated` `REVOKE`). 학원 사실 공개 쓰기 API를 만들지 않는다. `NEXT_PUBLIC_`에는 브라우저에 나가도 되는 값만 둔다.
+- **인증·인가** — `public` 테이블은 Data API에 열지 않는다. migration `0007`/`0011`과 같이 정책 없는 RLS + `anon`·`authenticated` `REVOKE`. 학원 사실 공개 쓰기 API를 만들지 않는다. `NEXT_PUBLIC_`에는 브라우저에 나가도 되는 값만 둔다.
 - **데이터 흐름** — 확인 안 된 사실은 `null`. 전화·웹사이트·길찾기 클릭은 비식별 이벤트만 남긴다. 자녀 실명·성적은 기본으로 수집하지 않는다.
 - **장애** — 외부 LLM·임베딩 실패가 처리되지 않은 5xx로만 끝나지 않는지. 서버리스 DB는 `NullPool`과 transaction pooler 포트 6543을 유지하는지.
 - **확장** — `POST /recommendations`와 `POST /recommendations/ai`는 분리된 두 계약으로 둔다. `score`는 저장하거나 별점·퍼센트로 보여주지 않는다.

@@ -85,7 +85,7 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
   (임포트 GUC 우회), `academy_fact_revisions` 이력 (Supabase Studio 운영용)
 - `0007_academy_fact_revisions_rls.py` — `academy_fact_revisions`에 정책 없는 RLS
   ENABLE + `REVOKE ALL … FROM anon, authenticated` (Data API 잠금). Studio·
-  service_role은 계속 접근. `academies` 전체 RLS·MVP 로그인은 범위 밖.
+  service_role은 계속 접근. 당시에는 나머지 테이블을 같은 방식으로 잠그지 않았다.
 - `0008_subjects_taxonomy_4_and_subject_detail.py` — `subject_detail` 컬럼 추가(전
   dialect), Postgres 전용: `과학` 등 4종 밖 subjects·기타 없는 subject_detail 사전
   검사(위반 시 중단) → 과목 CHECK 4종 재생성 + subject_detail 결합 CHECK. downgrade는
@@ -102,6 +102,12 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
   적용된 DB만 존재 검사 후 rename 한다(신규 DB에서는 no-op). 중복 인덱스
   `ix_academy_trait_labels_academy_id`도 제거 — 유니크 제약
   `(academy_id, label, source_url)`의 선두 컬럼이 같은 조회를 커버한다.
+- `0011_lock_public_tables_from_data_api.py` — `academies`·`reviews`·
+  `search_history`·`click_logs`·`feedback`·`waitlist`·`alembic_version`에
+  `0007`과 같은 정책 없는 RLS + `REVOKE ALL … FROM anon, authenticated`.
+  Supabase Data API(anon 키)로는 행을 읽거나 고칠 수 없다. `postgres`·
+  `service_role`은 RLS를 우회하므로 Studio와 FastAPI는 그대로다. 사용자
+  로그인용 정책은 아니다. 새 public 테이블도 같은 두 문을 넣는다.
 
 ### academy_trait_labels (Postgres, 주관 언급 메타)
 
@@ -136,7 +142,8 @@ SQLite(테스트)에서는 JSON, PostgreSQL(운영)에서는 JSONB로 저장된�
 
 Studio에서 `academies` 행을 수정하면 AFTER UPDATE 트리거가 이전 스냅샷을 남긴다.
 롤백은 SQL로 스냅샷을 참고해 수동 복구한다. 스키마 변경은 Studio DDL이 아니라 Alembic만.
-감사 테이블 Data API 잠금(`0007`)은 MVP 사용자 로그인/RLS 도입이 아니다.
+Data API 잠금(`0007`·`0009`·`0011`)은 MVP 사용자 로그인/RLS 도입이 아니다.
+정책이 없으면 `anon`·`authenticated`는 행을 보지 못한다.
 
 ```bash
 cd backend
