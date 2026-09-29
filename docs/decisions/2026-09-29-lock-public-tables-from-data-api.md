@@ -77,9 +77,16 @@ Supabase가 `rls_disabled_in_public`(ERROR)를 알렸다. 프로젝트
 
 ## 검증·다음
 
-- 운영 DB에 `0011`과 같은 SQL을 적용한 뒤 Advisors에서
-  `rls_disabled_in_public`이 사라졌는지 본다.
-- `anon`으로 `academies` 조회가 거부되는지 본다. `postgres` 조회는 남는지 본다.
-- 이후 `alembic upgrade head`는 같은 SQL을 한 번 더 실행한다. ENABLE과 REVOKE는
-  반복해도 된다. 적용 직후에는 `alembic_version`을 `0010`으로 두어, 이 리비전이
-  main에 머지된 뒤의 upgrade가 `0011`을 기록하게 한다.
+운영 DB(`ai-academy-advisor`)에 같은 잠금을 적용했다.
+
+- `public` 테이블 9개 모두 RLS가 켜져 있다. `anon`·`authenticated`의 테이블 권한은 없다.
+- `anon`의 `academies` 조회, `authenticated`의 `reviews` 조회는 권한 거부로 끝난다.
+  `postgres`로는 학원 411행이 그대로 보인다.
+- Security advisor의 `rls_disabled_in_public`(ERROR)는 없다. 정책이 없다는 INFO
+  (`rls_enabled_no_policy`)는 잠금 방식 그대로다.
+- `alembic_version`은 `0011`이다. 이 데이터베이스에서 `alembic upgrade head`는
+  다시 실행되지 않는다. Supabase 마이그레이션 이력에도 같은 적용이 한 줄 있다.
+  스키마 정본은 계속 Alembic이다.
+
+아직 남은 advisor: 트리거 함수 `search_path` WARN 3건, `vector` 확장이
+`public`에 있는 WARN. 이번 잠금과 별개다.

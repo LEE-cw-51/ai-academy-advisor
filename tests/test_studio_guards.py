@@ -174,6 +174,7 @@ def test_migration_0007_locks_fact_revisions_from_data_api():
 def test_migration_0011_locks_remaining_public_tables_from_data_api():
     """나머지 public 테이블 Data API 잠금 — 정책 없는 RLS + anon/authenticated REVOKE."""
     source = MIGRATION_0011_PATH.read_text(encoding="utf-8")
+    locked = source.split("_LOCKED_TABLES = (", 1)[1].split(")", 1)[0]
     assert 'down_revision = "0010"' in source
     assert "ROW LEVEL SECURITY" in source
     assert "REVOKE ALL ON TABLE" in source
@@ -187,11 +188,11 @@ def test_migration_0011_locks_remaining_public_tables_from_data_api():
         "waitlist",
         "alembic_version",
     ):
-        assert f'"{table}"' in source
-    # 이미 잠긴 테이블을 다시 열거나 정책을 만들지 않는다.
+        assert f'"{table}"' in locked
+    # 이미 잠긴 테이블은 목록에 넣지 않고, 정책도 만들지 않는다.
     assert "CREATE POLICY" not in source
-    assert "academy_fact_revisions" not in source
-    assert "academy_trait_labels" not in source
+    assert "academy_fact_revisions" not in locked
+    assert "academy_trait_labels" not in locked
 
 
 def test_migration_0008_taxonomy_and_subject_detail():

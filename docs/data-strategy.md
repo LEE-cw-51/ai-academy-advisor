@@ -263,7 +263,7 @@ Dedup `(academy_id, label, source_url)`. Data API는 `0009`에서 RLS+REVOKE로 
 
 ```bash
 cd backend
-uv run alembic upgrade head   # 0009, 0010
+uv run alembic upgrade head   # 0009–0011
 uv run python -m app.cli.ingest_trait_labels [--dry-run] [--limit N]
 ```
 
