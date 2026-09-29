@@ -36,6 +36,13 @@ MIGRATION_0007_PATH = (
     / "versions"
     / "0007_academy_fact_revisions_rls.py"
 )
+MIGRATION_0011_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "0011_lock_public_tables_data_api.py"
+)
 MIGRATION_0008_PATH = (
     Path(__file__).resolve().parents[1]
     / "backend"
@@ -162,6 +169,26 @@ def test_migration_0007_locks_fact_revisions_from_data_api():
     assert "anon" in source
     assert "authenticated" in source
     assert 'down_revision = "0006"' in source
+
+
+def test_migration_0011_locks_core_public_tables_from_data_api():
+    """핵심 public 테이블 Data API 잠금 — 0007과 동일 패턴, service_role REVOKE 없음."""
+    source = MIGRATION_0011_PATH.read_text(encoding="utf-8")
+    assert 'down_revision = "0010"' in source
+    for table in (
+        "academies",
+        "reviews",
+        "search_history",
+        "click_logs",
+        "feedback",
+        "waitlist",
+        "alembic_version",
+    ):
+        assert table in source
+    assert "REVOKE ALL ON TABLE" in source
+    assert "FROM anon, authenticated" in source
+    lock_fn = source.split("def _lock_table", 1)[1].split("\ndef ", 1)[0]
+    assert "service_role" not in lock_fn
 
 
 def test_migration_0008_taxonomy_and_subject_detail():
