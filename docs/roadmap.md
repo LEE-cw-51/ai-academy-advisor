@@ -1,5 +1,13 @@
 # 로드맵
 
+## 현재
+
+지금은 **Phase 5e — 학부모 학습 점검 반복 루프 검증**이다. 시험·숙제·오답·질문 대응·보강·상담 같은 사건에서 `점검 → 질문 → 직접 확인 → 다음 점검`이 반복되는지 확인한다. 근거는 [2026-09-23 결정](decisions/2026-09-23-retention-loop.md)이다.
+
+배포 정본은 Vercel 프로젝트 하나에 프론트·백엔드를 Services로 올리는 구성이다. 근거는 [2026-09-14 결정](decisions/2026-09-14-single-vercel-project-services.md)이다. 아래 Phase 6의 Docker Compose 문장은 기록이다.
+
+이 절 아래 단계 본문은 기록으로 둔다. 지우지 않는다. 지금 할 일이 바뀌면 이 절만 고친다.
+
 ## Phase 0 — 프로젝트 스캐폴딩 (완료)
 - FastAPI 프로젝트 기본 구조 생성
 - Docker / Docker Compose 구성 (PostgreSQL 포함)

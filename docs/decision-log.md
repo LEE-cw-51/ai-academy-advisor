@@ -3,7 +3,8 @@
 > **2026-09-14부터 동결.** 새 결정은 [`docs/decisions/`](decisions/)에 결정 하나당 파일 하나로
 > 쓴다([형식](decisions/README.md)). 이 파일은 2026-09-13까지의 기록 보관용이다 — 새 항목을
 > 추가하지 않고, 기존 항목도 고치지 않는다. 옛 결정을 뒤집을 때는 새 결정 파일에서 이 파일의
-> 날짜·제목으로 참조한다.
+> 날짜·제목으로 참조한다. 2026-09-13 항목에서 `/check`·`/checklists`를 보조 퍼널로 유지한다는
+> 문장은 [`decisions/2026-09-14-retire-check-and-checklists.md`](decisions/2026-09-14-retire-check-and-checklists.md)가 대체했다.
 
 주요 기술적/제품적 의사결정과 그 이유를 기록한다.
 

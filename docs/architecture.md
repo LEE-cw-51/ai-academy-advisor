@@ -17,7 +17,7 @@ DB (SQLAlchemy models / PostgreSQL)
 ```
 
 - **api/**: HTTP 요청/응답 처리, 입력 검증(schemas 사용), 서비스 호출
-- **services/**: 비즈니스 로직. 추후 추천 알고리즘, OpenAI 연동 로직이 위치
+- **services/**: 비즈니스 로직. 추천은 이 계층에 있고, LLM·임베딩·벡터 호출은 `app/providers/` 포트 뒤에서만 한다.
   - `scoring.py`: SQLAlchemy/`app.models` 없는 **순수 랭킹 모듈** (테스트로 import 금지 강제).
     입력은 Pydantic·스칼라뿐.
   - `recommendation_pipeline.py`: `/recommendations/ai`와 향후 `POST /chat`이 공유하는

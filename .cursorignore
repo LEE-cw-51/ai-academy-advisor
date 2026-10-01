@@ -1,0 +1,17 @@
+# 에이전트 인덱스·검색에서 뺄 대용량·비정본 파일. docs/decision-log.md는 테스트·역사 조회에 쓰이므로 넣지 않는다.
+data/registry/
+data/raw/
+docs/design/academy-kok-landing.html
+docs/diagrams/*.html
+docs/diagrams/.archify-delivery-*/
+tmp_audit_out/
+*.db
+
+# 범용 스킬 사본. .gitignore는 Cursor 검색을 막지 않는다.
+# landing-funnel-change만 남긴다. web-design-guidelines 추적 정본은 .agents/skills/ 다.
+.cursor/skills/*
+!.cursor/skills/landing-funnel-change/
+!.cursor/skills/landing-funnel-change/**
+.claude/skills/*
+!.claude/skills/landing-funnel-change/
+!.claude/skills/landing-funnel-change/**
