@@ -1,8 +1,68 @@
-@import "../styles/tokens.css";
+@import '../styles/tokens.css' layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* tokens.css의 채널 변수와 이름이 같다. inline이 아니면 유틸리티가 채널값만 받고,
+   reference가 아니면 :root에 --color-canvas: rgb(var(--color-canvas)) 순환이 생긴다. */
+@theme inline reference {
+  --color-canvas: rgb(var(--color-canvas));
+
+  --color-surface: rgb(var(--color-surface));
+  --color-surface-muted: rgb(var(--color-surface-muted));
+  --color-surface-subtle: rgb(var(--color-surface-subtle));
+
+  --color-brand: rgb(var(--color-brand));
+  --color-brand-dark: rgb(var(--color-brand-dark));
+
+  --color-ink: rgb(var(--color-ink));
+  --color-ink-strong: rgb(var(--color-ink-strong));
+  --color-ink-muted: rgb(var(--color-ink-muted));
+  --color-ink-subtle: rgb(var(--color-ink-subtle));
+
+  --color-border: rgb(var(--color-border));
+  --color-border-soft: rgb(var(--color-border-soft));
+
+  --color-success: rgb(var(--color-success));
+  --color-success-bg: rgb(var(--color-success-bg));
+
+  --color-warn: rgb(var(--color-warn));
+  --color-warn-bg: rgb(var(--color-warn-bg));
+
+  --color-kakao: rgb(var(--color-kakao));
+
+  --font-sans:
+    Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --radius-card: var(--radius-card);
+  --radius-input: var(--radius-input);
+  --radius-btn: var(--radius-btn);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-soft: var(--shadow-soft);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 html {
   color-scheme: light;

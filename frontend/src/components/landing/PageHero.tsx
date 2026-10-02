@@ -61,7 +61,7 @@ export function PageHero({
       >
         {badge}
       </Badge>
-      <h1 className="hero-fade-up hero-fade-up-delay-1 mt-4 max-w-2xl break-keep text-2xl font-semibold leading-snug tracking-tight text-ink sm:mt-5 sm:text-4xl">
+      <h1 className="hero-fade-up hero-fade-up-delay-1 mt-4 max-w-2xl break-keep text-2xl font-semibold leading-snug tracking-tight text-ink sm:mt-5 sm:text-4xl sm:leading-10">
         {headlineMobileLines ? (
           <>
             <span className="sm:hidden">
@@ -73,7 +73,7 @@ export function PageHero({
           headline
         )}
       </h1>
-      <p className="hero-fade-up hero-fade-up-delay-2 mt-3 max-w-[40rem] break-keep text-base leading-relaxed text-ink-muted">
+      <p className="hero-fade-up hero-fade-up-delay-2 mt-3 max-w-160 break-keep text-base leading-relaxed text-ink-muted">
         {support}
       </p>
       {reassurance ? (

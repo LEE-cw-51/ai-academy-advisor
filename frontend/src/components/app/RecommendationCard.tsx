@@ -85,7 +85,7 @@ export function RecommendationCard({
 
         <div className="mt-1">
           <p className="sr-only">{WHY_CANDIDATE_HEADING}</p>
-          <p className="line-clamp-2 break-words text-sm leading-relaxed text-ink">
+          <p className="line-clamp-2 wrap-break-word text-sm leading-relaxed text-ink">
             {reason}
           </p>
         </div>
@@ -149,19 +149,19 @@ export function RecommendationCard({
               e.stopPropagation();
               setEvidenceOpen((o) => !o);
             }}
-            className="inline-flex min-h-11 items-center text-xs font-semibold text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center text-xs font-semibold text-ink-muted transition-colors hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {evidenceOpen ? EVIDENCE_TOGGLE_HIDE_LABEL : EVIDENCE_TOGGLE_LABEL}
           </button>
           <div id={evidenceId} hidden={!evidenceOpen} className="pb-3">
             {matchedLabels.length > 0 ? (
-              <p className="break-words text-xs text-ink-subtle">
+              <p className="wrap-break-word text-xs text-ink-subtle">
                 {MATCHED_CONDITIONS_LABEL}: {matchedLabels.join(", ")}
               </p>
             ) : null}
 
             {signalLabels.length > 0 ? (
-              <p className="mt-1 break-words text-xs text-ink-subtle">
+              <p className="mt-1 wrap-break-word text-xs text-ink-subtle">
                 {NAME_SIGNAL_LABEL}: {signalLabels.join(", ")}
                 <span className="block">{NAME_SIGNAL_HELPER}</span>
               </p>
@@ -169,7 +169,7 @@ export function RecommendationCard({
 
             {conflictLabels.length > 0 ? (
               <CardSection title={CONFLICTS_HEADING}>
-                <p className="break-words text-xs text-ink-subtle">
+                <p className="wrap-break-word text-xs text-ink-subtle">
                   {conflictLabels.join(", ")}
                 </p>
               </CardSection>
@@ -177,7 +177,7 @@ export function RecommendationCard({
 
             {review ? (
               <CardSection title={REVIEW_EVIDENCE_HEADING}>
-                <p className="line-clamp-2 break-words text-xs text-ink-subtle">
+                <p className="line-clamp-2 wrap-break-word text-xs text-ink-subtle">
                   “{review.content}”
                 </p>
                 {review.source ? (

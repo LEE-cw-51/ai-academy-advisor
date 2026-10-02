@@ -54,7 +54,7 @@ export function AppShell() {
   const searchSlot = (
     <Link
       href="/app/search"
-      className="inline-flex min-h-11 shrink-0 items-center self-end text-sm font-semibold text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:self-start"
+      className="inline-flex min-h-11 shrink-0 items-center self-end text-sm font-semibold text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:self-start"
     >
       {SEARCH_MODE_LABEL}
     </Link>

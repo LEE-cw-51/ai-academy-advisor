@@ -9,13 +9,13 @@ import { FOOTER_KAKAO_CTA_LABEL } from "./landingFacts";
  *  주 CTA(`/app`)는 홈 히어로가 맡으므로 이 바는 카카오 채널 하나만 가리킨다. */
 export function StickyKakaoBar() {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 shadow-card backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 shadow-card backdrop-blur-sm">
       <div className="mx-auto max-w-5xl pb-3">
         <KakaoChannelCta
           className={buttonClassName({
             variant: "kakao",
             fullWidth: true,
-            className: "!py-3 text-base",
+            className: "py-3! text-base",
           })}
         >
           {FOOTER_KAKAO_CTA_LABEL}

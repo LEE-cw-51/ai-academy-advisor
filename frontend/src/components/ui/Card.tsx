@@ -47,7 +47,7 @@ export function Card({
         "rounded-card border border-border-soft bg-surface shadow-card",
         paddingClass[padding],
         onActivate
-          ? "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          ? "focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           : "",
         className,
       ]

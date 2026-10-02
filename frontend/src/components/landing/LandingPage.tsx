@@ -31,7 +31,7 @@ function HomeHero() {
       <div className="flex flex-col items-start">
         <ButtonLink
           href={HOME_CTA_HREF}
-          className="w-full max-w-xs !px-6 !py-3 text-base sm:w-auto"
+          className="w-full max-w-xs px-6! py-3! text-base sm:w-auto"
         >
           {HOME_CTA_LABEL}
         </ButtonLink>
