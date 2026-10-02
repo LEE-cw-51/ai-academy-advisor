@@ -23,7 +23,7 @@
   },
   "components": [
     { "id": "users", "type": "external", "label": "학부모", "sublabel": "Browser", "pos": [40, 300], "size": [120, 60] },
-    { "id": "frontend", "type": "frontend", "label": "Next.js 15", "sublabel": "frontend/", "pos": [200, 300], "size": [140, 60], "tag": "/ · /app" },
+    { "id": "frontend", "type": "frontend", "label": "Next.js 16", "sublabel": "frontend/", "pos": [200, 300], "size": [140, 60], "tag": "/ · /app" },
     { "id": "api", "type": "backend", "label": "API Routers", "sublabel": "backend/app/api/", "pos": [370, 300], "size": [140, 60] },
     { "id": "services", "type": "backend", "label": "Services", "sublabel": "backend/app/services/", "pos": [540, 300], "size": [140, 60], "tag": "scoring · pipeline" },
     { "id": "repositories", "type": "backend", "label": "Repositories", "sublabel": "backend/app/repositories/", "pos": [710, 300], "size": [150, 60] },
@@ -54,7 +54,7 @@
       "dot": "cyan",
       "title": "프론트엔드",
       "items": [
-        "Next.js 15 + TypeScript + Tailwind",
+        "Next.js 16 + TypeScript + Tailwind 4",
         "랜딩(/)과 탐색 앱(/app) — 지도·후보 카드",
         "Vercel frontend 서비스로 배포"
       ]

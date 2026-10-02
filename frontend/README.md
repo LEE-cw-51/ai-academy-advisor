@@ -1,6 +1,6 @@
 # 학원콕 프론트엔드
 
-하남 미사 학원 AI 추천 UI (Next.js 15 App Router). 조건 선택 → `POST /recommendations/ai` →
+하남 미사 학원 AI 추천 UI (Next.js 16 App Router). 조건 선택 → `POST /recommendations/ai` →
 지도·목록에 결과 표시.
 
 ## 사전 조건

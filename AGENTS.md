@@ -76,7 +76,7 @@ AI끼리는 서로의 대화를 볼 수 없으므로, **저장소에 남지 않�
 
 ## 6. 코드 구조
 
-스택: FastAPI · SQLAlchemy 2 · Alembic · PostgreSQL+pgvector · uv / Next.js 15 · TypeScript · Tailwind
+스택: FastAPI · SQLAlchemy 2 · Alembic · PostgreSQL+pgvector · uv / Next.js 16 · TypeScript · Tailwind 4
 
 계층은 `api → services → repositories → models/DB`. 라우터는 HTTP와 검증만,
 비즈니스 규칙은 서비스, DB 접근은 Repository가 맡는다.
