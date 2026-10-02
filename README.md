@@ -22,7 +22,7 @@
 - Pydantic Settings
 
 **Frontend**
-- Next.js 15 (App Router, TypeScript, Tailwind)
+- Next.js 16 (App Router, TypeScript, Tailwind 4)
 - 네이버 지도 JavaScript API (선택)
 
 **AI**

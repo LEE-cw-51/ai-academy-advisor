@@ -103,10 +103,12 @@
 `frontend/src/styles/tokens.css`의 색 토큰은 **hex가 아니라 공백으로 구분한 RGB 채널값**이다
 (`--color-ink: 30 43 60;` = `#1e2b3c`). 위 표의 hex와 값은 같고 표기만 다르다.
 
-Tailwind 투명도 표기(`text-surface/80`, `bg-ink/40`)가 동작하려면 `tailwind.config.ts`에서
-`rgb(var(--x) / <alpha-value>)`로 합성해야 하고, 그러려면 변수가 채널값이어야 한다.
-hex를 넣으면 `rgb(#ffffff / 0.8)`이라는 무효 CSS가 만들어져 **선언이 조용히 버려지고**
-상속색이 그대로 보인다 — 흰 글씨가 어두운 배경 위에서 안 보이는 식으로 드러난다.
+Tailwind 4 테마는 `frontend/src/app/globals.css`의 `@theme inline reference`가
+`rgb(var(--x))`로 감싸 만들고, 투명도 표기(`text-surface/80`, `bg-ink/40`)는 그 값을
+`color-mix()`로 섞는다. 그래서 변수는 채널값이어야 한다. hex를 넣으면 `rgb(#ffffff)` 같은
+무효 CSS가 만들어져 **선언이 조용히 버려지고** 상속색이 그대로 보인다 — 흰 글씨가 어두운
+배경 위에서 안 보이는 식으로 드러난다. `@theme`에서 `inline`이나 `reference`를 빼면
+유틸리티가 채널값만 받거나 `:root`에 순환 변수가 생겨 색이 전부 사라진다.
 CSS에서 직접 쓸 때도 `rgb(var(--color-ink))`로 감싼다.
 
 ## 하지 말 것

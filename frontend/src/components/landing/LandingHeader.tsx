@@ -6,12 +6,12 @@ import Link from "next/link";
  *  landingFacts에 그대로 두고 LandingPage가 렌더한다. */
 export function LandingHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border-soft bg-canvas/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border-soft bg-canvas/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link
           href="/"
           aria-label="학원콕 홈"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <Image
             src="/logo.png"

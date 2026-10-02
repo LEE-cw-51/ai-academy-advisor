@@ -28,7 +28,7 @@ export function KakaoChannelModal({ open, onClose }: KakaoChannelModalProps) {
             className={buttonClassName({
               variant: "kakao",
               fullWidth: true,
-              className: "!py-3 text-base",
+              className: "py-3! text-base",
             })}
           >
             카카오톡 채널 추가하고 받기

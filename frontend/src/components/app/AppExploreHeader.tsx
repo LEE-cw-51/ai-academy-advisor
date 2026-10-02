@@ -10,12 +10,12 @@ import {
 /** `/app`·`/app/search` 공통 헤더 — 학원콕·하남 미사·중개 없음·개인정보. */
 export function AppExploreHeader() {
   return (
-    <header className="border-b border-border-soft bg-canvas/90 backdrop-blur">
+    <header className="border-b border-border-soft bg-canvas/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link
           href="/"
           aria-label="학원콕 홈"
-          className="text-lg font-semibold tracking-tight text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="text-lg font-semibold tracking-tight text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {APP_TITLE}
         </Link>
@@ -25,7 +25,7 @@ export function AppExploreHeader() {
         </span>
         <Link
           href="/privacy"
-          className="ml-auto inline-flex min-h-11 items-center text-xs text-ink-subtle underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="ml-auto inline-flex min-h-11 items-center text-xs text-ink-subtle underline underline-offset-2 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           개인정보처리방침
         </Link>

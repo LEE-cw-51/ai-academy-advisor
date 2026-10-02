@@ -152,13 +152,13 @@ function AcademySearchContent() {
             <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-x-3">
               <h1
                 id="academy-search-heading"
-                className="w-full break-keep text-2xl font-semibold leading-snug text-ink sm:min-w-0 sm:flex-1 sm:text-3xl"
+                className="w-full break-keep text-2xl font-semibold leading-snug text-ink sm:min-w-0 sm:flex-1 sm:text-3xl sm:leading-9"
               >
                 {SEARCH_MODE_LABEL}
               </h1>
               <Link
                 href="/app"
-                className="inline-flex min-h-11 shrink-0 items-center self-start text-sm font-semibold text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-11 shrink-0 items-center self-start text-sm font-semibold text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {BACK_TO_CONDITIONS_LABEL}
               </Link>
@@ -174,7 +174,7 @@ function AcademySearchContent() {
               placeholder={SEARCH_PLACEHOLDER}
               aria-label={SEARCH_LABEL}
               autoComplete="off"
-              className="min-h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+              className="min-h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-hidden focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
             />
             <Button
               type="submit"
@@ -188,7 +188,7 @@ function AcademySearchContent() {
           </form>
 
           {activeQuery ? (
-            <p className="break-words text-xs text-ink-subtle">
+            <p className="wrap-break-word text-xs text-ink-subtle">
               {searchTotal === 0
                 ? searchNoResults(activeQuery)
                 : searchResultCount(searchTotal ?? results.length)}

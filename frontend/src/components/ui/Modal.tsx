@@ -99,7 +99,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
           <Button
             variant="ghost"
             aria-label="닫기"
-            className="!min-h-11 !min-w-11 !px-0 !py-0"
+            className="min-h-11! min-w-11! px-0! py-0!"
             onClick={onClose}
           >
             ✕

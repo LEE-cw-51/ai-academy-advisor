@@ -315,7 +315,7 @@ export function ChatPanel({
             className={
               hasSubmitted
                 ? "sr-only"
-                : "w-full break-keep text-2xl font-semibold leading-snug text-ink sm:min-w-0 sm:flex-1 sm:text-3xl"
+                : "w-full break-keep text-2xl font-semibold leading-snug text-ink sm:min-w-0 sm:flex-1 sm:text-3xl sm:leading-9"
             }
           >
             {FORM_HEADING}
@@ -334,14 +334,14 @@ export function ChatPanel({
         <div className="rounded-card bg-surface-muted px-3 py-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* 제출 시점 스냅샷. 아래 후보·질문을 만든 조건이 그대로 적힌다. */}
-            <p className="min-w-0 flex-1 break-words text-sm font-medium text-ink">
+            <p className="min-w-0 flex-1 wrap-break-word text-sm font-medium text-ink">
               {conditionSummary}
             </p>
             {searchSlot}
             <button
               type="button"
               onClick={() => setFormExpanded(true)}
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {EDIT_CONDITIONS_LABEL}
             </button>
@@ -400,7 +400,7 @@ export function ChatPanel({
               ))}
             </FilterRow>
             {subject === "기타" ? (
-              <div className="space-y-1 pl-[3.25rem]">
+              <div className="space-y-1 pl-13">
                 <label
                   className="text-xs text-ink-subtle"
                   htmlFor="explore-subject-detail"
@@ -416,14 +416,14 @@ export function ChatPanel({
                   value={subjectDetail}
                   onChange={(e) => setSubjectDetail(e.target.value)}
                   placeholder={SUBJECT_DETAIL_PLACEHOLDER}
-                  className="w-full rounded-input border border-border bg-surface px-3 py-2 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+                  className="w-full rounded-input border border-border bg-surface px-3 py-2 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-hidden focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                 />
                 <p className="text-xs text-ink-subtle">
                   {SUBJECT_DETAIL_HELPER}
                 </p>
               </div>
             ) : null}
-            <p className="pl-[3.25rem] text-xs text-ink-subtle">
+            <p className="pl-13 text-xs text-ink-subtle">
               {SUBJECT_FORM_HELPER}
             </p>
           </div>
@@ -435,7 +435,7 @@ export function ChatPanel({
               aria-expanded={moreDetailsOpen}
               aria-controls="explore-more-details"
               onClick={() => setMoreDetailsOpen((open) => !open)}
-              className="inline-flex min-h-11 items-center text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-ink-subtle underline-offset-2 hover:underline disabled:opacity-60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {moreDetailsOpen ? MORE_DETAILS_HIDE_LABEL : MORE_DETAILS_LABEL}
             </button>
@@ -454,7 +454,7 @@ export function ChatPanel({
                     disabled={loading}
                     placeholder="학교 이름을 입력하세요 (예: 미사중학교)"
                     onChange={(e) => setSchool(e.target.value)}
-                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-hidden focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                   />
                 </FilterRow>
 
@@ -468,7 +468,7 @@ export function ChatPanel({
                     disabled={loading}
                     placeholder="현재 다니는 학원 (없으면 비워 두세요)"
                     onChange={(e) => setCurrentAcademy(e.target.value)}
-                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-ink placeholder:text-ink-subtle focus:border-ink/40 focus:outline-hidden focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
                   />
                 </FilterRow>
 
@@ -519,13 +519,13 @@ export function ChatPanel({
                 }
               }}
               placeholder="예) 질문하면 잘 받아주는지, 오답은 어떻게 봐 주는지 궁금해요."
-              className="w-full resize-none rounded-input border border-border bg-surface px-4 py-3.5 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-none focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
+              className="mt-2.5 w-full resize-none rounded-input border border-border bg-surface px-4 py-3.5 text-sm text-ink shadow-soft placeholder:text-ink-subtle focus:border-ink/40 focus:outline-hidden focus:ring-2 focus:ring-ink/15 disabled:opacity-60"
             />
             <button
               type="button"
               disabled={loading || !canSubmit}
               onClick={() => void runQuery()}
-              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-ink-strong transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-brand-dark active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+              className="min-h-11 w-full rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-ink-strong transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-brand-dark active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
             >
               {loading ? LOADING_LABEL : SUBMIT_LABEL}
             </button>
@@ -543,7 +543,7 @@ export function ChatPanel({
               <button
                 type="button"
                 onClick={() => setFormExpanded(false)}
-                className="inline-flex min-h-11 items-center self-start text-sm text-ink-subtle underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-11 items-center self-start text-sm text-ink-subtle underline-offset-2 hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {SHOW_RESULTS_LABEL}
               </button>
@@ -574,7 +574,7 @@ export function ChatPanel({
             type="button"
             disabled={loading}
             onClick={() => void runQuery()}
-            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {RETRY_LABEL}
           </button>
@@ -649,7 +649,7 @@ export function ChatPanel({
           <p className="break-keep text-sm text-ink-muted">
             <Link
               href="/app/search"
-              className="underline underline-offset-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="underline underline-offset-2 hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {NO_CANDIDATES_SEARCH_HINT}
             </Link>
@@ -713,7 +713,7 @@ function ChangedConditionsNotice({
         type="button"
         disabled={disabled}
         onClick={onResubmit}
-        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {RESUBMIT_LABEL}
       </button>
@@ -726,19 +726,19 @@ function ResultsSkeleton() {
   return (
     <div className="space-y-3" aria-hidden="true">
       <div className="space-y-2">
-        <div className="h-4 w-36 animate-pulse rounded bg-surface-subtle" />
-        <div className="h-3 w-full animate-pulse rounded bg-surface-subtle" />
-        <div className="h-3 w-5/6 animate-pulse rounded bg-surface-subtle" />
-        <div className="h-3 w-4/6 animate-pulse rounded bg-surface-subtle" />
+        <div className="h-4 w-36 animate-pulse rounded-sm bg-surface-subtle" />
+        <div className="h-3 w-full animate-pulse rounded-sm bg-surface-subtle" />
+        <div className="h-3 w-5/6 animate-pulse rounded-sm bg-surface-subtle" />
+        <div className="h-3 w-4/6 animate-pulse rounded-sm bg-surface-subtle" />
       </div>
       {[0, 1].map((i) => (
         <div
           key={i}
           className="space-y-2 rounded-card bg-surface p-4 shadow-soft"
         >
-          <div className="h-4 w-40 animate-pulse rounded bg-surface-subtle" />
-          <div className="h-3 w-full animate-pulse rounded bg-surface-subtle" />
-          <div className="h-3 w-3/4 animate-pulse rounded bg-surface-subtle" />
+          <div className="h-4 w-40 animate-pulse rounded-sm bg-surface-subtle" />
+          <div className="h-3 w-full animate-pulse rounded-sm bg-surface-subtle" />
+          <div className="h-3 w-3/4 animate-pulse rounded-sm bg-surface-subtle" />
           <div className="mt-2 flex gap-2">
             <div className="h-9 w-14 animate-pulse rounded-btn bg-surface-subtle" />
             <div className="h-9 w-14 animate-pulse rounded-btn bg-surface-subtle" />
